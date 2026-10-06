@@ -11,6 +11,26 @@ const PROVIDER_ROUTES = {
     doEkyc: `${PROVIDER_API_PREFIX}/aeps5/bank5/doekyc`,
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
   },
+  bbps: {
+    billerCat: `${PROVIDER_API_PREFIX}/_bbps/billers-cat`,
+    billers: `${PROVIDER_API_PREFIX}/_bbps/billers`,
+    viewBill: `${PROVIDER_API_PREFIX}/_bbps/viewbill`,
+    payBill: `${PROVIDER_API_PREFIX}/_bbps/paybill`,
+    fetchByCatId: `${PROVIDER_API_PREFIX}/_bbps/billers_by_catid`,
+    fetchByCat: `${PROVIDER_API_PREFIX}/_bbps/billers_by_cat`,
+  },
+  dmt:{
+    addBen: `${PROVIDER_API_PREFIX}/rdmt/add-bene`,
+    verifyBen: `${PROVIDER_API_PREFIX}/rdmt/verify-bene`,
+    getBenificiaries: `${PROVIDER_API_PREFIX}/rdmt/fetch-bene`,
+    deleteBen: `${PROVIDER_API_PREFIX}/rdmt/delete-bene`,
+    deleteBenVerifyotp: `${PROVIDER_API_PREFIX}/rdmt/delete-bene-verify`,
+
+    generateTransactionOtp: `${PROVIDER_API_PREFIX}/rdmt/pre-transaction`,
+    doTransaction: `${PROVIDER_API_PREFIX}/rdmt/do-transaction`,
+    transactionStatus: `${PROVIDER_API_PREFIX}/rdmt/status-check`,
+    
+  }
 };
 
 export default PROVIDER_ROUTES;

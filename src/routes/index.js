@@ -12,6 +12,8 @@ import aepsRoutes from "../modules/AEPS/routes/aeps.routes.js";
 import notificationsRoutes from "../modules/notifications/routes/notifications.routes.js";
 import adminRoutes from "../modules/admin/routes/admin.routes.js";
 import bannerRoutes from "../modules/banner/routes/banner.routes.js";
+import bbpsRoutes from "../modules/BBPS/routes/bbps.routes.js";
+import dmtRoutes from "../modules/DMT/routes/dmt.routes.js";
 
 router.use("/api/v1/otp", otpRoutes);
 router.use("/api/v1/email-otp", emailOtpRoutes);
@@ -22,6 +24,8 @@ router.use("/api/v1/auth/admin", adminAuthRoutes);
 router.use("/api/v1/support", supportRoutes);
 router.use("/api/v1/aeps", aepsRoutes);
 router.use("/api/v1/notifications", notificationsRoutes);
+router.use("/api/v1/bbps", bbpsRoutes);
+router.use("/api/v1/dmt", dmtRoutes);
 // router.use("/api/v1/admin/support", adminSupportRoutes);
 
 router.use("/api/admin", adminRoutes);
