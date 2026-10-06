@@ -1,17 +1,18 @@
 import { Server } from "socket.io";
 import { verifyAccessToken } from "../utils/jwt.js";
+import { isAllowedOrigin } from "../middlewares/cors.middleware.js";
 
 let io;
 
 const initializeSocket = (httpServer) => {
-  const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
   io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigins,
+      origin: (origin, callback) => {
+        if (!origin || isAllowedOrigin(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS policy: Origin ${origin} is not allowed`));
+      },
       credentials: true,
     },
   });

@@ -5,7 +5,8 @@ const postProviderForm = async (path, payload = {}) => {
   const form = new FormData();
 
   for (const [key, value] of Object.entries(payload)) {
-    form.append(key, value);
+    if (value == null) continue;
+    form.append(key, String(value));
   }
 
   const response = await providerClient.post(path, form, {

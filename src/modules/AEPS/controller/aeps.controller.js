@@ -161,9 +161,40 @@ const biometricFields = [
 const pickFields = (body, fields) =>
   Object.fromEntries(fields.map((field) => [field, body?.[field]]));
 
+const biometricDefaults = {
+  fCount: "1",
+  fType: "0",
+  iCount: "0",
+  iType: "0",
+  pCount: "0",
+  pType: "0",
+};
+
+const withBiometricDefaults = (payload) => {
+  const next = { ...payload };
+
+  for (const [key, fallback] of Object.entries(biometricDefaults)) {
+    if (next[key] == null || String(next[key]).trim() === "") {
+      next[key] = fallback;
+    }
+  }
+
+  return {
+    ...next,
+    i_count: next.iCount,
+    i_type: next.iType,
+    f_count: next.fCount,
+    f_type: next.fType,
+    p_count: next.pCount,
+    p_type: next.pType,
+  };
+};
+
 const doBioEkycController = async (req, res) => {
   try {
-    const payload = pickFields(req.body, biometricFields);
+    const payload = withBiometricDefaults(
+      pickFields(req.body, biometricFields)
+    );
     const result = await doBioEkyc(payload);
     const saved = await recordEkycOutlet({
       userId: req.user?.userId,

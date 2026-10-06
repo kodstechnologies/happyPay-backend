@@ -1,19 +1,32 @@
 import cors from "cors";
 import env from "../config/env.js";
 
-const allowedOrigins = env.CORS_ORIGINS
+const configuredOrigins = (env.CORS_ORIGINS || "")
   .split(",")
-  .map((origin) => origin.trim());
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isHappypayOrigin = (origin) => {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return (
+      protocol === "https:" &&
+      (hostname === "happypayfintech.com" ||
+        hostname.endsWith(".happypayfintech.com"))
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const isAllowedOrigin = (origin) =>
+  configuredOrigins.includes(origin) || isHappypayOrigin(origin);
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     // Allow requests without an Origin header
     // (Postman, server-to-server requests, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
