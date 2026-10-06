@@ -46,8 +46,12 @@ const getBankList = async ({ page = 1, limit = 10 } = {}) => {
 const doEkyc = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.doEkyc, payload);
 
-const doBioEkyc = (payload) =>
-  postProviderForm(PROVIDER_ROUTES.aeps.doBioEkyc, payload);
+const doBioEkyc = (payload) =>{
+  console.log("========== DO BIO EKYC PAYLOAD ==========");
+  console.log("payload:", payload);
+  console.log("=======================================");
+
+   return postProviderForm(PROVIDER_ROUTES.aeps.doBioEkyc, payload)};
 
 const verifyTfa = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.verifyTfa, payload);
