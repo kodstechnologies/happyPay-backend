@@ -3,7 +3,7 @@ import ApiError from "../../../utils/ApiError.js";
 
 const addBanner = async (bannerData) => {
   if (!bannerData.imageUrl) {
-    throw ApiError.badRequest("Image URL is required for banner");
+    throw ApiError.badRequest("Banner image is required");
   }
   return await createBanner(bannerData);
 };
