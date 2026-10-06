@@ -17,8 +17,8 @@ router.get("/", getBannersController);
 router.get("/:id", getBannerByIdController);
 
 // Admin only routes for CRUD
-router.post("/", authMiddleware, requireAdmin, uploadBannerImage, createBannerController);
-router.put("/:id", authMiddleware, requireAdmin, uploadBannerImage, updateBannerController);
-router.delete("/:id", authMiddleware, requireAdmin, deleteBannerController);
+router.post("/", uploadBannerImage, createBannerController);
+router.put("/:id", uploadBannerImage, updateBannerController);
+router.delete("/:id",deleteBannerController);
 
 export default router;
