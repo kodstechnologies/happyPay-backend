@@ -6,6 +6,7 @@ import {
   logoutRetailer,
   registerRetailer,
   getBankListController,
+  checkDuplicateRetailer,
 } from "../controllers/auth.controllers.js";
 import { uploadRetailerDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
@@ -19,6 +20,11 @@ router.post(
   uploadRetailerDocuments,
   validateRegisterRetailer,
   registerRetailer
+);
+
+router.post(
+  "/retailer/check-duplicate",
+  checkDuplicateRetailer
 );
 
 router.post(

@@ -1,16 +1,17 @@
-import { asyncHandler } from '../../../utils/asyncHandler.js';
+
 import {
   sendRetailerLoginOtp as sendRetailerLoginOtpService,
   verifyRetailerLoginOtp as verifyRetailerLoginOtpService,
   retailerLogout,
-  retailerRegister,
-  reapplyForKyc,
+  retailerRegister
 } from "../services/auth.services.js";
 
 import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
+import { checkDuplicateRetailerService } from "../services/registration.service.js";
+import asyncHandler from "../../../utils/asyncHandler.js";
 
 const retailerFileFields = [
   "selfie",
@@ -138,6 +139,27 @@ const logoutRetailer = async (
     );
 };
 
+const checkDuplicateRetailer = asyncHandler(async (req, res) => {
+  try {
+    const { mobile, pan } = req.body;
+    const result = await checkDuplicateRetailerService({ mobile, pan });
+    return res.status(200).json(
+      ApiResponse.success(
+        result,
+        "Retailer details are unique"
+      )
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to check details"
+        )
+      );
+  }
+});
+
 const registerRetailer = asyncHandler(async (req, res) => {
   const files = uploadedRetailerFiles(req.files);
 
@@ -230,4 +252,5 @@ export {
   logoutRetailer,
   registerRetailer,
   getBankListController,
+  checkDuplicateRetailer,
 };

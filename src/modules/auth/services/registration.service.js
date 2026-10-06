@@ -10,6 +10,7 @@ import {
   findByEmail,
   findByMobile,
   findByPan,
+  findByMobileOrPan,
   saveRetailerRegistration,
 } from "../repository/user.repository.js";
 
@@ -397,4 +398,20 @@ const registerRetailer = async (body = {}) => {
   return buildRetailerResponse(savedUser);
 };
 
-export { registerRetailer };
+const checkDuplicateRetailerService = async ({ mobile, pan }) => {
+  const existingUser = await findByMobileOrPan(mobile, pan);
+  
+  if (existingUser) {
+    if (mobile && existingUser.mobile === mobile) {
+      throw fail(409, "Retailer with this mobile already exists");
+    }
+    if (pan && existingUser.panNumber === pan) {
+      throw fail(409, "Retailer with this PAN already exists");
+    }
+    throw fail(409, "Retailer with this PAN or Mobile already exists");
+  }
+  
+  return { available: true };
+};
+
+export { registerRetailer, checkDuplicateRetailerService };

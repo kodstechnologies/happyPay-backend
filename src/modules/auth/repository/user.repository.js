@@ -31,6 +31,16 @@ const findByPan = async (panNumber) => {
   return await User.findOne({ panNumber });
 };
 
+const findByMobileOrPan = async (mobile, panNumber) => {
+  const query = [];
+  if (mobile) query.push({ mobile });
+  if (panNumber) query.push({ panNumber });
+  
+  if (query.length === 0) return null;
+  
+  return await User.findOne({ $or: query });
+};
+
 const findByAadhaar = async (aadhaarNumber) => {
   return await User.findOne({ aadhaarNumber });
 };
@@ -134,4 +144,5 @@ export {
   findPendingRegisteredRetailers,
   findRetailerById,
   updateRetailerReview,
+  findByMobileOrPan,
 };
