@@ -57,6 +57,7 @@ export {
   verifyPan,
   verifyAccount,
   getBankList,
+  doEkyc,
   verifyBiometric,
   onboardMerchant,
 };
