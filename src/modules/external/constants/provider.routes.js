@@ -9,6 +9,9 @@ const PROVIDER_ROUTES = {
   aeps: {
     bankList: `${PROVIDER_API_PREFIX}/aeps5/bank5/banks`,
     doEkyc: `${PROVIDER_API_PREFIX}/aeps5/bank5/doekyc`,
+    doBioEkyc: `${PROVIDER_API_PREFIX}/aeps5/bank5/dobioekyc`,
+    verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
+    loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
   },
 };

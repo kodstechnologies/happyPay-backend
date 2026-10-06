@@ -1,6 +1,11 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
-import { getRetailerKycDetails } from "../services/aeps.service.js";
-import { doEkyc } from "../../external/services/provider.service.js";
+import {
+  getRetailerKycDetails,
+  recordEkycOutlet,
+  checkLoginStatus,
+  isKycRequired,
+} from "../services/aeps.service.js";
+import { doEkyc, doBioEkyc, verifyTfa } from "../../external/services/provider.service.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -95,12 +100,21 @@ const doEkycController = async (req, res) => {
       sysid,
     };
 
-    console.log("Calling doEkyc with payload:", payload);
-
     const result = await doEkyc(payload);
+    const saved = await recordEkycOutlet({
+      userId: req.user?.userId,
+      outletId: outlet_id,
+    });
 
     return res.status(200).json(
-      ApiResponse.success(result, "eKYC completed successfully")
+      ApiResponse.success(
+        {
+          provider: result,
+          ekyc: saved,
+          kycRequired: isKycRequired(result),
+        },
+        "eKYC completed successfully"
+      )
     );
   } catch (error) {
     console.log("Error performing eKYC:", error.message);
@@ -114,4 +128,119 @@ const doEkycController = async (req, res) => {
       );
   }
 };
-export { getRetailerKycDetailsController, doEkycController };
+const biometricFields = [
+  "outlet_id",
+  "referenceKey",
+  "latitude",
+  "longitude",
+  "dc",
+  "ci",
+  "hmac",
+  "mc",
+  "dpId",
+  "PidDatatype",
+  "Piddata",
+  "rdsId",
+  "rdsVer",
+  "sessionKey",
+  "mi",
+  "errInfo",
+  "errCode",
+  "fCount",
+  "fType",
+  "iCount",
+  "iType",
+  "pCount",
+  "pType",
+  "srno",
+  "qScore",
+  "nmPoints",
+  "sysid",
+];
+
+const pickFields = (body, fields) =>
+  Object.fromEntries(fields.map((field) => [field, body?.[field]]));
+
+const doBioEkycController = async (req, res) => {
+  try {
+    const payload = pickFields(req.body, biometricFields);
+    const result = await doBioEkyc(payload);
+    const saved = await recordEkycOutlet({
+      userId: req.user?.userId,
+      outletId: payload.outlet_id,
+    });
+
+    return res.status(200).json(
+      ApiResponse.success(
+        { provider: result, ekyc: saved },
+        "Biometric eKYC completed successfully"
+      )
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Failed to perform biometric eKYC"
+        )
+      );
+  }
+};
+
+const verifyTfaController = async (req, res) => {
+  try {
+    const payload = pickFields(req.body, [
+      ...biometricFields,
+      "aadhaar",
+      "ts",
+    ]);
+    const result = await verifyTfa(payload);
+
+    return res.status(200).json(
+      ApiResponse.success(result, "TFA verified successfully")
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Failed to verify TFA"
+        )
+      );
+  }
+};
+
+const loginStatusController = async (req, res) => {
+  try {
+    const result = await checkLoginStatus({
+      userId: req.user?.userId,
+      outletId: req.body?.outlet_id,
+    });
+
+    return res.status(200).json(
+      ApiResponse.success(result, "Login status fetched successfully")
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+            error.message ||
+            "Failed to fetch login status"
+        )
+      );
+  }
+};
+
+export {
+  getRetailerKycDetailsController,
+  doEkycController,
+  doBioEkycController,
+  verifyTfaController,
+  loginStatusController,
+};

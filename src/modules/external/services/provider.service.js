@@ -46,6 +46,15 @@ const getBankList = async ({ page = 1, limit = 10 } = {}) => {
 const doEkyc = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.doEkyc, payload);
 
+const doBioEkyc = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.doBioEkyc, payload);
+
+const verifyTfa = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.verifyTfa, payload);
+
+const getLoginStatus = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.loginStatus, payload);
+
 const verifyBiometric = doEkyc;
 
 //for AEPS5
@@ -58,6 +67,9 @@ export {
   verifyAccount,
   getBankList,
   doEkyc,
+  doBioEkyc,
+  verifyTfa,
+  getLoginStatus,
   verifyBiometric,
   onboardMerchant,
 };
