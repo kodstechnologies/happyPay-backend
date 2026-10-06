@@ -90,7 +90,7 @@ const badRequest = (message) => {
 };
 
 const generateOtp = () =>
-  Math.floor(100000 + Math.random() * 900000).toString();
+  Math.floor(1000 + Math.random() * 9000).toString();
 
 const assertRetailerMobile = (mobile) => {
   if (!mobile) {
@@ -159,8 +159,8 @@ const verifyRetailerLoginOtp = async ({
     badRequest("OTP is required");
   }
 
-  if (!/^[0-9]{6}$/.test(normalizedOtp)) {
-    badRequest("OTP must be 6 digits");
+  if (!/^[0-9]{4}$/.test(normalizedOtp)) {
+    badRequest("OTP must be 4 digits");
   }
 
 

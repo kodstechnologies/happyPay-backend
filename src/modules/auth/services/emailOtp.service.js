@@ -16,6 +16,9 @@ import {
 } from "../repository/user.repository.js";
 
 
+const generateOtp = () =>
+  Math.floor(1000 + Math.random() * 9000).toString();
+
 const sendEmailOtp = async (email) => {
   if (!email) {
     const error = new Error("Email is required");
@@ -25,8 +28,7 @@ const sendEmailOtp = async (email) => {
 
   email = email.trim().toLowerCase();
 
-  // Static OTP for testing
-  const otp = "123456";
+  const otp = generateOtp();
 
   // OTP expires in 5 minutes
   const expiresAt = new Date(
@@ -88,7 +90,13 @@ const verifyEmailOtp = async (email, otp, mobile) => {
   }
 
   email = email.trim().toLowerCase();
-  otp = otp.trim();
+  otp = String(otp).trim();
+
+  if (!/^[0-9]{4}$/.test(otp)) {
+    const error = new Error("OTP must be 4 digits");
+    error.statusCode = 400;
+    throw error;
+  }
 
   const otpRecord = await findLatestOtp(email);
 

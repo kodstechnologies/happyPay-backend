@@ -47,10 +47,10 @@ const verifyOtp = async (req, res, next) => {
       });
     }
 
-    if (!/^[0-9]{6}$/.test(otp)) {
+    if (!/^[0-9]{4}$/.test(otp)) {
       return res.status(400).json({
         success: false,
-        message: "OTP must be 6 digits",
+        message: "OTP must be 4 digits",
       });
     }
 

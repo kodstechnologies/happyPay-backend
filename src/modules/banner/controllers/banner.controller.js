@@ -3,7 +3,12 @@ import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
 
 export const createBannerController = asyncHandler(async (req, res) => {
-  const banner = await addBanner(req.body);
+  const { imageUrl: _imageUrl, ...bannerData } = req.body;
+
+  const banner = await addBanner({
+    ...bannerData,
+    imageUrl: req.file?.path,
+  });
   res.status(201).json(ApiResponse.success(banner, "Banner created successfully"));
 });
 
@@ -21,7 +26,12 @@ export const getBannerByIdController = asyncHandler(async (req, res) => {
 });
 
 export const updateBannerController = asyncHandler(async (req, res) => {
-  const banner = await modifyBanner(req.params.id, req.body);
+  const { imageUrl: _imageUrl, ...updateData } = req.body;
+  if (req.file?.path) {
+    updateData.imageUrl = req.file.path;
+  }
+
+  const banner = await modifyBanner(req.params.id, updateData);
   res.status(200).json(ApiResponse.success(banner, "Banner updated successfully"));
 });
 

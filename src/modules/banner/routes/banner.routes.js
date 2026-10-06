@@ -8,6 +8,7 @@ import {
 } from "../controllers/banner.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import requireAdmin from "../../../middlewares/admin.middleware.js";
+import { uploadBannerImage } from "../../../utils/multer.js";
 
 const router = Router();
 
@@ -16,8 +17,8 @@ router.get("/", getBannersController);
 router.get("/:id", getBannerByIdController);
 
 // Admin only routes for CRUD
-router.post("/", authMiddleware, requireAdmin, createBannerController);
-router.put("/:id", authMiddleware, requireAdmin, updateBannerController);
-router.delete("/:id", authMiddleware, requireAdmin, deleteBannerController);
+router.post("/", uploadBannerImage, createBannerController);
+router.put("/:id", uploadBannerImage, updateBannerController);
+router.delete("/:id",deleteBannerController);
 
 export default router;
