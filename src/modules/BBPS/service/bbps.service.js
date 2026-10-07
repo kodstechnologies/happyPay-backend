@@ -1,4 +1,3 @@
-import ApiError from "../../../utils/ApiError.js";
 import {
   billercategories,
   billers,
@@ -12,16 +11,14 @@ import {
  * Service to fetch all BBPS biller categories
  */
 const getBillerCategoriesService = async () => {
-  const result = await billercategories();
-  return result;
+  return await billercategories();
 };
 
 /**
  * Service to fetch all BBPS billers
  */
 const getAllBillersService = async () => {
-  const result = await billers();
-  return result;
+  return await billers();
 };
 
 /**
@@ -29,9 +26,7 @@ const getAllBillersService = async () => {
  * @param {Object} payload - { cat_id }
  */
 const getBillersByCategoryIdService = async (payload = {}) => {
-  
-  const result = await fetchByCatId(payload);
-  return result;
+  return await fetchByCatId(payload);
 };
 
 /**
@@ -39,30 +34,23 @@ const getBillersByCategoryIdService = async (payload = {}) => {
  * @param {Object} payload - { category }
  */
 const getBillersByCategoryNameService = async (payload = {}) => {
- 
-
-  const result = await fetchByCat(payload);
-  return result;
+  return await fetchByCat(payload);
 };
 
 /**
  * Service to fetch / view consumer bill
- * @param {Object} payload - Details required by provider for bill fetching (e.g., biller_id, consumer_number, etc.)
+ * @param {Object} payload - Bill fetch parameters
  */
 const fetchBillService = async (payload = {}) => {
-
-  const result = await viewBill(payload);
-  return result;
+  return await viewBill(payload);
 };
 
 /**
  * Service to process bill payment
- * @param {Object} payload - Payment details required by provider (e.g., biller_id, amount, consumer details, etc.)
+ * @param {Object} payload - Payment details
  */
 const payBillService = async (payload = {}) => {
-
-  const result = await payBill(payload);
-  return result;
+  return await payBill(payload);
 };
 
 export {

@@ -96,6 +96,13 @@ const doTransaction = (payload) =>
 const getTransactionStatus = (payload) =>
   postProviderForm(PROVIDER_ROUTES.dmt.transactionStatus, payload);
 
+
+const initiateUpiCashpointPayment = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.upiCashpoint.intiatepayment, payload);
+
+const initiateCmsPayment = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.cmsPayment.initiatePayment, payload);
+
 export {
   verifyAadhar,
   verifyPan,
@@ -118,6 +125,8 @@ export {
   generateTransactionOtp,
   doTransaction,
   getTransactionStatus,
+  initiateUpiCashpointPayment,
+  initiateCmsPayment
 };
 
 export default onboardMerchant;

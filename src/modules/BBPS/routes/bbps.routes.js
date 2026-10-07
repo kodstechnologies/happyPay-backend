@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
+import validate from "../../../middlewares/validate.middleware.js";
 import {
   getBillerCategoriesController,
   getAllBillersController,
@@ -8,6 +9,12 @@ import {
   fetchBillController,
   payBillController,
 } from "../controller/bbps.controller.js";
+import {
+  getBillersByCategoryIdSchema,
+  getBillersByCategoryNameSchema,
+  fetchBillSchema,
+  payBillSchema,
+} from "../validations/bbps.validation.js";
 
 const router = Router();
 
@@ -18,16 +25,40 @@ router.get("/categories", authMiddleware, getBillerCategoriesController);
 router.get("/billers", authMiddleware, getAllBillersController);
 
 // Fetch billers by category ID (Supports both POST body and GET with param/query)
-router.post("/billers/by-category-id", authMiddleware, getBillersByCategoryIdController);
-router.get("/billers/category/:catId", authMiddleware, getBillersByCategoryIdController);
+router.post(
+  "/billers/by-category-id",
+  authMiddleware,
+  validate(getBillersByCategoryIdSchema, "body"),
+  getBillersByCategoryIdController
+);
+router.get(
+  "/billers/category/:catId",
+  authMiddleware,
+  getBillersByCategoryIdController
+);
 
 // Fetch billers by category name
-router.post("/billers/by-category", authMiddleware, getBillersByCategoryNameController);
+router.post(
+  "/billers/by-category",
+  authMiddleware,
+  validate(getBillersByCategoryNameSchema, "body"),
+  getBillersByCategoryNameController
+);
 
 // Fetch / view bill details
-router.post("/view-bill", authMiddleware, fetchBillController);
+router.post(
+  "/view-bill",
+  authMiddleware,
+  validate(fetchBillSchema, "body"),
+  fetchBillController
+);
 
 // Pay bill
-router.post("/pay-bill", authMiddleware, payBillController);
+router.post(
+  "/pay-bill",
+  authMiddleware,
+  validate(payBillSchema, "body"),
+  payBillController
+);
 
 export default router;

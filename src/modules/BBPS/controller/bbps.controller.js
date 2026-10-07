@@ -41,15 +41,8 @@ const getAllBillersController = asyncHandler(async (req, res) => {
  * Controller to get billers by category ID
  */
 const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
-  const { catid } = req.body;
-  if (!catid) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Category ID (catid) is required"
-      )
-    );
-  }
-  const result = await getBillersByCategoryIdService({ catid });
+
+  const result = await getBillersByCategoryIdService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -64,13 +57,7 @@ const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
  */
 const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
   const {catname} = req.body;
-  if(!catname){
-    return res.status(400).json(
-      ApiResponse.error(
-        "Category name is required"
-      )
-    );
-  }
+  
   const result = await getBillersByCategoryNameService({ catname });
 
   return res.status(200).json(
@@ -85,15 +72,8 @@ const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
  * Controller to fetch/view bill details
  */
 const fetchBillController = asyncHandler(async (req, res) => {
-  const {REFMOBILENO,CUSTNO,AMTCUSTNO,orderid,opcode,service_id} = req.body;
-  if(!REFMOBILENO || !CUSTNO || !AMTCUSTNO || !orderid || !opcode || !service_id){
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await fetchBillService({REFMOBILENO,CUSTNO,AMTCUSTNO,orderid,opcode,service_id});
+
+  const result = await fetchBillService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -107,15 +87,8 @@ const fetchBillController = asyncHandler(async (req, res) => {
  * Controller to pay bill
  */
 const payBillController = asyncHandler(async (req, res) => {
-   const {REFMOBILENO,CUSTNO,AMT,orderid,opcode,service_id} = req.body;
-  if(!REFMOBILENO || !CUSTNO || !AMT|| !orderid || !opcode || !service_id){
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await payBillService({REFMOBILENO,CUSTNO,AMT,orderid,opcode,service_id});
+  
+  const result = await payBillService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(

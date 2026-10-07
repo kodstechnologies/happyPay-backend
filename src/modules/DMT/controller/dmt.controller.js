@@ -15,15 +15,8 @@ import {
  * Controller to add a new beneficiary
  */
 const addBeneficiaryController = asyncHandler(async (req, res) => {
-  const { bankId,outletid,name,ifsc,accountNumber,beneficiaryMobile,remitterMobile } = req.body;
-  if (!beneficiaryMobile || !name || !accountNumber || !ifsc || !outletid || !bankId || !remitterMobile) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await addBeneficiaryService({ bankId,outletid,name,ifsc,accountNumber,beneficiaryMobile,remitterMobile } );
+ 
+  const result = await addBeneficiaryService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -37,15 +30,8 @@ const addBeneficiaryController = asyncHandler(async (req, res) => {
  * Controller to verify beneficiary account
  */
 const verifyBeneficiaryController = asyncHandler(async (req, res) => {
-  const { outletid,referenceKey,beneficiaryId,otp,remitterMobile } = req.body;
-  if (!outletid || !referenceKey || !beneficiaryId || !otp || !remitterMobile) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await verifyBeneficiaryService({ outletid,referenceKey,beneficiaryId,otp,remitterMobile });
+ 
+  const result = await verifyBeneficiaryService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -59,15 +45,8 @@ const verifyBeneficiaryController = asyncHandler(async (req, res) => {
  * Controller to fetch beneficiaries
  */
 const getBeneficiariesController = asyncHandler(async (req, res) => {
-  const {mobile,outletid} = req.body
-  if (!mobile || !outletid) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await getBeneficiariesService({ mobile,outletid });
+
+  const result = await getBeneficiariesService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -81,15 +60,8 @@ const getBeneficiariesController = asyncHandler(async (req, res) => {
  * Controller to initiate beneficiary deletion (sends OTP)
  */
 const deleteBeneficiaryController = asyncHandler(async (req, res) => {
-  const {remitterMobile,outletid,beneficiaryId} = req.body;
-  if (!remitterMobile || !beneficiaryId || !outletid) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await deleteBeneficiaryService({remitterMobile,outletid,beneficiaryId});
+
+  const result = await deleteBeneficiaryService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -103,15 +75,8 @@ const deleteBeneficiaryController = asyncHandler(async (req, res) => {
  * Controller to verify delete OTP and remove beneficiary
  */
 const deleteBeneficiaryVerifyOtpController = asyncHandler(async (req, res) => {
-  const {remitterMobile,outletid,beneficiaryId,otp,referenceKey,} = req.body;
-  if (!remitterMobile || !beneficiaryId || !outletid || !otp || !referenceKey) {
-    return res.status(400).json(
-      ApiResponse.error(
-        "Missing required parameters"
-      )
-    );
-  }
-  const result = await deleteBeneficiaryVerifyOtpService({remitterMobile,outletid,beneficiaryId,otp,referenceKey});
+ 
+  const result = await deleteBeneficiaryVerifyOtpService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -153,8 +118,8 @@ const doTransactionController = asyncHandler(async (req, res) => {
  * Controller to check DMT transaction status
  */
 const getTransactionStatusController = asyncHandler(async (req, res) => {
-  const payload = Object.keys(req.body).length > 0 ? req.body : req.query;
-  const result = await getTransactionStatusService(payload);
+ 
+  const result = await getTransactionStatusService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
