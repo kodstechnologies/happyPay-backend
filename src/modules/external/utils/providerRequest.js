@@ -2,10 +2,7 @@ import FormData from "form-data";
 import providerClient from "../../../config/provider.client.js";
 import logger from "../../../utils/logger.js";
 
-/**
- * Normalizes provider errors by extracting meaningful status codes and error messages
- * while preserving the underlying Axios error response for backward compatibility.
- */
+
 const handleProviderError = (error, path) => {
   const providerStatus = error.response?.status;
   const providerData = error.response?.data;
@@ -13,8 +10,7 @@ const handleProviderError = (error, path) => {
   logger.error(`Provider request failed [${path}]:`, {
     status: providerStatus,
     data: providerData,
-    message: error.message,
-  });
+    message: error.message,})
 
   let statusCode = 502;
   let message = "Third-party provider error";
