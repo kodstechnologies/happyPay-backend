@@ -1,7 +1,6 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
-import { getRetailerKycDetails } from "../services/aeps.service.js";
-import { doEkyc } from "../../external/services/provider.service.js";
+
 import {
   getRetailerKycDetails,
   recordEkycOutlet,
