@@ -68,6 +68,7 @@ const doEkycController = async (req, res) => {
       qScore,
       nmPoints,
       sysid,
+      ts
     } = req.body;
 
     const payload = {
@@ -98,6 +99,7 @@ const doEkycController = async (req, res) => {
       qScore,
       nmPoints,
       sysid,
+      ts
     };
 
     const result = await doEkyc(payload);
@@ -156,6 +158,7 @@ const biometricFields = [
   "qScore",
   "nmPoints",
   "sysid",
+  "ts"
 ];
 
 const pickFields = (body, fields) =>
