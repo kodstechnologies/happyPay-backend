@@ -422,6 +422,14 @@ const retailerRegister = async (data) => {
     }
   }
 
+  // Check if retailer is already registered
+  const existingRetailer = await findRetailerByMobile(mobile);
+  if (existingRetailer && existingRetailer.outletId) {
+    const error = new Error("Retailer is already registered");
+    error.statusCode = 409;
+    throw error;
+  }
+
   // Call onboard merchant API before creating user
   let providerResult;
   let outletId;

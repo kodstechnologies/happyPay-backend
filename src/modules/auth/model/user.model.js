@@ -120,8 +120,8 @@ const userSchema = new mongoose.Schema(
     },
 
     educationalQualification: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "EducationalQualification",
+      type: String,
+      trim: true,
     },
 
     selfie: {

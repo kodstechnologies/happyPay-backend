@@ -134,7 +134,10 @@ export const registerRetailerSchema = Joi.object({
     "string.empty": "maritalStatus is required",
   }),
 
-  educationalQualification: objectId("educational qualification"),
+  educationalQualification: Joi.string().trim().required().messages({
+    "any.required": "educationalQualification is required",
+    "string.empty": "educationalQualification is required",
+  }),
 
   fatherName: Joi.string().trim().optional(),
 
