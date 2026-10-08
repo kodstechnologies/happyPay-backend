@@ -5,30 +5,45 @@ import {
 } from "../services/emailOtp.service.js";
 
 import { ApiResponse } from "../../../utils/ApiResponse.js";
+import { findByEmail } from "../repository/user.repository.js";
 
 export const sendOtp = asyncHandler(async (req, res) => {
-  const data = await sendEmailOtp(req.body.email);
+  const { email } = req.body;
 
-    return res.status(200).json(
-      ApiResponse.success(
-        data,
-        "OTP sent successfully"
-      )
+  // Check if email is already registered
+  const existingUser = await findByEmail(email);
+  if (existingUser) {
+    const response = ApiResponse.error(
+      "Email is already registered",
+      null,
+      null,
+      409
     );
+    return res.status(response.statusCode).json(response);
+  }
+
+  const data = await sendEmailOtp(email);
+
+  const response = ApiResponse.success(
+    data,
+    "OTP sent successfully",
+    null,
+    200
+  );
+  return res.status(response.statusCode).json(response);
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const data = await verifyEmailOtp(
-      req.body.email,
-      req.body.otp,
-      req.body.mobile
-    );
+  const { email, otp, mobile } = req.body;
 
-    return res.status(200).json(
-      ApiResponse.success(
-        data,
-        "Email verified successfully"
-      )
-    );
+  const data = await verifyEmailOtp(email, otp, mobile);
+
+  const response = ApiResponse.success(
+    data,
+    "Email verified successfully",
+    null,
+    200
+  );
+  return res.status(response.statusCode).json(response);
 });
 

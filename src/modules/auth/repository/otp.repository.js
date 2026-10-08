@@ -54,10 +54,20 @@ const deletePreviousOtps = async (mobile) => {
   });
 };
 
+const checkMobileOtpVerified = async (mobile) => {
+  
+  const verifiedOtp = await Otp.findOne({
+    mobile,
+    isVerified: true,
+  }).sort({ updatedAt: -1 });
+  return !!verifiedOtp;
+};
+
 export {
   createOtp,
   findLatestOtp,
   markOtpVerified,
   incrementAttempts,
   deletePreviousOtps,
+  checkMobileOtpVerified,
 };

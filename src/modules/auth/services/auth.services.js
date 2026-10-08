@@ -6,7 +6,7 @@ import {
   generateRefreshToken,
 } from "../../../utils/jwt.js";
 import { resolveUserAccess } from "../../../utils/rbac.js";
-import { getBankList } from "../../external/services/provider.service.js";
+import { getBankList, onboardMerchant } from "../../external/services/provider.service.js";
 
 import {
   findRetailerByEmail,
@@ -28,7 +28,10 @@ import {
   findLatestOtp,
   markOtpVerified,
   incrementAttempts,
+  checkMobileOtpVerified,
 } from "../repository/otp.repository.js";
+
+import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
 
 
 /* ==============================
@@ -378,7 +381,17 @@ const reapplyForKyc = async (userId) => {
 const retailerRegister = async (data) => {
   const {
     mobile,
+    name,
+    gender,
+    pan,
     email,
+    aadhaar,
+    fulladdress,
+    pincode,
+    city,
+    dob,
+    latitude,
+    longitude,
     fcmToken,
     deviceId,
     platform,
@@ -391,38 +404,123 @@ const retailerRegister = async (data) => {
     throw error;
   }
 
-  let user = await findRetailerByMobile(mobile);
-  if (user) {
-    const error = new Error("Retailer with this mobile already exists");
-    error.statusCode = 409;
+  // Check if mobile OTP is verified
+  const isMobileOtpVerified = await checkMobileOtpVerified(mobile);
+  if (!isMobileOtpVerified) {
+    const error = new Error("Mobile OTP is not verified");
+    error.statusCode = 403;
     throw error;
   }
 
+  // Check if email OTP is verified
   if (email) {
-    const existingEmail = await findRetailerByEmail(email);
-    if (existingEmail) {
-      const error = new Error("Retailer with this email already exists");
-      error.statusCode = 409;
+    const isEmailOtpVerified = await checkEmailOtpVerified(email);
+    if (!isEmailOtpVerified) {
+      const error = new Error("Email OTP is not verified");
+      error.statusCode = 403;
       throw error;
     }
+  }
+
+  // Call onboard merchant API before creating user
+  let providerResult;
+  let outletId;
+
+  try {
+    // Parse date and coordinates
+    const parsedDob = dob ? new Date(dob).toISOString().slice(0, 10) : null;
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+
+    providerResult = await onboardMerchant({
+      mobile,
+      name,
+      gender,
+      pan,
+      email,
+      aadhaar,
+      fulladdress,
+      pincode,
+      city,
+      dob: parsedDob,
+      latitude: parsedLatitude,
+      longitude: parsedLongitude,
+    });
+
+    const providerStatus = String(providerResult?.status || "").toUpperCase();
+    const providerData = providerResult?.data || {};
+    outletId = providerData.outletId;
+
+    if (providerStatus !== "SUCCESS" || !outletId) {
+      const error = new Error(providerResult?.msg || "Merchant onboarding failed");
+      error.statusCode = 400;
+      error.meta = providerResult || null;
+      throw error;
+    }
+  } catch (error) {
+    // Handle external API errors
+    if (error.response) {
+      const providerStatus = error.response?.status;
+      const providerData = error.response?.data;
+      const providerMessage =
+        providerData?.msg ||
+        providerData?.message ||
+        error.message ||
+        "Merchant onboarding failed";
+
+      const apiError = new Error(providerMessage);
+      apiError.statusCode =
+        providerStatus && providerStatus >= 400 && providerStatus < 500
+          ? providerStatus
+          : 502;
+      apiError.meta = providerData || null;
+      throw apiError;
+    }
+    // Re-throw if it's already our custom error
+    throw error;
   }
 
   // Map flat validation fields to Mongoose schema structure
   const mappedData = {
     ...data,
+    fullName: providerResult?.data?.name || name,
     aadhaarNumber: data.aadhaar,
-    dateOfBirth: data.dob,
+    dateOfBirth: providerResult?.data?.dateOfBirth 
+      ? new Date(providerResult.data.dateOfBirth) 
+      : (data.dob ? new Date(data.dob) : null),
     businessProofType: data.businessProof,
+    isMobileVerified: true, // Mobile OTP has been verified
+    isEmailVerified: email ? true : false, // Email OTP has been verified if email provided
+    outletId: String(outletId),
+    adminApproved: "pending",
+    shop: {
+      name: data.shopName,
+      category: data.shopCategory,
+      propertyType: data.propertyType,
+      address: {
+        addressLine: providerResult?.data?.address || fulladdress,
+        city: providerResult?.data?.city || city,
+        state: providerResult?.data?.state || null,
+        pincode: providerResult?.data?.pincode
+          ? String(providerResult.data.pincode)
+          : pincode,
+      },
+      completeAddress: data.shopAddress,
+      location: {
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      },
+    },
     bank: {
       name: data.bankName,
       ifscCode: data.ifscCode,
       accountNumber: data.accountNumber,
       confirmAccountNumber: data.confirmAccountNumber,
-    }
+    },
   };
 
-  // Create new user with all the data
-  user = await createRetailer(mappedData);
+  // Create new user with all the data including outletId
+  const user = await createRetailer(mappedData);
 
   const access = resolveUserAccess(user);
   const accessToken = generateAccessToken(buildAccessTokenPayload(user, access));
@@ -451,8 +549,11 @@ const retailerRegister = async (data) => {
       id: user._id,
       email: user.email,
       mobile: user.mobile,
+      fullName: user.fullName,
+      outletId: user.outletId,
       status: user.status,
       kycStatus: user.kycStatus,
+      adminApproved: user.adminApproved,
       roles: access.roles,
       permissions: access.permissions,
     },
