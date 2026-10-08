@@ -195,6 +195,9 @@ const doBioEkycController = async (req, res) => {
     const payload = withBiometricDefaults(
       pickFields(req.body, biometricFields)
     );
+    console.log("========== DO BIO EKYC PAYLOAD ==========");
+    console.log("payload:", payload);
+    console.log("=======================================");
     const result = await doBioEkyc(payload);
     const saved = await recordEkycOutlet({
       userId: req.user?.userId,

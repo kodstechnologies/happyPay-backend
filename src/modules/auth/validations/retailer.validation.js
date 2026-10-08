@@ -166,10 +166,7 @@ export const registerRetailerSchema = Joi.object({
       "string.pattern.base": "Please enter a valid account number",
     }),
 
-  confirmAccountNumber: Joi.any().valid(Joi.ref("accountNumber")).required().messages({
-    "any.only": "Account numbers do not match",
-    "any.required": "confirmAccountNumber is required",
-  }),
+
 
   selfie: uploadedFile("selfie"),
   panDocument: uploadedFile("panDocument"),

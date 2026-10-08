@@ -17,7 +17,7 @@ const router = Router();
 router.post(
   "/retailer/register",
   uploadRetailerDocuments,
-  validateRegisterRetailer,
+  // validateRegisterRetailer,
   registerRetailer
 );
 

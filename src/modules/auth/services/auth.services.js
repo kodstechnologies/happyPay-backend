@@ -164,8 +164,6 @@ const verifyRetailerLoginOtp = async ({
   }
 
 
-
-
   /* ==============================
      Find Retailer By Mobile
   ============================== */
