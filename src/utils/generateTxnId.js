@@ -1,5 +1,4 @@
 import crypto from "crypto";
-
 export const generate15CharTxnId = (prefix = "TXN") => {
   const cleanPrefix = String(prefix || "");
   const remainingLen = Math.max(0, 15 - cleanPrefix.length);
