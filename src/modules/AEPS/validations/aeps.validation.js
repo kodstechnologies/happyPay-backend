@@ -71,3 +71,4 @@ const doEkycSchema = Joi.object({
 }).unknown(true);
 
 export { getRetailerKycParamsSchema, doEkycSchema };
+  

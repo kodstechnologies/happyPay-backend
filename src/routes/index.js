@@ -16,6 +16,9 @@ import bbpsRoutes from "../modules/BBPS/routes/bbps.routes.js";
 import dmtRoutes from "../modules/DMT/routes/dmt.routes.js";
 import upiCashpointRoutes from "../modules/UPICashpoint/routes/upiCashpoint.routes.js";
 import cmsRoutes from "../modules/CMS/routes/cms.routes.js";
+import paymentRoutes from "../modules/payments/routes/payment.routes.js";
+import walletRoutes from "../modules/wallet/routes/wallet.routes.js";
+import transactionRoutes from "../modules/transaction/routes/transaction.routes.js";
 
 router.use("/api/v1/otp", otpRoutes);
 router.use("/api/v1/email-otp", emailOtpRoutes);
@@ -30,6 +33,11 @@ router.use("/api/v1/bbps", bbpsRoutes);
 router.use("/api/v1/dmt", dmtRoutes);
 router.use("/api/v1/upi-cashpoint", upiCashpointRoutes);
 router.use("/api/v1/cms", cmsRoutes);
+router.use("/api/v1/payments", paymentRoutes);
+router.use("/api/v1/wallet", walletRoutes);
+router.use("/api/v1/transactions", transactionRoutes);
+
+
 // router.use("/api/v1/admin/support", adminSupportRoutes);
 
 router.use("/api/admin", adminRoutes);
