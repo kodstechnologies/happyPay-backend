@@ -243,16 +243,10 @@ const registerRetailer = async (body = {}) => {
   const [
     shopCategoryId,
     propertyTypeId,
-    educationalQualificationId,
     businessProofId,
   ] = await Promise.all([
     assertActiveMaster(Category, shopCategory, "shop category"),
     assertActiveMaster(PropertyType, propertyType, "property type"),
-    assertActiveMaster(
-      EducationalQualification,
-      educationalQualification,
-      "educational qualification"
-    ),
     assertActiveMaster(ProofType, businessProof, "business proof"),
   ]);
 
@@ -378,7 +372,7 @@ const registerRetailer = async (body = {}) => {
     "shop.location.longitude": parsedLongitude,
     selfie,
     maritalStatus,
-    educationalQualification: educationalQualificationId,
+    educationalQualification: educationalQualification, // Store as plain text
     panDocument,
     fatherName,
     aadhaarDocument,

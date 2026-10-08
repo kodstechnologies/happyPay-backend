@@ -157,7 +157,9 @@ const registerRetailer = asyncHandler(async (req, res) => {
     return res.status(201).json(
       ApiResponse.success(
         data,
-        "Retailer registered successfully"
+        "Retailer registered successfully",
+        null,
+        201
       )
     );
   } catch (error) {

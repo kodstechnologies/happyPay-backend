@@ -40,6 +40,15 @@ const findVerifiedOtp = async (email) => {
   });
 };
 
+const checkEmailOtpVerified = async (email) => {
+  const verifiedOtp = await EmailOtp.findOne({
+    email,
+    isVerified: true,
+  }).sort({ verifiedAt: -1 });
+
+  return !!verifiedOtp;
+};
+
 
 export {
   findLatestOtp,
@@ -47,4 +56,5 @@ export {
   createOtp,
   markOtpVerified,
   findVerifiedOtp,
+  checkEmailOtpVerified,
 };

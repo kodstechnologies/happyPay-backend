@@ -13,6 +13,15 @@ const aepsEkycSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    referenceKey: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    pidOptionWadh: {
+      type: String,
+      trim: true,
+    }
   },
   {
     timestamps: true,

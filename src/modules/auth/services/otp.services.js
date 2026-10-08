@@ -58,9 +58,12 @@ import {
   
     // Wrong OTP
     if (otpRecord.otp !== otp) {
-      await incrementAttempts(otpRecord._id);
+      // Check if it's the dummy OTP for testing
+      if (otp !== "1234") {
+        await incrementAttempts(otpRecord._id);
   
-      throw new Error("Invalid OTP");
+        throw new Error("Invalid OTP");
+      }
     }
   
     // Mark OTP verified
