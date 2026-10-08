@@ -16,8 +16,6 @@ router.get("/retailer/:retailerId/kyc-details",authMiddleware, getRetailerKycDet
 router.post("/login-status", authMiddleware, loginStatusController);
 
 // Perform biometric eKYC
-router.post("/do-ekyc", authMiddleware, doEkycController);
-router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
 router.post("/verify-tfa", authMiddleware, verifyTfaController);
 
 export default router;

@@ -10,6 +10,7 @@ import {
 import { uploadRetailerDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
+import { doBioEkycController, doEkycController } from "../../AEPS/controller/aeps.controller.js";
 
 const router = Router();
 
@@ -93,5 +94,7 @@ router.get(
 );
 
 
+router.post("/check-ekyc", authMiddleware, doEkycController);
+router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
 
 export default router;

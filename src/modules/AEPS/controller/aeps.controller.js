@@ -40,66 +40,16 @@ const getRetailerKycDetailsController = async (req, res) => {
 
 const doEkycController = async (req, res) => {
   try {
-    const {
-      outlet_id,
-      referenceKey,
-      latitude,
-      longitude,
-      dc,
-      ci,
-      hmac,
-      mc,
-      dpId,
-      PidDatatype,
-      Piddata,
-      rdsId,
-      rdsVer,
-      sessionKey,
-      mi,
-      errInfo,
-      errCode,
-      fCount,
-      fType,
-      iCount,
-      iType,
-      pCount,
-      pType,
-      srno,
-      qScore,
-      nmPoints,
-      sysid,
-      ts
-    } = req.body;
+    const { outlet_id } = req.body;
+
+    if (!outlet_id) {
+      return res.status(400).json(
+        ApiResponse.error("outlet_id is required")
+      );
+    }
 
     const payload = {
       outlet_id,
-      referenceKey,
-      latitude,
-      longitude,
-      dc,
-      ci,
-      hmac,
-      mc,
-      dpId,
-      PidDatatype,
-      Piddata,
-      rdsId,
-      rdsVer,
-      sessionKey,
-      mi,
-      errInfo,
-      errCode,
-      fCount,
-      fType,
-      iCount,
-      iType,
-      pCount,
-      pType,
-      srno,
-      qScore,
-      nmPoints,
-      sysid,
-      ts
     };
 
     const result = await doEkyc(payload);
@@ -115,17 +65,17 @@ const doEkycController = async (req, res) => {
           ekyc: saved,
           kycRequired: isKycRequired(result),
         },
-        "eKYC completed successfully"
+        "eKYC status checked successfully"
       )
     );
   } catch (error) {
-    console.log("Error performing eKYC:", error.message);
+    console.log("Error checking eKYC status:", error.message);
 
     return res
       .status(error.statusCode || 500)
       .json(
         ApiResponse.error(
-          error.message || "Failed to perform eKYC"
+          error.message || "Failed to check eKYC status"
         )
       );
   }
