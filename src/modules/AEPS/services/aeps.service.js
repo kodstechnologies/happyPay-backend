@@ -38,7 +38,7 @@ const getRetailerKycDetails = async (retailerId) => {
   };
 };
 
-const recordEkycOutlet = async ({ userId, outletId }) => {
+const recordEkycOutlet = async ({ userId, outletId, referenceKey, pidOptionWadh }) => {
   if (!userId) {
     const error = new Error("User id is required");
     error.statusCode = 401;
@@ -51,9 +51,17 @@ const recordEkycOutlet = async ({ userId, outletId }) => {
     throw error;
   }
 
+  if (!referenceKey) {
+    const error = new Error("Reference key is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
   return saveAepsEkyc({
     userId,
     outletId: String(outletId).trim(),
+    referenceKey: String(referenceKey).trim(),
+    pidOptionWadh: pidOptionWadh ? String(pidOptionWadh).trim() : undefined,
   });
 };
 

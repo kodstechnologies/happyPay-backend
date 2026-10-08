@@ -11,10 +11,10 @@ const findRetailerById = async (retailerId) => {
   );
 };
 
-const saveAepsEkyc = async ({ userId, outletId }) => {
+const saveAepsEkyc = async ({ userId, outletId, referenceKey, pidOptionWadh }) => {
   return AepsEkyc.findOneAndUpdate(
     { userId },
-    { userId, outletId },
+    { userId, outletId, referenceKey, pidOptionWadh },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   );
 };

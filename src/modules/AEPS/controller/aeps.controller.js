@@ -53,9 +53,43 @@ const doEkycController = async (req, res) => {
     };
 
     const result = await doEkyc(payload);
+    console.log("-------------result",result)
+    
+    // Check for provider errors
+    if (result?.status === 'ERROR' || result?.status === 'FAILED') {
+      const errorMessage = result?.msg || result?.message || "Provider error occurred";
+      const errorData = {
+        status: result?.status,
+        message: errorMessage,
+        ip: result?.ip,
+        details: result
+      };
+
+      return res.status(400).json(
+        ApiResponse.error(
+          errorMessage,
+          errorData,
+          null,
+          400
+        )
+      );
+    }
+    
+    // Extract referenceKey and pidOptionWadh from the provider response
+    const referenceKey = result?.data?.referenceKey || result?.referenceKey;
+    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+
+    if (!referenceKey) {
+      return res.status(400).json(
+        ApiResponse.error("referenceKey not found in provider response")
+      );
+    }
+
     const saved = await recordEkycOutlet({
       userId: req.user?.userId,
       outletId: outlet_id,
+      referenceKey: referenceKey,
+      pidOptionWadh: pidOptionWadh,
     });
 
     return res.status(200).json(
@@ -152,9 +186,42 @@ const doBioEkycController = async (req, res) => {
     console.log("payload:", payload);
     console.log("=======================================");
     const result = await doBioEkyc(payload);
+    
+    // Check for provider errors
+    if (result?.status === 'ERROR' || result?.status === 'FAILED') {
+      const errorMessage = result?.msg || result?.message || "Provider error occurred";
+      const errorData = {
+        status: result?.status,
+        message: errorMessage,
+        ip: result?.ip,
+        details: result
+      };
+
+      return res.status(400).json(
+        ApiResponse.error(
+          errorMessage,
+          errorData,
+          null,
+          400
+        )
+      );
+    }
+    
+    // Extract referenceKey and pidOptionWadh from the provider response
+    const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
+    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+
+    if (!referenceKey) {
+      return res.status(400).json(
+        ApiResponse.error("referenceKey not found in provider response or request")
+      );
+    }
+
     const saved = await recordEkycOutlet({
       userId: req.user?.userId,
       outletId: payload.outlet_id,
+      referenceKey: referenceKey,
+      pidOptionWadh: pidOptionWadh,
     });
 
     return res.status(200).json(
