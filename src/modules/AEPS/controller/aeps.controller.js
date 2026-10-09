@@ -1,10 +1,9 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
-import { asyncHandler } from "../../../utils/asyncHandler.js";
-
 import {
   getRetailerKycDetails,
   recordEkycOutlet,
   checkLoginStatus,
+  isKycRequired,
 } from "../services/aeps.service.js";
 import { doEkyc, doBioEkyc, verifyTfa } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
@@ -12,25 +11,15 @@ import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 /* ==============================
    Get Retailer KYC Details Controller
 ============================== */
-const getRetailerKycDetailsController = asyncHandler(async (req, res) => {
-  const { retailerId } = req.params;
 
-  const kycDetails = await getRetailerKycDetails(retailerId);
+const getRetailerKycDetailsController = async (req, res) => {
+  try {
+    const { retailerId } = req.params;
 
-  return res.status(200).json(
-    ApiResponse.success(
-      kycDetails,
-      "Retailer KYC details fetched successfully"
-    )
-  );
-});
+    console.log("Fetching KYC details for retailer:", retailerId);
 
-/* ==============================
-   Do Biometric eKYC Controller
-============================== */
-const doEkycController = asyncHandler(async (req, res) => {
+    const kycDetails = await getRetailerKycDetails(retailerId);
 
-<<<<<<< HEAD
     return res.status(200).json(
       ApiResponse.success(
         kycDetails,
@@ -78,22 +67,12 @@ const doEkycController = async (req, res) => {
     }
 
     const saved = await recordEkycOutlet({
-=======
-  const result = await doEkyc(req.body);
-  const saved = await recordEkycOutlet({
->>>>>>> eee0d89abba5b4e47e8ab7de86a97fb9cd2b65b5
       userId: req.user?.userId,
-      outletId: req.body.outlet_id,
+      outletId: outlet_id,
+      referenceKey: referenceKey,
+      pidOptionWadh: pidOptionWadh,
     });
-  return res.status(200).json(
-    ApiResponse.success(
-      { provider: result, ekyc: saved },
-      "eKYC completed successfully"
-    )
-  );
-});
 
-<<<<<<< HEAD
     // Determine eKYC status from provider response
     const providerAction = result?.data?.action || result?.action;
     const providerStatus = result?.data?.status || result?.status;
@@ -154,9 +133,6 @@ const doEkycController = async (req, res) => {
       );
   }
 };
-=======
-
->>>>>>> eee0d89abba5b4e47e8ab7de86a97fb9cd2b65b5
 const biometricFields = [
   "outlet_id",
   "referenceKey",
