@@ -199,72 +199,42 @@ const withBiometricDefaults = (payload) => {
 };
 
 const doBioEkycController = asyncHandler(async (req, res) => {
+  const payload = withBiometricDefaults(
+    pickFields(req.body, biometricFields)
+  );
+  console.log("========== DO BIO EKYC PAYLOAD ==========");
+  console.log("payload:", payload);
+  console.log("=======================================");
+  const result = await doBioEkyc(payload);
+  console.log("====================================result", result);
 
-  async (req, res) => {
-    try {
-      const payload = withBiometricDefaults(
-        pickFields(req.body, biometricFields)
-      );
-      console.log("========== DO BIO EKYC PAYLOAD ==========");
-      console.log("payload:", payload);
-      console.log("=======================================");
-      const result = await doBioEkyc(payload);
-      console.log("====================================result", result)
-      // Extract referenceKey and pidOptionWadh from the provider response
-      const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
-      const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+  // Extract referenceKey and pidOptionWadh from the provider response
+  const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
+  const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
 
-      if (!referenceKey) {
-        return res.status(400).json(
-          ApiResponse.error("referenceKey not found in provider response or request")
-        );
-      }
+  if (!referenceKey) {
+    return res.status(400).json(
+      ApiResponse.error("referenceKey not found in provider response or request")
+    );
+  }
 
-      const saved = await recordEkycOutlet({
-        userId: req.body.userId,
-        outletId: payload.outlet_id,
-        referenceKey: referenceKey,
-        pidOptionWadh: pidOptionWadh,
-      });
+  const saved = await recordEkycOutlet({
+    userId: req.body.userId,
+    outletId: payload.outlet_id,
+    referenceKey: referenceKey,
+    pidOptionWadh: pidOptionWadh,
+  });
 
-      // Update the user's eKYC status to COMPLETED
-      await updateEKYCStatus(req.body.userId, "COMPLETED");
+  // Update the user's eKYC status to COMPLETED
+  await updateEKYCStatus(req.body.userId, "COMPLETED");
 
-      return res.status(200).json(
-        ApiResponse.success(
-          { provider: result, ekyc: saved },
-          "Biometric eKYC completed successfully"
-        )
-      );
-    } catch (error) {
-      // Handle provider errors
-      if (error.providerError) {
-        return res.status(error.statusCode || 400).json(
-          ApiResponse.error(
-            error.message,
-            error.providerData,
-            null,
-            error.statusCode || 400
-          )
-        );
-      }
-
-      return res
-        .status(error.statusCode || error.response?.status || 500)
-        .json(
-          ApiResponse.error(
-            error.response?.data?.message ||
-            error.message ||
-            "Failed to perform biometric eKYC",
-            null,
-            null,
-            error.statusCode || error.response?.status || 500
-          )
-        );
-    }
-  };
-
-})
+  return res.status(200).json(
+    ApiResponse.success(
+      { provider: result, ekyc: saved },
+      "Biometric eKYC completed successfully"
+    )
+  );
+});
 
 const verifyTfaController = async (req, res) => {
   try {
