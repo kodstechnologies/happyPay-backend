@@ -90,7 +90,6 @@ const idRule = Joi.alternatives()
  * 1. Login / Query Remitter
  */
 export const remitterQuerySchema = Joi.object({
-  outletid: outletIdRule,
   mobile: mobileRule,
 });
 
@@ -98,9 +97,7 @@ export const remitterQuerySchema = Joi.object({
  * 2. Register Remitter
  */
 export const remitterRegisterSchema = Joi.object({
-  referenceKey: referenceKeyRule,
   aadhaar: aadhaarRule,
-  outletid: outletIdRule,
   mobile: mobileRule,
 });
 
@@ -108,9 +105,7 @@ export const remitterRegisterSchema = Joi.object({
   // 3. Verify Remitter Registration OTP
 
 export const remitterVerifyOtpSchema = Joi.object({
-  referenceKey: referenceKeyRule,
   otp: otpRule,
-  outletid: outletIdRule,
   mobile: mobileRule,
 });
 
@@ -171,8 +166,6 @@ export const remitterEkycSchema = Joi.object({
   latitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
     "any.required": "latitude is required",
   }),
-  referenceKey: referenceKeyRule,
-  outletid: outletIdRule,
   mobile: mobileRule,
 });
 
@@ -182,14 +175,12 @@ export const remitterEkycSchema = Joi.object({
 
 export const beneficiaryFetchSchema = Joi.object({
   mobile: mobileRule,
-  outletid: outletIdRule,
 });
 
 export const beneficiaryVerifySchema = Joi.object({
   mobile: mobileRule,
   account_number: accountRule,
   ifsc: ifscRule,
-  outletid: outletIdRule,
 });
 
 export const beneficiaryAddSchema = Joi.object({
@@ -201,20 +192,17 @@ export const beneficiaryAddSchema = Joi.object({
   account_number: accountRule,
   ifsc: ifscRule,
   bank_name: Joi.string().trim().optional(),
-  outletid: outletIdRule,
 });
 
 export const beneficiaryDeleteSchema = Joi.object({
   mobile: mobileRule,
   bene_id: idRule,
-  outletid: outletIdRule,
 });
 
 export const beneficiaryDeleteVerifySchema = Joi.object({
   mobile: mobileRule,
   bene_id: idRule,
   otp: otpRule,
-  outletid: outletIdRule,
 });
 
 // =============================================================
@@ -226,7 +214,6 @@ export const transactionOtpSchema = Joi.object({
   amount: Joi.alternatives().try(Joi.number().positive(), Joi.string().trim()).required().messages({
     "any.required": "Amount is required",
   }),
-  outletid: outletIdRule,
 });
 
 export const transactionExecuteSchema = Joi.object({
@@ -247,7 +234,6 @@ export const transactionExecuteSchema = Joi.object({
   otp: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   latlong: Joi.string().trim().optional(),
   client_ref_id: Joi.string().trim().optional(),
-  outletid: outletIdRule,
 });
 
 export const transactionStatusSchema = Joi.object({

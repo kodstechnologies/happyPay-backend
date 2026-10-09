@@ -20,8 +20,6 @@ router.get(
   getRetailerKycDetailsController
 );
 
-router.post("/login-status", authMiddleware, loginStatusController);
-
 // Perform biometric eKYC
 router.post(
   "/do-ekyc",
@@ -29,8 +27,10 @@ router.post(
   validate(doEkycSchema, "body"),
   doEkycController
 );
-// router.post("/do-ekyc", authMiddleware, doEkycController);
+
 router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
+  // 24 hours  verification of TFA
+router.post("/login-status", authMiddleware, loginStatusController);
 router.post("/verify-tfa", authMiddleware, verifyTfaController);
 
 export default router;

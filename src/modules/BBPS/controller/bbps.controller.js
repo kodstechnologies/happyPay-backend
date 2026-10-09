@@ -1,4 +1,5 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
+import ApiError from "../../../utils/ApiError.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import {
   getBillerCategoriesService,
@@ -8,6 +9,16 @@ import {
   fetchBillService,
   payBillService,
 } from "../service/bbps.service.js";
+
+const getAuthFields = (user) => {
+  const outletid = user?.outletId || user?.outletid;
+  const referenceKey = user?.referenceKey;
+  
+  if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
+  if (!referenceKey) throw ApiError.unauthorized("Reference Key is missing from user session.");
+  
+  return { outletid, referenceKey };
+};
 
 /**
  * Controller to get all biller categories
@@ -41,8 +52,11 @@ const getAllBillersController = asyncHandler(async (req, res) => {
  * Controller to get billers by category ID
  */
 const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
-
-  const result = await getBillersByCategoryIdService(req.body);
+  const payload = {
+    ...req.body,
+    ...getAuthFields(req.user)
+  };
+  const result = await getBillersByCategoryIdService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -57,8 +71,12 @@ const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
  */
 const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
   const {catname} = req.body;
+  const payload = { 
+    catname,
+    ...getAuthFields(req.user)
+  };
   
-  const result = await getBillersByCategoryNameService({ catname });
+  const result = await getBillersByCategoryNameService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -72,8 +90,11 @@ const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
  * Controller to fetch/view bill details
  */
 const fetchBillController = asyncHandler(async (req, res) => {
-
-  const result = await fetchBillService(req.body);
+  const payload = {
+    ...req.body,
+    ...getAuthFields(req.user)
+  };
+  const result = await fetchBillService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -87,8 +108,11 @@ const fetchBillController = asyncHandler(async (req, res) => {
  * Controller to pay bill
  */
 const payBillController = asyncHandler(async (req, res) => {
-  
-  const result = await payBillService(req.body);
+  const payload = {
+    ...req.body,
+    ...getAuthFields(req.user)
+  };
+  const result = await payBillService(payload);
 
   return res.status(200).json(
     ApiResponse.success(

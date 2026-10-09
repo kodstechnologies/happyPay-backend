@@ -14,9 +14,12 @@ const errorMiddleware = (error, req, res, next) => {
 
   // Mongoose Validation Error
   else if (error.name === "ValidationError") {
+    const err= Object.values(error.errors || {})
+    // map((err) => err.message);
+    console.log("Validation errors:", err); // Log the validation errors for debugging
     statusCode = 400;
-    message = "Validation failed";
-    errors = Object.values(error.errors || {}).map((err) => err.message);
+    message = [0]?.message || "Validation failed";
+    errors = err.map((err) => err.message)
   }
 
   // Mongoose Duplicate Key Error

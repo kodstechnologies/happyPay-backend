@@ -31,11 +31,6 @@ router.post(
   validate(getBillersByCategoryIdSchema, "body"),
   getBillersByCategoryIdController
 );
-router.get(
-  "/billers/category/:catId",
-  authMiddleware,
-  getBillersByCategoryIdController
-);
 
 // Fetch billers by category name
 router.post(

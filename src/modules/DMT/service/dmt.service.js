@@ -1,3 +1,4 @@
+import sanitizePayload from "../../../utils/sanitizePayload.js";
 import {
   loginRemitter,
   registerRemitter,
@@ -12,15 +13,6 @@ import {
   doTransaction,
   getTransactionStatus,
 } from "../../external/services/provider.service.js";
-
-const sanitizePayload = (obj = {}) => {
-  return Object.entries(obj).reduce((acc, [key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      acc[key] = typeof value === "string" ? value.trim() : value;
-    }
-    return acc;
-  }, {});
-};
 
 // =============================================================
 // Remitter Services (Strict Provider Contract)
@@ -57,7 +49,8 @@ export const performRemitterEkycService = async (payload = {}) => {
 // Fetch all registered beneficiaries for a remitter
 
 export const fetchBeneficiariesService = async (payload = {}) => {
-  return await getBeneficiaries(requestPayload);
+  const cleanPayload = sanitizePayload(payload);
+  return await getBeneficiaries(cleanPayload);
 };
 
 /**
