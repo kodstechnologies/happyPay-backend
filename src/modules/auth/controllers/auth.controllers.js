@@ -138,7 +138,7 @@ const logoutRetailer = async (
       )
     );
 };
-
+//change
 const registerRetailer = asyncHandler(async (req, res) => {
   const files = uploadedRetailerFiles(req.files);
 
