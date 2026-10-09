@@ -29,12 +29,14 @@ const checkProviderError = (data) => {
 };
 
 const postProviderForm = async (path, payload = {}) => {
-  const form = new FormData();
+  try {
+    const form = new FormData();
 
-  for (const [key, value] of Object.entries(payload)) {
-    if (value == null) continue;
-    form.append(key, String(value));
-  }
+    for (const [key, value] of Object.entries(payload)) {
+      if (value !== undefined && value !== null) {
+        form.append(key, value);
+      }
+    }
 
   const response = await providerClient.post(path, form, {
     headers: form.getHeaders(),
@@ -46,7 +48,10 @@ const postProviderForm = async (path, payload = {}) => {
     throw providerError;
   }
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    return handleProviderError(error, path);
+  }
 };
 
 const getProvider = async (path, config = {}) => {
