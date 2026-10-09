@@ -21,6 +21,36 @@ const getRetailerKycParamsSchema = Joi.object({
 });
 
 const doEkycSchema = Joi.object({
+  userId: Joi.string()
+    .trim()
+    .custom(objectIdValidator, "MongoDB ObjectId validation")
+    .required()
+    .messages({
+      "any.required": "User ID (userId) is required",
+      "string.empty": "User ID (userId) is required",
+      "any.invalid": "Invalid User ID format",
+    }),
+
+  outlet_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outlet_id) is required",
+      "string.empty": "Outlet ID (outlet_id) is required",
+    }),
+});
+
+const doBioEkycSchema = Joi.object({
+  userId: Joi.string()
+    .trim()
+    .custom(objectIdValidator, "MongoDB ObjectId validation")
+    .required()
+    .messages({
+      "any.required": "User ID (userId) is required",
+      "string.empty": "User ID (userId) is required",
+      "any.invalid": "Invalid User ID format",
+    }),
+
   outlet_id: Joi.alternatives()
     .try(Joi.string().trim(), Joi.number())
     .required()
@@ -70,5 +100,4 @@ const doEkycSchema = Joi.object({
   sysid: Joi.string().trim().optional().allow(""),
 }).unknown(true);
 
-export { getRetailerKycParamsSchema, doEkycSchema };
-  
+export { getRetailerKycParamsSchema, doEkycSchema, doBioEkycSchema };

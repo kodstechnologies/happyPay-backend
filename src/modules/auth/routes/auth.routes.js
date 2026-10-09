@@ -12,6 +12,8 @@ import { uploadRetailerDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import { doBioEkycController, doEkycController } from "../../AEPS/controller/aeps.controller.js";
+import validate from "../../../middlewares/validate.middleware.js";
+import { doEkycSchema, doBioEkycSchema } from "../../AEPS/validations/aeps.validation.js";
 
 const router = Router();
 
@@ -19,7 +21,7 @@ const router = Router();
 router.post(
   "/retailer/register",
   uploadRetailerDocuments,
-  // validateRegisterRetailer,
+  validateRegisterRetailer,
   registerRetailer
 );
 
@@ -46,7 +48,7 @@ router.get(
 );
 
 
-router.post("/check-ekyc", authMiddleware, doEkycController);
-router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
+router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);
+router.post("/do-bio-ekyc", validate(doBioEkycSchema, "body"), doBioEkycController);
 
 export default router;

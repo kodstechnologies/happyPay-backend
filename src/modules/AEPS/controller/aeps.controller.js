@@ -41,7 +41,7 @@ const getRetailerKycDetailsController = async (req, res) => {
 
 const doEkycController = async (req, res) => {
   try {
-    const { outlet_id } = req.body;
+    const { outlet_id, userId } = req.body;
 
     if (!outlet_id) {
       return res.status(400).json(
@@ -54,8 +54,8 @@ const doEkycController = async (req, res) => {
     };
 
     const result = await doEkyc(payload);
-    console.log("-------------result",result)
-    
+    console.log("-------------result", result)
+
     // Extract referenceKey and pidOptionWadh from the provider response
     const referenceKey = result?.data?.referenceKey || result?.referenceKey;
     const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
@@ -67,7 +67,7 @@ const doEkycController = async (req, res) => {
     }
 
     const saved = await recordEkycOutlet({
-      userId: req.user?.userId,
+      userId: userId,
       outletId: outlet_id,
       referenceKey: referenceKey,
       pidOptionWadh: pidOptionWadh,
@@ -91,7 +91,7 @@ const doEkycController = async (req, res) => {
     }
 
     // Update user's eKYC status
-    await updateEKYCStatus(req.user?.userId, eKYCStatus, eKYCRejectionReason);
+    await updateEKYCStatus(userId, eKYCStatus, eKYCRejectionReason);
 
     return res.status(200).json(
       ApiResponse.success(
@@ -133,6 +133,7 @@ const doEkycController = async (req, res) => {
       );
   }
 };
+
 const biometricFields = [
   "outlet_id",
   "referenceKey",
@@ -205,7 +206,7 @@ const doBioEkycController = async (req, res) => {
     console.log("payload:", payload);
     console.log("=======================================");
     const result = await doBioEkyc(payload);
-    
+
     // Extract referenceKey and pidOptionWadh from the provider response
     const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
     const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
@@ -217,11 +218,14 @@ const doBioEkycController = async (req, res) => {
     }
 
     const saved = await recordEkycOutlet({
-      userId: req.user?.userId,
+      userId: req.body.userId,
       outletId: payload.outlet_id,
       referenceKey: referenceKey,
       pidOptionWadh: pidOptionWadh,
     });
+
+    // Update the user's eKYC status to COMPLETED
+    await updateEKYCStatus(req.body.userId, "COMPLETED");
 
     return res.status(200).json(
       ApiResponse.success(
@@ -247,8 +251,8 @@ const doBioEkycController = async (req, res) => {
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to perform biometric eKYC",
+          error.message ||
+          "Failed to perform biometric eKYC",
           null,
           null,
           error.statusCode || error.response?.status || 500
@@ -275,8 +279,8 @@ const verifyTfaController = async (req, res) => {
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to verify TFA"
+          error.message ||
+          "Failed to verify TFA"
         )
       );
   }
@@ -298,8 +302,8 @@ const loginStatusController = async (req, res) => {
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to fetch login status"
+          error.message ||
+          "Failed to fetch login status"
         )
       );
   }

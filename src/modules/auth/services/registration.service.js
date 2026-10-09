@@ -72,6 +72,7 @@ const buildRetailerResponse = (user) => ({
   outletId: user.outletId || null,
   adminApproved: user.adminApproved,
   reasonOfRejection: user.reasonOfRejection || null,
+  documentReviews: user.documentReviews || null,
 });
 
 const assertActiveMaster = async (Model, id, label) => {
@@ -393,6 +394,29 @@ const registerRetailer = async (body = {}) => {
     registrationStatus: "COMPLETED",
     adminApproved: "pending",
     reasonOfRejection: null,
+    documentReviews: {
+      panDocument: {
+        status: panDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+      aadhaarDocument: {
+        status: aadhaarDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+      selfie: {
+        status: selfie ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopInsidePhoto: {
+        status: shopInsidePhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopOutsidePhoto: {
+        status: shopOutsidePhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopLocationPhoto: {
+        status: shopLocationPhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      businessProofDocument: {
+        status: businessProofDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+    },
   });
 
   return buildRetailerResponse(savedUser);

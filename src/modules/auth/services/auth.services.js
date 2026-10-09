@@ -644,6 +644,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     kycRejectionReason: retailer.kycRejectionReason,
     adminApproved: retailer.adminApproved,
     reasonOfRejection: retailer.reasonOfRejection,
+    documentReviews: retailer.documentReviews || null,
     status: retailer.status,
     isActive: retailer.isActive,
     lastLoginAt: retailer.lastLoginAt,

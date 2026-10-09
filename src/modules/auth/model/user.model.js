@@ -2,6 +2,39 @@ import mongoose from "mongoose";
 import deviceSchema from "./device.model.js";
 import refreshTokenSchema from "./token.model.js";
 
+const documentReviewSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: [
+        "NOT_SUBMITTED",
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ],
+      default: "NOT_SUBMITTED",
+    },
+
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     // =========================
@@ -154,7 +187,6 @@ const userSchema = new mongoose.Schema(
 
     aadhaarVerificationMethod: {
       type: String,
-      enum: ["otp", "biometric", "offline_xml"],
     },
 
     aadhaarConsent: {
@@ -280,6 +312,46 @@ const userSchema = new mongoose.Schema(
     },
 
     // =========================
+    // Document Reviews
+    // =========================
+    documentReviews: {
+      panDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      aadhaarDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      selfie: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopInsidePhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopOutsidePhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopLocationPhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      businessProofDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+    },
+
+    // =========================
     // RBAC
     // =========================
     roles: [
@@ -309,9 +381,9 @@ const userSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-     
+
         "active",
-   
+
         "suspended",
         "blocked",
       ],
