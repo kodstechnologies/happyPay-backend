@@ -206,7 +206,7 @@ const doBioEkycController = async (req, res) => {
     console.log("payload:", payload);
     console.log("=======================================");
     const result = await doBioEkyc(payload);
-
+    console.log("====================================result", result)
     // Extract referenceKey and pidOptionWadh from the provider response
     const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
     const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
