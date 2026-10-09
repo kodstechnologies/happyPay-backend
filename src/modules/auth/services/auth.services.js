@@ -44,7 +44,7 @@ const buildAccessTokenPayload = (user, access) => ({
   email: user.email,
   userType: "retailer",
   outletid: user?.outletId||null,
-  referanceKey: user?.referenceKey||null,
+  referenceKey: user?.referenceKey||null,
   roles: access.roles,
   permissions: access.permissions,
 });
