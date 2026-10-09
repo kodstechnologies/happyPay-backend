@@ -42,6 +42,11 @@ router.post(
   logoutRetailer
 );
 
+
+// router.patch(
+//   "retailer/update/:retailerId"
+// )
+
 router.get(
   "/banks",
   getBankListController

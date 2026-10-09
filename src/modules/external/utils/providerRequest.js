@@ -10,7 +10,7 @@ const checkProviderError = (data) => {
   if (!data) return null;
 
   const status = String(data.status || "").toUpperCase();
-  
+
   if (status === "ERROR" || status === "FAILED" || status === "FAILURE") {
     const error = new Error(data.msg || data.message || "Provider error occurred");
     error.statusCode = 400;
@@ -38,25 +38,28 @@ const postProviderForm = async (path, payload = {}) => {
       }
     }
 
-  const response = await providerClient.post(path, form, {
-    headers: form.getHeaders(),
-  });
+    const response = await providerClient.post(path, form, {
+      headers: form.getHeaders(),
+    });
 
-  // Check for provider-level errors in response
-  const providerError = checkProviderError(response.data);
-  if (providerError) {
-    throw providerError;
-  }
+    console.log(`[PROVIDER API RESPONSE] Path: ${path} | Status: ${response.status}`, response.data);
+
+    // Check for provider-level errors in response
+    const providerError = checkProviderError(response.data);
+    if (providerError) {
+      throw providerError;
+    }
 
     return response.data;
   } catch (error) {
-    return handleProviderError(error, path);
+    console.error(`[PROVIDER API ERROR] Path: ${path} | Error:`, error?.response?.data || error?.message || error);
+    throw error;
   }
 };
 
 const getProvider = async (path, config = {}) => {
   const response = await providerClient.get(path, config);
-  
+
   // Check for provider-level errors in response
   const providerError = checkProviderError(response.data);
   if (providerError) {

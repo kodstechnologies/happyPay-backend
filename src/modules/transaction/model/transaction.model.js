@@ -17,7 +17,7 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       unique: true,
       sparse: true,
-      default: () => generate15CharTxnId("TXN"), 
+      default: () => generate15CharTxnId("TXN"),
     },
     referenceKey: {
       type: String,
@@ -72,13 +72,11 @@ const transactionSchema = new mongoose.Schema(
   }
 );
 
-// Compound & Single Indexes for high performance
+// Compound Indexes for high performance
 transactionSchema.index({ wallet: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, service: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, status: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, type: 1, createdAt: -1 });
-transactionSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
-transactionSchema.index({ referenceKey: 1 }, { sparse: true });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 

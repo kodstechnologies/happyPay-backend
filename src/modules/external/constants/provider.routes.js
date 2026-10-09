@@ -1,7 +1,7 @@
 const PROVIDER_API_PREFIX = "/api/public";
 
 const PROVIDER_ROUTES = {
-  onboarding:{
+  onboarding: {
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
     doEkyc: `${PROVIDER_API_PREFIX}/aeps5/bank5/doekyc`,
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
@@ -21,7 +21,7 @@ const PROVIDER_ROUTES = {
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
 
-    balanceEnquiry:`${PROVIDER_API_PREFIX}/aeps5/bank5/be`,
+    balanceEnquiry: `${PROVIDER_API_PREFIX}/aeps5/bank5/be`,
     miniStatement: `${PROVIDER_API_PREFIX}/aeps5/bank5/ms`,
     cashWithdraw: `${PROVIDER_API_PREFIX}/aeps5/bank5/cw`,
     deposite: `${PROVIDER_API_PREFIX}/csd/v3/cashdeposit`,
@@ -34,7 +34,7 @@ const PROVIDER_ROUTES = {
     fetchByCatId: `${PROVIDER_API_PREFIX}/_bbps/billers_by_catid`,
     fetchByCat: `${PROVIDER_API_PREFIX}/_bbps/billers_by_cat`,
   },
-  dmt:{
+  dmt: {
     // remitter is the person who is sending the money and beneficiary is the person who is receiving the money
     registerRemitter: `${PROVIDER_API_PREFIX}/rdmt/register-remitter`,
     registerRemitterVerify: `${PROVIDER_API_PREFIX}/rdmt/register-remitter-verify`,
@@ -47,19 +47,19 @@ const PROVIDER_ROUTES = {
     getBenificiaries: `${PROVIDER_API_PREFIX}/rdmt/fetch-bene`,
     deleteBen: `${PROVIDER_API_PREFIX}/rdmt/delete-bene`,
     deleteBenVerifyotp: `${PROVIDER_API_PREFIX}/rdmt/delete-bene-verify`,
-    
+
     // Transaction
     generateTransactionOtp: `${PROVIDER_API_PREFIX}/rdmt/pre-transaction`,
     doTransaction: `${PROVIDER_API_PREFIX}/rdmt/do-transaction`,
     transactionStatus: `${PROVIDER_API_PREFIX}/rdmt/status-check`,
-    
+
   },
 
-  upiCashpoint:{
+  upiCashpoint: {
     intiatepayment: `${PROVIDER_API_PREFIX}/upi/cashpoint`,
   },
 
-  cmsPayment:{
+  cmsPayment: {
     initiatePayment: `${PROVIDER_API_PREFIX}/cms/docms`,
   }
 
