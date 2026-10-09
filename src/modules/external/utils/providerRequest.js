@@ -1,6 +1,33 @@
 import FormData from "form-data";
 import providerClient from "../../../config/provider.client.js";
 
+/**
+ * Check if provider response contains an error
+ * @param {Object} data - Provider response data
+ * @returns {Object|null} - Error object if error exists, null otherwise
+ */
+const checkProviderError = (data) => {
+  if (!data) return null;
+
+  const status = String(data.status || "").toUpperCase();
+  
+  if (status === "ERROR" || status === "FAILED" || status === "FAILURE") {
+    const error = new Error(data.msg || data.message || "Provider error occurred");
+    error.statusCode = 400;
+    error.providerError = true;
+    error.providerData = {
+      status: data.status,
+      message: data.msg || data.message,
+      ip: data.ip,
+      code: data.code || data.errorCode,
+      details: data
+    };
+    return error;
+  }
+
+  return null;
+};
+
 const postProviderForm = async (path, payload = {}) => {
   const form = new FormData();
 
@@ -13,11 +40,24 @@ const postProviderForm = async (path, payload = {}) => {
     headers: form.getHeaders(),
   });
 
+  // Check for provider-level errors in response
+  const providerError = checkProviderError(response.data);
+  if (providerError) {
+    throw providerError;
+  }
+
   return response.data;
 };
 
 const getProvider = async (path, config = {}) => {
   const response = await providerClient.get(path, config);
+  
+  // Check for provider-level errors in response
+  const providerError = checkProviderError(response.data);
+  if (providerError) {
+    throw providerError;
+  }
+
   return response.data;
 };
 

@@ -25,6 +25,7 @@ const authorize = (...allowedRoles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
+        statusCode: 401,
         message: "Authentication required",
       });
     }
@@ -40,6 +41,7 @@ const authorize = (...allowedRoles) => {
     if (!hasRole) {
       return res.status(403).json({
         success: false,
+        statusCode: 403,
         message: "You are not authorized to access this resource",
       });
     }
@@ -53,6 +55,7 @@ const authorizePermission = (...requiredPermissions) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
+        statusCode: 401,
         message: "Authentication required",
       });
     }
@@ -72,6 +75,7 @@ const authorizePermission = (...requiredPermissions) => {
     if (!hasAllPermissions) {
       return res.status(403).json({
         success: false,
+        statusCode: 403,
         message: "You are not authorized to access this resource",
       });
     }

@@ -8,6 +8,7 @@ const createUser = async (mobile) => {
   return await User.create({
     mobile,
     isMobileVerified: true,
+    registrationStatus: "IN_PROGRESS",
   });
 };
 
@@ -16,6 +17,7 @@ const verifyMobile = async (userId) => {
     userId,
     {
       isMobileVerified: true,
+      registrationStatus: "IN_PROGRESS",
     },
     {
       new: true,
@@ -134,4 +136,19 @@ export {
   findPendingRegisteredRetailers,
   findRetailerById,
   updateRetailerReview,
+  updateEKYCStatus,
+};
+
+
+const updateEKYCStatus = async (userId, status, rejectionReason = null) => {
+  return await User.findByIdAndUpdate(
+    userId,
+    {
+      eKYCStatus: status,
+      eKYCRejectionReason: rejectionReason,
+    },
+    {
+      new: true,
+    }
+  );
 };

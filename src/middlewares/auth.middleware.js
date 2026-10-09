@@ -7,6 +7,7 @@ const authMiddleware = (req, res, next) => {
     if (!authHeader) {
       return res.status(401).json({
         success: false,
+        statusCode: 401,
         message: "Authorization token is required",
       });
     }
@@ -16,6 +17,7 @@ const authMiddleware = (req, res, next) => {
     if (scheme !== "Bearer" || !token) {
       return res.status(401).json({
         success: false,
+        statusCode: 401,
         message: "Invalid authorization format",
       });
     }
@@ -28,6 +30,7 @@ const authMiddleware = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
+      statusCode: 401,
       message: "Invalid or expired access token",
     });
   }
@@ -37,6 +40,7 @@ const requireAdmin = (req, res, next) => {
   if (req.user?.userType !== "admin") {
     return res.status(403).json({
       success: false,
+      statusCode: 403,
       message: "Admin access is required",
     });
   }
