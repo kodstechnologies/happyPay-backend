@@ -1,41 +1,31 @@
 import FormData from "form-data";
 import providerClient from "../../../config/provider.client.js";
-import logger from "../../../utils/logger.js";
 
+/**
+ * Check if provider response contains an error
+ * @param {Object} data - Provider response data
+ * @returns {Object|null} - Error object if error exists, null otherwise
+ */
+const checkProviderError = (data) => {
+  if (!data) return null;
 
-const handleProviderError = (error, path) => {
-  const providerStatus = error.response?.status;
-  const providerData = error.response?.data;
-
-  logger.error(`Provider request failed [${path}]:`, {
-    status: providerStatus,
-    data: providerData,
-    message: error.message,})
-
-  let statusCode = 502;
-  let message = "Third-party provider error";
-
-  if (error.code === "ECONNABORTED") {
-    statusCode = 504;
-    message = "Third-party provider request timed out";
-  } else if (!error.response && error.request) {
-    statusCode = 503;
-    message = "Unable to connect to third-party provider";
-  } else if (providerStatus) {
-    statusCode = providerStatus >= 400 && providerStatus < 500 ? providerStatus : 502;
-    message =
-      providerData?.msg ||
-      providerData?.message ||
-      providerData?.error ||
-      error.message ||
-      "Third-party provider error";
+  const status = String(data.status || "").toUpperCase();
+  
+  if (status === "ERROR" || status === "FAILED" || status === "FAILURE") {
+    const error = new Error(data.msg || data.message || "Provider error occurred");
+    error.statusCode = 400;
+    error.providerError = true;
+    error.providerData = {
+      status: data.status,
+      message: data.msg || data.message,
+      ip: data.ip,
+      code: data.code || data.errorCode,
+      details: data
+    };
+    return error;
   }
 
-  error.statusCode = statusCode;
-  error.message = message;
-  error.meta = providerData || null;
-
-  throw error;
+  return null;
 };
 
 const postProviderForm = async (path, payload = {}) => {
@@ -48,9 +38,15 @@ const postProviderForm = async (path, payload = {}) => {
       }
     }
 
-    const response = await providerClient.post(path, form, {
-      headers: form.getHeaders(),
-    });
+  const response = await providerClient.post(path, form, {
+    headers: form.getHeaders(),
+  });
+
+  // Check for provider-level errors in response
+  const providerError = checkProviderError(response.data);
+  if (providerError) {
+    throw providerError;
+  }
 
     return response.data;
   } catch (error) {
@@ -59,12 +55,15 @@ const postProviderForm = async (path, payload = {}) => {
 };
 
 const getProvider = async (path, config = {}) => {
-  try {
-    const response = await providerClient.get(path, config);
-    return response.data;
-  } catch (error) {
-    return handleProviderError(error, path);
+  const response = await providerClient.get(path, config);
+  
+  // Check for provider-level errors in response
+  const providerError = checkProviderError(response.data);
+  if (providerError) {
+    throw providerError;
   }
+
+  return response.data;
 };
 
 export { postProviderForm, getProvider };

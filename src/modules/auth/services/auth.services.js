@@ -1,5 +1,6 @@
 import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
+import User from "../model/user.model.js";
 
 import {
   generateAccessToken,
@@ -466,25 +467,8 @@ const retailerRegister = async (data) => {
       throw error;
     }
   } catch (error) {
-    // Handle external API errors
-    if (error.response) {
-      const providerStatus = error.response?.status;
-      const providerData = error.response?.data;
-      const providerMessage =
-        providerData?.msg ||
-        providerData?.message ||
-        error.message ||
-        "Merchant onboarding failed";
-
-      const apiError = new Error(providerMessage);
-      apiError.statusCode =
-        providerStatus && providerStatus >= 400 && providerStatus < 500
-          ? providerStatus
-          : 502;
-      apiError.meta = providerData || null;
-      throw apiError;
-    }
-    // Re-throw if it's already our custom error
+    // Provider errors are already handled by providerRequest utility
+    // Just re-throw them
     throw error;
   }
 
@@ -499,6 +483,7 @@ const retailerRegister = async (data) => {
     businessProofType: data.businessProof,
     isMobileVerified: true, // Mobile OTP has been verified
     isEmailVerified: email ? true : false, // Email OTP has been verified if email provided
+    registrationStatus: "COMPLETED", // Registration completed
     outletId: String(outletId),
     adminApproved: "pending",
     shop: {
@@ -519,12 +504,16 @@ const retailerRegister = async (data) => {
         longitude: Number(longitude),
       },
     },
-    bank: {
-      name: data.bankName,
-      ifscCode: data.ifscCode,
-      accountNumber: data.accountNumber,
-      confirmAccountNumber: data.confirmAccountNumber,
-    },
+    banks: [
+      {
+        name: data.bankName,
+        ifscCode: data.ifscCode,
+        accountNumber: data.accountNumber,
+        confirmAccountNumber: data.confirmAccountNumber,
+        isPrimary: true,
+        isActive: true,
+      },
+    ],
   };
 
   // Create new user with all the data including outletId
@@ -576,4 +565,90 @@ export {
   retailerLogout,
   retailerRegister,
   reapplyForKyc,
+  getRetailerDetailsService,
+};
+
+
+const getRetailerDetailsService = async (retailerId, registrationStatus) => {
+  if (!retailerId) {
+    const error = new Error("Retailer ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Build query
+  const query = { _id: retailerId };
+  
+  // Add registrationStatus filter if provided
+  if (registrationStatus) {
+    const validStatuses = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"];
+    if (!validStatuses.includes(registrationStatus)) {
+      const error = new Error("Invalid registration status. Must be one of: NOT_STARTED, IN_PROGRESS, COMPLETED");
+      error.statusCode = 400;
+      throw error;
+    }
+    query.registrationStatus = registrationStatus;
+  }
+
+  const retailer = await User.findOne(query)
+    .select("-refreshTokens -devices -__v")
+    .populate("shop.category", "name")
+    .populate("shop.propertyType", "name")
+    .populate("businessProofType", "name");
+
+  if (!retailer) {
+    const error = new Error(
+      registrationStatus 
+        ? `Retailer not found with registrationStatus: ${registrationStatus}`
+        : "Retailer not found"
+    );
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    id: retailer._id,
+    mobile: retailer.mobile,
+    isMobileVerified: retailer.isMobileVerified,
+    email: retailer.email,
+    isEmailVerified: retailer.isEmailVerified,
+    registrationStatus: retailer.registrationStatus,
+    fullName: retailer.fullName,
+    fatherName: retailer.fatherName,
+    gender: retailer.gender,
+    maritalStatus: retailer.maritalStatus,
+    educationalQualification: retailer.educationalQualification,
+    dateOfBirth: retailer.dateOfBirth,
+    panNumber: retailer.panNumber,
+    panDocument: retailer.panDocument,
+    aadhaarNumber: retailer.aadhaarNumber,
+    aadhaarDocument: retailer.aadhaarDocument,
+    selfie: retailer.selfie,
+    shop: {
+      name: retailer.shop?.name,
+      category: retailer.shop?.category,
+      propertyType: retailer.shop?.propertyType,
+      address: retailer.shop?.address,
+      completeAddress: retailer.shop?.completeAddress,
+      location: retailer.shop?.location,
+    },
+    shopInsidePhoto: retailer.shopInsidePhoto,
+    shopOutsidePhoto: retailer.shopOutsidePhoto,
+    shopLocationPhoto: retailer.shopLocationPhoto,
+    businessProofType: retailer.businessProofType,
+    businessProofDocument: retailer.businessProofDocument,
+    banks: retailer.banks || [],
+    primaryBank: retailer.banks?.find((b) => b.isPrimary) || retailer.banks?.[0] || null,
+    outletId: retailer.outletId,
+    kycStatus: retailer.kycStatus,
+    kycRejectionReason: retailer.kycRejectionReason,
+    adminApproved: retailer.adminApproved,
+    reasonOfRejection: retailer.reasonOfRejection,
+    documentReviews: retailer.documentReviews || null,
+    status: retailer.status,
+    isActive: retailer.isActive,
+    lastLoginAt: retailer.lastLoginAt,
+    createdAt: retailer.createdAt,
+    updatedAt: retailer.updatedAt,
+  };
 };

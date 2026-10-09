@@ -1,47 +1,138 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
-import { asyncHandler } from "../../../utils/asyncHandler.js";
-
 import {
   getRetailerKycDetails,
   recordEkycOutlet,
   checkLoginStatus,
+  isKycRequired,
 } from "../services/aeps.service.js";
 import { doEkyc, doBioEkyc, verifyTfa } from "../../external/services/provider.service.js";
+import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
 ============================== */
-const getRetailerKycDetailsController = asyncHandler(async (req, res) => {
-  const { retailerId } = req.params;
 
-  const kycDetails = await getRetailerKycDetails(retailerId);
+const getRetailerKycDetailsController = async (req, res) => {
+  try {
+    const { retailerId } = req.params;
 
-  return res.status(200).json(
-    ApiResponse.success(
-      kycDetails,
-      "Retailer KYC details fetched successfully"
-    )
-  );
-});
+    console.log("Fetching KYC details for retailer:", retailerId);
 
-/* ==============================
-   Do Biometric eKYC Controller
-============================== */
-const doEkycController = asyncHandler(async (req, res) => {
+    const kycDetails = await getRetailerKycDetails(retailerId);
 
-  const result = await doEkyc(req.body);
-  const saved = await recordEkycOutlet({
-      userId: req.user?.userId,
-      outletId: req.body.outlet_id,
+    return res.status(200).json(
+      ApiResponse.success(
+        kycDetails,
+        "Retailer KYC details fetched successfully"
+      )
+    );
+  } catch (error) {
+    console.log("Error fetching KYC details:", error.message);
+
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to fetch KYC details"
+        )
+      );
+  }
+};
+
+const doEkycController = async (req, res) => {
+  try {
+    const { outlet_id, userId } = req.body;
+
+    if (!outlet_id) {
+      return res.status(400).json(
+        ApiResponse.error("outlet_id is required", null, null, 400)
+      );
+    }
+
+    const payload = {
+      outlet_id,
+    };
+
+    const result = await doEkyc(payload);
+    console.log("-------------result", result)
+
+    // Extract referenceKey and pidOptionWadh from the provider response
+    const referenceKey = result?.data?.referenceKey || result?.referenceKey;
+    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+
+    if (!referenceKey) {
+      return res.status(400).json(
+        ApiResponse.error("referenceKey not found in provider response", null, null, 400)
+      );
+    }
+
+    const saved = await recordEkycOutlet({
+      userId: userId,
+      outletId: outlet_id,
+      referenceKey: referenceKey,
+      pidOptionWadh: pidOptionWadh,
     });
-  return res.status(200).json(
-    ApiResponse.success(
-      { provider: result, ekyc: saved },
-      "eKYC completed successfully"
-    )
-  );
-});
 
+    // Determine eKYC status from provider response
+    const providerAction = result?.data?.action || result?.action;
+    const providerStatus = result?.data?.status || result?.status;
+    const kycRequired = isKycRequired(result);
+
+    let eKYCStatus = "PENDING";
+    let eKYCRejectionReason = null;
+
+    if (providerAction === "ACTION-REQUIRED" || kycRequired) {
+      eKYCStatus = "ACTION_REQUIRED";
+    } else if (providerStatus === "COMPLETED" || providerStatus === "SUCCESS") {
+      eKYCStatus = "COMPLETED";
+    } else if (providerStatus === "FAILED" || providerStatus === "REJECTED") {
+      eKYCStatus = "FAILED";
+      eKYCRejectionReason = result?.msg || result?.message || "eKYC verification failed";
+    }
+
+    // Update user's eKYC status
+    await updateEKYCStatus(userId, eKYCStatus, eKYCRejectionReason);
+
+    return res.status(200).json(
+      ApiResponse.success(
+        {
+          provider: result,
+          ekyc: saved,
+          kycRequired: kycRequired,
+          eKYCStatus: eKYCStatus,
+        },
+        "eKYC status checked successfully",
+        null,
+        200
+      )
+    );
+  } catch (error) {
+    console.log("Error checking eKYC status:", error.message);
+
+    // Handle provider errors
+    if (error.providerError) {
+      return res.status(error.statusCode || 400).json(
+        ApiResponse.error(
+          error.message,
+          error.providerData,
+          null,
+          error.statusCode || 400
+        )
+      );
+    }
+
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to check eKYC status",
+          null,
+          null,
+          error.statusCode || 500
+        )
+      );
+  }
+};
 
 const biometricFields = [
   "outlet_id",
@@ -115,27 +206,7 @@ const doBioEkycController = async (req, res) => {
     console.log("payload:", payload);
     console.log("=======================================");
     const result = await doBioEkyc(payload);
-    
-    // Check for provider errors
-    if (result?.status === 'ERROR' || result?.status === 'FAILED') {
-      const errorMessage = result?.msg || result?.message || "Provider error occurred";
-      const errorData = {
-        status: result?.status,
-        message: errorMessage,
-        ip: result?.ip,
-        details: result
-      };
 
-      return res.status(400).json(
-        ApiResponse.error(
-          errorMessage,
-          errorData,
-          null,
-          400
-        )
-      );
-    }
-    
     // Extract referenceKey and pidOptionWadh from the provider response
     const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
     const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
@@ -147,11 +218,14 @@ const doBioEkycController = async (req, res) => {
     }
 
     const saved = await recordEkycOutlet({
-      userId: req.user?.userId,
+      userId: req.body.userId,
       outletId: payload.outlet_id,
       referenceKey: referenceKey,
       pidOptionWadh: pidOptionWadh,
     });
+
+    // Update the user's eKYC status to COMPLETED
+    await updateEKYCStatus(req.body.userId, "COMPLETED");
 
     return res.status(200).json(
       ApiResponse.success(
@@ -160,13 +234,28 @@ const doBioEkycController = async (req, res) => {
       )
     );
   } catch (error) {
+    // Handle provider errors
+    if (error.providerError) {
+      return res.status(error.statusCode || 400).json(
+        ApiResponse.error(
+          error.message,
+          error.providerData,
+          null,
+          error.statusCode || 400
+        )
+      );
+    }
+
     return res
       .status(error.statusCode || error.response?.status || 500)
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to perform biometric eKYC"
+          error.message ||
+          "Failed to perform biometric eKYC",
+          null,
+          null,
+          error.statusCode || error.response?.status || 500
         )
       );
   }
@@ -190,8 +279,8 @@ const verifyTfaController = async (req, res) => {
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to verify TFA"
+          error.message ||
+          "Failed to verify TFA"
         )
       );
   }
@@ -213,8 +302,8 @@ const loginStatusController = async (req, res) => {
       .json(
         ApiResponse.error(
           error.response?.data?.message ||
-            error.message ||
-            "Failed to fetch login status"
+          error.message ||
+          "Failed to fetch login status"
         )
       );
   }

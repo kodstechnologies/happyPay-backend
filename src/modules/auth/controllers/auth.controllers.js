@@ -5,6 +5,7 @@ import {
   retailerLogout,
   retailerRegister,
   reapplyForKyc,
+  getRetailerDetailsService,
 } from "../services/auth.services.js";
 
 import ApiResponse from "../../../utils/ApiResponse.js";
@@ -137,7 +138,7 @@ const logoutRetailer = async (
       )
     );
 };
-
+//change
 const registerRetailer = asyncHandler(async (req, res) => {
   const files = uploadedRetailerFiles(req.files);
 
@@ -232,4 +233,22 @@ export {
   logoutRetailer,
   registerRetailer,
   getBankListController,
+  getRetailerDetails,
 };
+
+
+const getRetailerDetails = asyncHandler(async (req, res) => {
+  const { retailerId } = req.params;
+  const { registrationStatus } = req.query;
+
+  const retailer = await getRetailerDetailsService(retailerId, registrationStatus);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      retailer,
+      "Retailer details retrieved successfully",
+      null,
+      200
+    )
+  );
+});

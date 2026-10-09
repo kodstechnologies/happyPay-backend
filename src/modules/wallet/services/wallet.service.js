@@ -104,7 +104,25 @@ export const getUserWalletBalance = async (userId) => {
   };
 };
 
+export const createWallet = async (userId) => {
+  const existingWallet = await Wallet.findOne({ user: userId });
+  if (existingWallet) {
+    return existingWallet;
+  }
+
+  const wallet = new Wallet({
+    user: userId,
+    balance: 0,
+    holdBalance: 0,
+    currency: "INR",
+    status: "active",
+  });
+
+  return await wallet.save();
+};
+
 export default {
   addAmountToWallet,
   getUserWalletBalance,
+  createWallet,
 };

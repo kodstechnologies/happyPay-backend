@@ -14,47 +14,48 @@ import {
   findRetailerById,
   updateRetailerReview,
 } from "../repository/user.repository.js";
+import { createWallet } from "../../wallet/services/wallet.service.js";
 
 const createAdminService = async ({
-    firstName,
-    lastName,
-    email,
+  firstName,
+  lastName,
+  email,
+  mobile,
+  password,
+  roleSlug,
+}) => {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existingAdmin = await findByEmail(normalizedEmail);
+
+  if (existingAdmin) {
+    throw new Error("Admin already exists");
+  }
+
+  const role = await Role.findOne({
+    slug: roleSlug,
+    isActive: true,
+  });
+
+  if (!role) {
+    throw new Error(`Admin role '${roleSlug}' not found`);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const admin = await createAdmin({
+    firstName: firstName.trim(),
+    lastName: lastName?.trim(),
+    email: normalizedEmail,
     mobile,
-    password,
-    roleSlug,
-  }) => {
-    const normalizedEmail = email.toLowerCase().trim();
-  
-    const existingAdmin = await findByEmail(normalizedEmail);
-  
-    if (existingAdmin) {
-      throw new Error("Admin already exists");
-    }
-  
-    const role = await Role.findOne({
-      slug: roleSlug,
-      isActive: true,
-    });
-  
-    if (!role) {
-      throw new Error(`Admin role '${roleSlug}' not found`);
-    }
-  
-    const hashedPassword = await bcrypt.hash(password, 12);
-  
-    const admin = await createAdmin({
-      firstName: firstName.trim(),
-      lastName: lastName?.trim(),
-      email: normalizedEmail,
-      mobile,
-      password: hashedPassword,
-      roles: [role._id],
-      status: "active",
-    });
-  
-    return admin;
-  };
-  
+    password: hashedPassword,
+    roles: [role._id],
+    status: "active",
+  });
+
+  return admin;
+};
+
 
 const loginAdminService = async ({
   email,
@@ -158,11 +159,12 @@ const buildRetailerReview = (user) => ({
   shopLocationPhoto: user.shopLocationPhoto || null,
   businessProof: user.businessProofType || null,
   businessProofDocument: user.businessProofDocument || null,
-  bankName: user.bank?.name || null,
-  ifscCode: user.bank?.ifscCode || null,
+  banks: user.banks || [],
+  primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
   outletId: user.outletId,
   adminApproved: user.adminApproved,
   reasonOfRejection: user.reasonOfRejection || null,
+  documentReviews: user.documentReviews || null,
   registeredAt: user.updatedAt,
 });
 
@@ -223,6 +225,9 @@ const approveRetailerService = async (retailerId) => {
   if (!retailer) {
     throw fail(409, "Retailer is no longer pending");
   }
+
+  // Create wallet for the approved retailer
+  await createWallet(retailerId);
 
   return buildRetailerReview(retailer);
 };

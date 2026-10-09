@@ -67,11 +67,12 @@ const buildRetailerResponse = (user) => ({
   shopLocationPhoto: user.shopLocationPhoto || null,
   businessProof: user.businessProofType || null,
   businessProofDocument: user.businessProofDocument || null,
-  bankName: user.bank?.name || null,
-  ifscCode: user.bank?.ifscCode || null,
+  banks: user.banks || [],
+  primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
   outletId: user.outletId || null,
   adminApproved: user.adminApproved,
   reasonOfRejection: user.reasonOfRejection || null,
+  documentReviews: user.documentReviews || null,
 });
 
 const assertActiveMaster = async (Model, id, label) => {
@@ -381,11 +382,41 @@ const registerRetailer = async (body = {}) => {
     shopLocationPhoto,
     businessProofType: businessProofId,
     businessProofDocument,
-    "bank.name": bankName,
-    "bank.ifscCode": ifscCode,
+    banks: [
+      {
+        name: bankName,
+        ifscCode: ifscCode,
+        isPrimary: true,
+        isActive: true,
+      },
+    ],
     outletId: String(outletId),
+    registrationStatus: "COMPLETED",
     adminApproved: "pending",
     reasonOfRejection: null,
+    documentReviews: {
+      panDocument: {
+        status: panDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+      aadhaarDocument: {
+        status: aadhaarDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+      selfie: {
+        status: selfie ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopInsidePhoto: {
+        status: shopInsidePhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopOutsidePhoto: {
+        status: shopOutsidePhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      shopLocationPhoto: {
+        status: shopLocationPhoto ? "PENDING" : "NOT_SUBMITTED",
+      },
+      businessProofDocument: {
+        status: businessProofDocument ? "PENDING" : "NOT_SUBMITTED",
+      },
+    },
   });
 
   return buildRetailerResponse(savedUser);

@@ -2,11 +2,50 @@ import mongoose from "mongoose";
 import deviceSchema from "./device.model.js";
 import refreshTokenSchema from "./token.model.js";
 
+const documentReviewSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: [
+        "NOT_SUBMITTED",
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+      ],
+      default: "NOT_SUBMITTED",
+    },
+
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     // =========================
     // Account Details
     // =========================
+    registrationStatus: {
+      type: String,
+      enum: ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+      default: "NOT_STARTED",
+    },
+
     panNumber: {
       type: String,
       trim: true,
@@ -148,7 +187,6 @@ const userSchema = new mongoose.Schema(
 
     aadhaarVerificationMethod: {
       type: String,
-      enum: ["otp", "biometric", "offline_xml"],
     },
 
     aadhaarConsent: {
@@ -197,46 +235,58 @@ const userSchema = new mongoose.Schema(
     },
 
     // =========================
-    // Bank Details
+    // Bank Details (Array for multiple banks)
     // =========================
-    bank: {
-      name: {
-        type: String,
-        trim: true,
-      },
+    banks: [
+      {
+        name: {
+          type: String,
+          trim: true,
+        },
 
-      ifscCode: {
-        type: String,
-        trim: true,
-        uppercase: true,
-      },
+        ifscCode: {
+          type: String,
+          trim: true,
+          uppercase: true,
+        },
 
-      accountNumber: {
-        type: String,
-        trim: true,
-      },
+        accountNumber: {
+          type: String,
+          trim: true,
+        },
 
-      confirmAccountNumber: {
-        type: String,
-        trim: true,
-      },
+        confirmAccountNumber: {
+          type: String,
+          trim: true,
+        },
 
-      branchName: {
-        type: String,
-        trim: true,
+        branchName: {
+          type: String,
+          trim: true,
+        },
+
+        isPrimary: {
+          type: Boolean,
+          default: false,
+        },
+
+        isActive: {
+          type: Boolean,
+          default: true,
+        },
       },
-    },
+    ],
 
     // =========================
-    // KYC
+    // eKYC (AEPS)
     // =========================
-    kycStatus: {
+    eKYCStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ["PENDING", "COMPLETED", "FAILED", "ACTION_REQUIRED"],
+      default: "PENDING",
     },
 
-    kycRejectionReason: {
+    eKYCRejectionReason: {
       type: String,
       trim: true,
     },
@@ -259,6 +309,46 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: null,
+    },
+
+    // =========================
+    // Document Reviews
+    // =========================
+    documentReviews: {
+      panDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      aadhaarDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      selfie: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopInsidePhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopOutsidePhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      shopLocationPhoto: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      businessProofDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
     },
 
     // =========================
@@ -291,9 +381,9 @@ const userSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-     
+
         "active",
-   
+
         "suspended",
         "blocked",
       ],
