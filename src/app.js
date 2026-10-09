@@ -23,17 +23,17 @@ app.use(requestLogger);
 ============================== */
 
 app.get("/", (req, res) => {
-  res.json({
-    requestId: req.id,
-    success: true,
-    message: "Happy pay API is runnning",
-  });
+   res.json({
+      requestId: req.id,
+      success: true,
+      message: "Happy pay API is runnning",
+   });
 });
 
 /* ==============================
    User Routes
 ============================== */
-app.use("/",routes)
+app.use("/", routes)
 
 /* ==============================
    404 Handler

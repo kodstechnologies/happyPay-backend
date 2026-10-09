@@ -43,9 +43,9 @@ router.post(
 );
 
 
-router.patch(
-  "retailer/update/:retailerId"
-)
+// router.patch(
+//   "retailer/update/:retailerId"
+// )
 
 router.get(
   "/banks",
