@@ -93,7 +93,7 @@ export const registerRetailerSchema = Joi.object({
   fulladdress: Joi.string().trim().optional(),
   pincode: Joi.string().trim().pattern(/^\d{6}$/).optional(),
   city: Joi.string().trim().optional(),
-  
+
   dob: Joi.string()
     .trim()
     .required()
@@ -114,7 +114,7 @@ export const registerRetailerSchema = Joi.object({
 
   latitude: Joi.number().min(-90).max(90).optional(),
   longitude: Joi.number().min(-180).max(180).optional(),
-  
+
   shopName: Joi.string().trim().required().messages({
     "any.required": "shopName is required",
     "string.empty": "shopName is required",
@@ -143,10 +143,10 @@ export const registerRetailerSchema = Joi.object({
 
   businessProof: objectId("business proof"),
 
-  bankName: Joi.string().trim().required().messages({
-    "any.required": "bankName is required",
-    "string.empty": "bankName is required",
-  }),
+  // bankName: Joi.string().trim().required().messages({
+  //   "any.required": "bankName is required",
+  //   "string.empty": "bankName is required",
+  // }),
 
   ifscCode: Joi.string()
     .trim()
