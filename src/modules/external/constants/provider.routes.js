@@ -20,8 +20,6 @@ const PROVIDER_ROUTES = {
     verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
-    loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
-    verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
 
     balanceEnquiry:`${PROVIDER_API_PREFIX}/aeps5/bank5/be`,
     miniStatement: `${PROVIDER_API_PREFIX}/aeps5/bank5/ms`,
@@ -37,12 +35,20 @@ const PROVIDER_ROUTES = {
     fetchByCat: `${PROVIDER_API_PREFIX}/_bbps/billers_by_cat`,
   },
   dmt:{
+    // remitter is the person who is sending the money and beneficiary is the person who is receiving the money
+    registerRemitter: `${PROVIDER_API_PREFIX}/rdmt/register-remitter`,
+    registerRemitterVerify: `${PROVIDER_API_PREFIX}/rdmt/register-remitter-verify`,
+    loginRemitter: `${PROVIDER_API_PREFIX}/rdmt/login-remitter`,
+    remitterEkyc: `${PROVIDER_API_PREFIX}/rdmt/remitter-ekyc`,
+
+    // Benificiary 
     addBen: `${PROVIDER_API_PREFIX}/rdmt/add-bene`,
     verifyBen: `${PROVIDER_API_PREFIX}/rdmt/verify-bene`,
     getBenificiaries: `${PROVIDER_API_PREFIX}/rdmt/fetch-bene`,
     deleteBen: `${PROVIDER_API_PREFIX}/rdmt/delete-bene`,
     deleteBenVerifyotp: `${PROVIDER_API_PREFIX}/rdmt/delete-bene-verify`,
-
+    
+    // Transaction
     generateTransactionOtp: `${PROVIDER_API_PREFIX}/rdmt/pre-transaction`,
     doTransaction: `${PROVIDER_API_PREFIX}/rdmt/do-transaction`,
     transactionStatus: `${PROVIDER_API_PREFIX}/rdmt/status-check`,

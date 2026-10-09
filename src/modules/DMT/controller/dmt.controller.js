@@ -1,6 +1,11 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import {
+  queryRemitterService,
+  loginRemitterService,
+  registerRemitterService,
+  registerRemitterVerifyService,
+  remitterEkycService,
   addBeneficiaryService,
   verifyBeneficiaryService,
   getBeneficiariesService,
@@ -11,11 +16,82 @@ import {
   getTransactionStatusService,
 } from "../service/dmt.service.js";
 
+// -------------------------------------------------------------
+// Remitter Controllers
+// -------------------------------------------------------------
+
+/**
+ * Controller to query or login remitter by mobile number
+ */
+const queryRemitterController = asyncHandler(async (req, res) => {
+  const payload = {
+    ...req.query,
+    ...req.params,
+    ...req.body,
+  };
+
+  const result = await queryRemitterService(payload);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Remitter details fetched successfully"
+    )
+  );
+});
+
+const loginRemitterController = queryRemitterController;
+
+/**
+ * Controller to register a new remitter
+ */
+const registerRemitterController = asyncHandler(async (req, res) => {
+  const result = await registerRemitterService(req.body);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Remitter registration initiated. OTP sent to mobile"
+    )
+  );
+});
+
+/**
+ * Controller to verify remitter registration OTP
+ */
+const registerRemitterVerifyController = asyncHandler(async (req, res) => {
+  const result = await registerRemitterVerifyService(req.body);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Remitter verified and registered successfully"
+    )
+  );
+});
+
+/**
+ * Controller to perform remitter eKYC / Biometric verification
+ */
+const remitterEkycController = asyncHandler(async (req, res) => {
+  const result = await remitterEkycService(req.body);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Remitter eKYC processed successfully"
+    )
+  );
+});
+
+// -------------------------------------------------------------
+// Beneficiary Controllers
+// -------------------------------------------------------------
+
 /**
  * Controller to add a new beneficiary
  */
 const addBeneficiaryController = asyncHandler(async (req, res) => {
- 
   const result = await addBeneficiaryService(req.body);
 
   return res.status(200).json(
@@ -27,16 +103,15 @@ const addBeneficiaryController = asyncHandler(async (req, res) => {
 });
 
 /**
- * Controller to verify beneficiary account
+ * Controller to verify beneficiary account (penny drop)
  */
 const verifyBeneficiaryController = asyncHandler(async (req, res) => {
- 
   const result = await verifyBeneficiaryService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
       result,
-      "Beneficiary verified successfully"
+      "Beneficiary account verified successfully"
     )
   );
 });
@@ -45,8 +120,13 @@ const verifyBeneficiaryController = asyncHandler(async (req, res) => {
  * Controller to fetch beneficiaries
  */
 const getBeneficiariesController = asyncHandler(async (req, res) => {
+  const payload = {
+    ...req.query,
+    ...req.params,
+    ...req.body,
+  };
 
-  const result = await getBeneficiariesService(req.body);
+  const result = await getBeneficiariesService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -60,7 +140,6 @@ const getBeneficiariesController = asyncHandler(async (req, res) => {
  * Controller to initiate beneficiary deletion (sends OTP)
  */
 const deleteBeneficiaryController = asyncHandler(async (req, res) => {
-
   const result = await deleteBeneficiaryService(req.body);
 
   return res.status(200).json(
@@ -75,7 +154,6 @@ const deleteBeneficiaryController = asyncHandler(async (req, res) => {
  * Controller to verify delete OTP and remove beneficiary
  */
 const deleteBeneficiaryVerifyOtpController = asyncHandler(async (req, res) => {
- 
   const result = await deleteBeneficiaryVerifyOtpService(req.body);
 
   return res.status(200).json(
@@ -85,6 +163,10 @@ const deleteBeneficiaryVerifyOtpController = asyncHandler(async (req, res) => {
     )
   );
 });
+
+// -------------------------------------------------------------
+// Transaction Controllers
+// -------------------------------------------------------------
 
 /**
  * Controller to generate pre-transaction OTP
@@ -118,8 +200,13 @@ const doTransactionController = asyncHandler(async (req, res) => {
  * Controller to check DMT transaction status
  */
 const getTransactionStatusController = asyncHandler(async (req, res) => {
- 
-  const result = await getTransactionStatusService(req.body);
+  const payload = {
+    ...req.query,
+    ...req.params,
+    ...req.body,
+  };
+
+  const result = await getTransactionStatusService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -130,6 +217,11 @@ const getTransactionStatusController = asyncHandler(async (req, res) => {
 });
 
 export {
+  queryRemitterController,
+  loginRemitterController,
+  registerRemitterController,
+  registerRemitterVerifyController,
+  remitterEkycController,
   addBeneficiaryController,
   verifyBeneficiaryController,
   getBeneficiariesController,

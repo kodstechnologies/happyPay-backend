@@ -84,6 +84,18 @@ const fetchByCat = (payload) =>
   postProviderForm(PROVIDER_ROUTES.bbps.fetchByCat, payload);
 
 // dmt services
+const registerRemitter = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.dmt.registerRemitter, payload);
+
+const registerRemitterVerify = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.dmt.registerRemitterVerify, payload);
+
+const loginRemitter = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.dmt.loginRemitter, payload);
+
+const remitterEkyc = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.dmt.remitterEkyc, payload);
+
 const addBeneficiary = (payload) =>
   postProviderForm(PROVIDER_ROUTES.dmt.addBen, payload);
 
@@ -108,10 +120,12 @@ const doTransaction = (payload) =>
 const getTransactionStatus = (payload) =>
   postProviderForm(PROVIDER_ROUTES.dmt.transactionStatus, payload);
 
-
+// UPI Cashpoint services
 const initiateUpiCashpointPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.upiCashpoint.intiatepayment, payload);
 
+
+// CMS Payment services
 const initiateCmsPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.cmsPayment.initiatePayment, payload);
 
@@ -132,6 +146,12 @@ export {
   payBill,
   fetchByCatId,
   fetchByCat,
+
+  registerRemitter,
+  registerRemitterVerify,
+  loginRemitter,
+  remitterEkyc,
+
   addBeneficiary,
   verifyBeneficiary,
   getBeneficiaries,
