@@ -1,16 +1,59 @@
 import Joi from "joi";
 
-const mobileValidator = Joi.string()
+// =============================================================
+// Reusable Core Validation Rules
+// =============================================================
+
+const mobileRule = Joi.string()
   .trim()
   .pattern(/^[6-9]\d{9}$/)
   .required()
   .messages({
-    "any.required": "Customer mobile number is required",
-    "string.empty": "Customer mobile number is required",
-    "string.pattern.base": "Please enter a valid 10-digit Indian mobile number",
+    "any.required": "Customer mobile number (mobile) is required",
+    "string.empty": "Customer mobile number (mobile) is required",
+    "string.pattern.base": "Please provide a valid 10-digit Indian mobile number",
   });
 
-const ifscValidator = Joi.string()
+const outletIdRule = Joi.alternatives()
+  .try(Joi.string().trim().min(1), Joi.number().positive())
+  .required()
+  .messages({
+    "any.required": "Outlet ID (outletid) is required",
+    "string.empty": "Outlet ID (outletid) is required",
+  });
+
+const referenceKeyRule = Joi.string()
+  .trim()
+  .min(1)
+  .required()
+  .messages({
+    "any.required": "Reference key (referenceKey) is required",
+    "string.empty": "Reference key (referenceKey) is required",
+  });
+
+const aadhaarRule = Joi.string()
+  .trim()
+  .pattern(/^\d{12}$/)
+  .required()
+  .messages({
+    "any.required": "Aadhaar number (aadhaar) is required",
+    "string.empty": "Aadhaar number (aadhaar) is required",
+    "string.pattern.base": "Aadhaar number must be exactly 12 numeric digits",
+  });
+
+const otpRule = Joi.alternatives()
+  .try(
+    Joi.string().trim().pattern(/^\d{4,8}$/),
+    Joi.number().integer().min(1000).max(99999999)
+  )
+  .required()
+  .messages({
+    "any.required": "OTP is required",
+    "string.empty": "OTP is required",
+    "string.pattern.base": "OTP must be 4 to 8 numeric digits",
+  });
+
+const ifscRule = Joi.string()
   .trim()
   .uppercase()
   .pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/)
@@ -18,218 +61,201 @@ const ifscValidator = Joi.string()
   .messages({
     "any.required": "IFSC code is required",
     "string.empty": "IFSC code is required",
-    "string.pattern.base": "Please enter a valid IFSC code (e.g., SBIN0001234)",
+    "string.pattern.base": "Invalid IFSC code format (e.g., SBIN0001234)",
   });
 
-const pincodeValidator = Joi.string()
+const accountRule = Joi.string()
   .trim()
-  .pattern(/^\d{6}$/)
+  .pattern(/^\d{8,20}$/)
+  .required()
   .messages({
-    "string.pattern.base": "Please enter a valid 6-digit PIN code",
+    "any.required": "Bank account number is required",
+    "string.empty": "Bank account number is required",
+    "string.pattern.base": "Account number must be between 8 and 20 numeric digits",
   });
 
-// -------------------------------------------------------------
-// Remitter Schemas
-// -------------------------------------------------------------
+const idRule = Joi.alternatives()
+  .try(Joi.string().trim().min(1), Joi.number().integer().positive())
+  .required()
+  .messages({
+    "any.required": "Beneficiary ID (bene_id) is required",
+    "string.empty": "Beneficiary ID (bene_id) is required",
+  });
 
-const queryRemitterSchema = Joi.object({
-  mobile: mobileValidator,
-}).unknown(true);
+// =============================================================
+// Remitter Validation Schemas (Strict & Non-Duplicated)
+// =============================================================
 
-const loginRemitterSchema = queryRemitterSchema;
+/**
+ * 1. Login / Query Remitter
+ */
+export const remitterQuerySchema = Joi.object({
+  outletid: outletIdRule,
+  mobile: mobileRule,
+});
 
-const registerRemitterSchema = Joi.object({
-  mobile: mobileValidator,
-  fname: Joi.string().trim().min(2).max(60).optional(),
-  first_name: Joi.string().trim().min(2).max(60).optional(),
-  lname: Joi.string().trim().min(1).max(60).optional(),
-  last_name: Joi.string().trim().min(1).max(60).optional(),
-  name: Joi.string().trim().min(2).max(120).optional(),
-  pincode: pincodeValidator.required().messages({
-    "any.required": "Pincode is required",
-    "string.empty": "Pincode is required",
+/**
+ * 2. Register Remitter
+ */
+export const remitterRegisterSchema = Joi.object({
+  referenceKey: referenceKeyRule,
+  aadhaar: aadhaarRule,
+  outletid: outletIdRule,
+  mobile: mobileRule,
+});
+
+
+  // 3. Verify Remitter Registration OTP
+
+export const remitterVerifyOtpSchema = Joi.object({
+  referenceKey: referenceKeyRule,
+  otp: otpRule,
+  outletid: outletIdRule,
+  mobile: mobileRule,
+});
+
+
+  // 4. Remitter eKYC
+
+export const remitterEkycSchema = Joi.object({
+  srno: Joi.string().trim().required().messages({
+    "any.required": "srno is required",
+    "string.empty": "srno is required",
   }),
-  dob: Joi.string()
-    .trim()
-    .pattern(/^(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{2}\/\d{2}\/\d{4})$/)
-    .optional()
-    .messages({
-      "string.pattern.base": "DOB format should be YYYY-MM-DD or DD-MM-YYYY",
-    }),
-  address: Joi.string().trim().min(3).max(255).optional(),
-  latlong: Joi.string().trim().optional(),
-  stateresp: Joi.string().trim().optional(),
-})
-  .or("fname", "first_name", "name")
-  .unknown(true)
-  .messages({
-    "object.missing": "Remitter first name is required",
-  });
+  sessionKey: Joi.string().trim().required().messages({
+    "any.required": "sessionKey is required",
+    "string.empty": "sessionKey is required",
+  }),
+  rdsId: Joi.string().trim().required().messages({
+    "any.required": "rdsId is required",
+    "string.empty": "rdsId is required",
+  }),
+  rdsVer: Joi.string().trim().required().messages({
+    "any.required": "rdsVer is required",
+    "string.empty": "rdsVer is required",
+  }),
+  mc: Joi.string().trim().required().messages({
+    "any.required": "mc is required",
+    "string.empty": "mc is required",
+  }),
+  mi: Joi.string().trim().required().messages({
+    "any.required": "mi is required",
+    "string.empty": "mi is required",
+  }),
+  dc: Joi.string().trim().required().messages({
+    "any.required": "dc is required",
+    "string.empty": "dc is required",
+  }),
+  ts: Joi.string().trim().required().messages({
+    "any.required": "ts is required",
+    "string.empty": "ts is required",
+  }),
+  Piddata: Joi.string().trim().required().messages({
+    "any.required": "Piddata is required",
+    "string.empty": "Piddata is required",
+  }),
+  hmac: Joi.string().trim().required().messages({
+    "any.required": "hmac is required",
+    "string.empty": "hmac is required",
+  }),
+  ci: Joi.string().trim().required().messages({
+    "any.required": "ci is required",
+    "string.empty": "ci is required",
+  }),
+  txnid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
+    "any.required": "txnid is required",
+  }),
+  longitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
+    "any.required": "longitude is required",
+  }),
+  latitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
+    "any.required": "latitude is required",
+  }),
+  referenceKey: referenceKeyRule,
+  outletid: outletIdRule,
+  mobile: mobileRule,
+});
 
-const registerRemitterVerifySchema = Joi.object({
-  mobile: mobileValidator,
-  otp: Joi.alternatives()
-    .try(Joi.string().trim().pattern(/^\d{4,8}$/), Joi.number())
-    .required()
-    .messages({
-      "any.required": "OTP is required for verification",
-      "string.empty": "OTP is required",
-      "string.pattern.base": "Please enter a valid 4 to 8 digit OTP",
-    }),
-  stateresp: Joi.string().trim().optional(),
-  remitter_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
-  otp_ref: Joi.string().trim().optional(),
-}).unknown(true);
+// =============================================================
+// Beneficiary Validation Schemas
+// =============================================================
 
-const remitterEkycSchema = Joi.object({
-  mobile: mobileValidator,
-  aadhar_no: Joi.string()
-    .trim()
-    .pattern(/^\d{12}$/)
-    .optional()
-    .messages({
-      "string.pattern.base": "Aadhaar number must be exactly 12 digits",
-    }),
-  aadhaar_number: Joi.string()
-    .trim()
-    .pattern(/^\d{12}$/)
-    .optional()
-    .messages({
-      "string.pattern.base": "Aadhaar number must be exactly 12 digits",
-    }),
-  biometric_data: Joi.string().trim().optional(),
-  piddata: Joi.string().trim().optional(),
-  device_data: Joi.string().trim().optional(),
-  latlong: Joi.string().trim().optional(),
-}).unknown(true);
+export const beneficiaryFetchSchema = Joi.object({
+  mobile: mobileRule,
+  outletid: outletIdRule,
+});
 
-// -------------------------------------------------------------
-// Beneficiary Schemas
-// -------------------------------------------------------------
+export const beneficiaryVerifySchema = Joi.object({
+  mobile: mobileRule,
+  account_number: accountRule,
+  ifsc: ifscRule,
+  outletid: outletIdRule,
+});
 
-const addBeneficiarySchema = Joi.object({
-  mobile: mobileValidator,
-  name: Joi.string().trim().min(2).max(100).optional(),
-  bene_name: Joi.string().trim().min(2).max(100).optional(),
-  account_number: Joi.string()
-    .trim()
-    .pattern(/^\d{8,20}$/)
-    .required()
-    .messages({
-      "any.required": "Beneficiary account number is required",
-      "string.empty": "Beneficiary account number is required",
-      "string.pattern.base": "Please enter a valid bank account number (8 to 20 digits)",
-    }),
-  ifsc: ifscValidator,
+export const beneficiaryAddSchema = Joi.object({
+  mobile: mobileRule,
+  bene_name: Joi.string().trim().min(2).max(100).required().messages({
+    "any.required": "Beneficiary name (bene_name) is required",
+    "string.empty": "Beneficiary name (bene_name) is required",
+  }),
+  account_number: accountRule,
+  ifsc: ifscRule,
   bank_name: Joi.string().trim().optional(),
-  relation: Joi.string().trim().optional(),
-  pincode: pincodeValidator.optional(),
-})
-  .or("name", "bene_name")
-  .unknown(true)
-  .messages({
-    "object.missing": "Beneficiary name is required",
-  });
+  outletid: outletIdRule,
+});
 
-const verifyBeneficiarySchema = Joi.object({
-  mobile: mobileValidator,
-  account_number: Joi.string()
-    .trim()
-    .pattern(/^\d{8,20}$/)
-    .required()
-    .messages({
-      "any.required": "Account number is required",
-      "string.empty": "Account number is required",
-      "string.pattern.base": "Please enter a valid account number",
-    }),
-  ifsc: ifscValidator,
-}).unknown(true);
+export const beneficiaryDeleteSchema = Joi.object({
+  mobile: mobileRule,
+  bene_id: idRule,
+  outletid: outletIdRule,
+});
 
-const fetchBeneficiariesSchema = Joi.object({
-  mobile: mobileValidator,
-}).unknown(true);
+export const beneficiaryDeleteVerifySchema = Joi.object({
+  mobile: mobileRule,
+  bene_id: idRule,
+  otp: otpRule,
+  outletid: outletIdRule,
+});
 
-const deleteBeneficiarySchema = Joi.object({
-  mobile: mobileValidator,
-  bene_id: Joi.alternatives()
-    .try(Joi.string().trim(), Joi.number())
-    .required()
-    .messages({
-      "any.required": "Beneficiary ID (bene_id) is required",
-      "string.empty": "Beneficiary ID (bene_id) is required",
-    }),
-}).unknown(true);
+// =============================================================
+// Transaction Validation Schemas
+// =============================================================
 
-const deleteBeneficiaryVerifyOtpSchema = Joi.object({
-  mobile: mobileValidator,
-  bene_id: Joi.alternatives()
-    .try(Joi.string().trim(), Joi.number())
-    .required()
-    .messages({
-      "any.required": "Beneficiary ID (bene_id) is required",
-    }),
-  otp: Joi.alternatives()
-    .try(Joi.string().trim().pattern(/^\d{4,8}$/), Joi.number())
-    .required()
-    .messages({
-      "any.required": "OTP is required",
-      "string.pattern.base": "Please enter a valid OTP",
-    }),
-}).unknown(true);
+export const transactionOtpSchema = Joi.object({
+  mobile: mobileRule,
+  amount: Joi.alternatives().try(Joi.number().positive(), Joi.string().trim()).required().messages({
+    "any.required": "Amount is required",
+  }),
+  outletid: outletIdRule,
+});
 
-// -------------------------------------------------------------
-// Transaction Schemas
-// -------------------------------------------------------------
-
-const generateTransactionOtpSchema = Joi.object({
-  mobile: mobileValidator,
+export const transactionExecuteSchema = Joi.object({
+  mobile: mobileRule,
   amount: Joi.alternatives()
-    .try(Joi.number().positive(), Joi.string().trim())
-    .optional(),
-  bene_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
-}).unknown(true);
-
-const doTransactionSchema = Joi.object({
-  mobile: mobileValidator,
-  amount: Joi.alternatives()
-    .try(Joi.number().positive(), Joi.string().trim())
+    .try(Joi.number().positive(), Joi.string().trim().pattern(/^\d+(\.\d{1,2})?$/))
     .required()
     .messages({
       "any.required": "Transaction amount is required",
       "number.positive": "Transaction amount must be greater than zero",
     }),
-  bene_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
-  mode: Joi.string().trim().valid("IMPS", "NEFT", "RTGS", "UPI").default("IMPS"),
+  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
+    "any.required": "Beneficiary ID (bene_id) is required",
+  }),
+  mode: Joi.string().trim().valid("IMPS", "NEFT", "RTGS", "UPI").required().messages({
+    "any.required": "Transfer mode (IMPS/NEFT/RTGS/UPI) is required",
+  }),
   otp: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   latlong: Joi.string().trim().optional(),
   client_ref_id: Joi.string().trim().optional(),
-}).unknown(true);
+  outletid: outletIdRule,
+});
 
-const transactionStatusSchema = Joi.object({
+export const transactionStatusSchema = Joi.object({
   reference_id: Joi.string().trim().optional(),
   txnid: Joi.string().trim().optional(),
   client_ref_id: Joi.string().trim().optional(),
-  status_check_id: Joi.string().trim().optional(),
 })
   .min(1)
-  .unknown(true)
   .messages({
-    "object.min":
-      "At least one transaction identifier (reference_id, txnid, client_ref_id) is required",
+    "object.min": "At least one transaction identifier (reference_id, txnid, client_ref_id) is required",
   });
-
-export {
-  queryRemitterSchema,
-  loginRemitterSchema,
-  registerRemitterSchema,
-  registerRemitterVerifySchema,
-  remitterEkycSchema,
-  addBeneficiarySchema,
-  verifyBeneficiarySchema,
-  fetchBeneficiariesSchema,
-  deleteBeneficiarySchema,
-  deleteBeneficiaryVerifyOtpSchema,
-  generateTransactionOtpSchema,
-  doTransactionSchema,
-  transactionStatusSchema,
-};

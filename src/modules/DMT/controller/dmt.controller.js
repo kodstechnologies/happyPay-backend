@@ -1,36 +1,23 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import {
-  queryRemitterService,
-  loginRemitterService,
+  getRemitterDetailsService,
   registerRemitterService,
-  registerRemitterVerifyService,
-  remitterEkycService,
+  verifyRemitterOtpService,
+  performRemitterEkycService,
+  fetchBeneficiariesService,
+  verifyBeneficiaryAccountService,
   addBeneficiaryService,
-  verifyBeneficiaryService,
-  getBeneficiariesService,
   deleteBeneficiaryService,
-  deleteBeneficiaryVerifyOtpService,
+  verifyDeleteBeneficiaryOtpService,
   generateTransactionOtpService,
-  doTransactionService,
-  getTransactionStatusService,
+  executeTransactionService,
+  checkTransactionStatusService,
 } from "../service/dmt.service.js";
 
-// -------------------------------------------------------------
-// Remitter Controllers
-// -------------------------------------------------------------
-
-/**
- * Controller to query or login remitter by mobile number
- */
-const queryRemitterController = asyncHandler(async (req, res) => {
-  const payload = {
-    ...req.query,
-    ...req.params,
-    ...req.body,
-  };
-
-  const result = await queryRemitterService(payload);
+export const getRemitterDetailsController = asyncHandler(async (req, res) => {
+  const payload = { ...req.query, ...req.params, ...req.body };
+  const result = await getRemitterDetailsService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -40,41 +27,31 @@ const queryRemitterController = asyncHandler(async (req, res) => {
   );
 });
 
-const loginRemitterController = queryRemitterController;
-
-/**
- * Controller to register a new remitter
- */
-const registerRemitterController = asyncHandler(async (req, res) => {
+export const registerRemitterController = asyncHandler(async (req, res) => {
+  
   const result = await registerRemitterService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
       result,
-      "Remitter registration initiated. OTP sent to mobile"
+      "Remitter registration initiated. OTP sent to registered mobile number"
     )
   );
 });
 
-/**
- * Controller to verify remitter registration OTP
- */
-const registerRemitterVerifyController = asyncHandler(async (req, res) => {
-  const result = await registerRemitterVerifyService(req.body);
+export const verifyRemitterOtpController = asyncHandler(async (req, res) => {
+  const result = await verifyRemitterOtpService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
       result,
-      "Remitter verified and registered successfully"
+      "Remitter OTP verified and registered successfully"
     )
   );
 });
 
-/**
- * Controller to perform remitter eKYC / Biometric verification
- */
-const remitterEkycController = asyncHandler(async (req, res) => {
-  const result = await remitterEkycService(req.body);
+export const performRemitterEkycController = asyncHandler(async (req, res) => {
+  const result = await performRemitterEkycService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -84,14 +61,34 @@ const remitterEkycController = asyncHandler(async (req, res) => {
   );
 });
 
-// -------------------------------------------------------------
+// =============================================================
 // Beneficiary Controllers
-// -------------------------------------------------------------
+// =============================================================
 
-/**
- * Controller to add a new beneficiary
- */
-const addBeneficiaryController = asyncHandler(async (req, res) => {
+export const fetchBeneficiariesController = asyncHandler(async (req, res) => {
+  const payload = { ...req.query, ...req.params, ...req.body };
+  const result = await fetchBeneficiariesService(payload);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Beneficiaries fetched successfully"
+    )
+  );
+});
+
+export const verifyBeneficiaryAccountController = asyncHandler(async (req, res) => {
+  const result = await verifyBeneficiaryAccountService(req.body);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Beneficiary bank account verified successfully"
+    )
+  );
+});
+
+export const addBeneficiaryController = asyncHandler(async (req, res) => {
   const result = await addBeneficiaryService(req.body);
 
   return res.status(200).json(
@@ -102,44 +99,7 @@ const addBeneficiaryController = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * Controller to verify beneficiary account (penny drop)
- */
-const verifyBeneficiaryController = asyncHandler(async (req, res) => {
-  const result = await verifyBeneficiaryService(req.body);
-
-  return res.status(200).json(
-    ApiResponse.success(
-      result,
-      "Beneficiary account verified successfully"
-    )
-  );
-});
-
-/**
- * Controller to fetch beneficiaries
- */
-const getBeneficiariesController = asyncHandler(async (req, res) => {
-  const payload = {
-    ...req.query,
-    ...req.params,
-    ...req.body,
-  };
-
-  const result = await getBeneficiariesService(payload);
-
-  return res.status(200).json(
-    ApiResponse.success(
-      result,
-      "Beneficiaries fetched successfully"
-    )
-  );
-});
-
-/**
- * Controller to initiate beneficiary deletion (sends OTP)
- */
-const deleteBeneficiaryController = asyncHandler(async (req, res) => {
+export const deleteBeneficiaryController = asyncHandler(async (req, res) => {
   const result = await deleteBeneficiaryService(req.body);
 
   return res.status(200).json(
@@ -150,11 +110,8 @@ const deleteBeneficiaryController = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * Controller to verify delete OTP and remove beneficiary
- */
-const deleteBeneficiaryVerifyOtpController = asyncHandler(async (req, res) => {
-  const result = await deleteBeneficiaryVerifyOtpService(req.body);
+export const verifyDeleteBeneficiaryOtpController = asyncHandler(async (req, res) => {
+  const result = await verifyDeleteBeneficiaryOtpService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -164,14 +121,11 @@ const deleteBeneficiaryVerifyOtpController = asyncHandler(async (req, res) => {
   );
 });
 
-// -------------------------------------------------------------
+// =============================================================
 // Transaction Controllers
-// -------------------------------------------------------------
+// =============================================================
 
-/**
- * Controller to generate pre-transaction OTP
- */
-const generateTransactionOtpController = asyncHandler(async (req, res) => {
+export const generateTransactionOtpController = asyncHandler(async (req, res) => {
   const result = await generateTransactionOtpService(req.body);
 
   return res.status(200).json(
@@ -182,11 +136,8 @@ const generateTransactionOtpController = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * Controller to execute DMT transaction
- */
-const doTransactionController = asyncHandler(async (req, res) => {
-  const result = await doTransactionService(req.body);
+export const executeTransactionController = asyncHandler(async (req, res) => {
+  const result = await executeTransactionService(req.body);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -196,17 +147,9 @@ const doTransactionController = asyncHandler(async (req, res) => {
   );
 });
 
-/**
- * Controller to check DMT transaction status
- */
-const getTransactionStatusController = asyncHandler(async (req, res) => {
-  const payload = {
-    ...req.query,
-    ...req.params,
-    ...req.body,
-  };
-
-  const result = await getTransactionStatusService(payload);
+export const checkTransactionStatusController = asyncHandler(async (req, res) => {
+  const payload = { ...req.query, ...req.params, ...req.body };
+  const result = await checkTransactionStatusService(payload);
 
   return res.status(200).json(
     ApiResponse.success(
@@ -215,19 +158,3 @@ const getTransactionStatusController = asyncHandler(async (req, res) => {
     )
   );
 });
-
-export {
-  queryRemitterController,
-  loginRemitterController,
-  registerRemitterController,
-  registerRemitterVerifyController,
-  remitterEkycController,
-  addBeneficiaryController,
-  verifyBeneficiaryController,
-  getBeneficiariesController,
-  deleteBeneficiaryController,
-  deleteBeneficiaryVerifyOtpController,
-  generateTransactionOtpController,
-  doTransactionController,
-  getTransactionStatusController,
-};

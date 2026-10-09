@@ -2,178 +2,133 @@ import { Router } from "express";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import {
-  queryRemitterController,
-  loginRemitterController,
+  getRemitterDetailsController,
   registerRemitterController,
-  registerRemitterVerifyController,
-  remitterEkycController,
+  verifyRemitterOtpController,
+  performRemitterEkycController,
+  fetchBeneficiariesController,
+  verifyBeneficiaryAccountController,
   addBeneficiaryController,
-  verifyBeneficiaryController,
-  getBeneficiariesController,
   deleteBeneficiaryController,
-  deleteBeneficiaryVerifyOtpController,
+  verifyDeleteBeneficiaryOtpController,
   generateTransactionOtpController,
-  doTransactionController,
-  getTransactionStatusController,
+  executeTransactionController,
+  checkTransactionStatusController,
 } from "../controller/dmt.controller.js";
 import {
-  queryRemitterSchema,
-  loginRemitterSchema,
-  registerRemitterSchema,
-  registerRemitterVerifySchema,
+  remitterQuerySchema,
+  remitterRegisterSchema,
+  remitterVerifyOtpSchema,
   remitterEkycSchema,
-  addBeneficiarySchema,
-  verifyBeneficiarySchema,
-  fetchBeneficiariesSchema,
-  deleteBeneficiarySchema,
-  deleteBeneficiaryVerifyOtpSchema,
-  generateTransactionOtpSchema,
-  doTransactionSchema,
+  beneficiaryFetchSchema,
+  beneficiaryVerifySchema,
+  beneficiaryAddSchema,
+  beneficiaryDeleteSchema,
+  beneficiaryDeleteVerifySchema,
+  transactionOtpSchema,
+  transactionExecuteSchema,
   transactionStatusSchema,
 } from "../validations/dmt.validation.js";
 
 const router = Router();
 
-// =============================================================
-// Remitter Routes
-// =============================================================
-
-// Check Remitter / Query Remitter / Login Remitter
-router.post(
-  "/query-remitter",
-  authMiddleware,
-  validate(queryRemitterSchema, "body"),
-  queryRemitterController
-);
-
 router.post(
   "/login-remitter",
   authMiddleware,
-  validate(loginRemitterSchema, "body"),
-  loginRemitterController
+  validate(remitterQuerySchema, "body"),
+  getRemitterDetailsController
 );
 
-router.get(
-  "/query-remitter",
-  authMiddleware,
-  validate(queryRemitterSchema, "query"),
-  queryRemitterController
-);
-
-router.get(
-  "/remitter/:mobile",
-  authMiddleware,
-  validate(queryRemitterSchema, "params"),
-  queryRemitterController
-);
-
-// Register Remitter (Sends OTP)
 router.post(
   "/register-remitter",
   authMiddleware,
-  validate(registerRemitterSchema, "body"),
+  validate(remitterRegisterSchema, "body"),
   registerRemitterController
 );
 
-// Verify Remitter Registration OTP
 router.post(
   "/register-remitter-verify",
   authMiddleware,
-  validate(registerRemitterVerifySchema, "body"),
-  registerRemitterVerifyController
+  validate(remitterVerifyOtpSchema, "body"),
+  verifyRemitterOtpController
 );
 
-// Remitter Aadhaar / Biometric eKYC
 router.post(
   "/remitter-ekyc",
   authMiddleware,
   validate(remitterEkycSchema, "body"),
-  remitterEkycController
+  performRemitterEkycController
 );
 
 // =============================================================
-// Beneficiary Routes
+// Beneficiary Management Routes
 // =============================================================
 
 router.post(
-  "/add-beneficiary",
+  "/fetch-beneficiaries",
   authMiddleware,
-  validate(addBeneficiarySchema, "body"),
-  addBeneficiaryController
+  validate(beneficiaryFetchSchema, "body"),
+  fetchBeneficiariesController
 );
 
 router.post(
   "/verify-beneficiary",
   authMiddleware,
-  validate(verifyBeneficiarySchema, "body"),
-  verifyBeneficiaryController
+  validate(beneficiaryVerifySchema, "body"),
+  verifyBeneficiaryAccountController
 );
+
 
 router.post(
-  "/fetch-beneficiaries",
+  "/add-beneficiary",
   authMiddleware,
-  validate(fetchBeneficiariesSchema, "body"),
-  getBeneficiariesController
+  validate(beneficiaryAddSchema, "body"),
+  addBeneficiaryController
 );
 
-router.get(
-  "/fetch-beneficiaries",
-  authMiddleware,
-  validate(fetchBeneficiariesSchema, "query"),
-  getBeneficiariesController
-);
-
-router.get(
-  "/fetch-beneficiaries/:mobile",
-  authMiddleware,
-  validate(fetchBeneficiariesSchema, "params"),
-  getBeneficiariesController
-);
-
+// Initiate Delete Beneficiary (Triggers OTP)
 router.post(
   "/delete-beneficiary",
   authMiddleware,
-  validate(deleteBeneficiarySchema, "body"),
+  validate(beneficiaryDeleteSchema, "body"),
   deleteBeneficiaryController
 );
 
+// Verify Delete Beneficiary OTP
 router.post(
   "/delete-beneficiary-verify",
   authMiddleware,
-  validate(deleteBeneficiaryVerifyOtpSchema, "body"),
-  deleteBeneficiaryVerifyOtpController
+  validate(beneficiaryDeleteVerifySchema, "body"),
+  verifyDeleteBeneficiaryOtpController
 );
 
 // =============================================================
-// Transaction Routes
+// Money Transfer & Status Routes
 // =============================================================
 
+// Pre-Transaction OTP Generation
 router.post(
   "/generate-transaction-otp",
   authMiddleware,
-  validate(generateTransactionOtpSchema, "body"),
+  validate(transactionOtpSchema, "body"),
   generateTransactionOtpController
 );
 
+// Execute DMT Money Transfer
 router.post(
   "/do-transaction",
   authMiddleware,
-  validate(doTransactionSchema, "body"),
-  doTransactionController
+  validate(transactionExecuteSchema, "body"),
+  executeTransactionController
 );
 
+// Transaction Status Inquiry
 router.post(
   "/transaction-status",
   authMiddleware,
   validate(transactionStatusSchema, "body"),
-  getTransactionStatusController
+  checkTransactionStatusController
 );
 
-router.get(
-  "/transaction-status",
-  authMiddleware,
-  validate(transactionStatusSchema, "query"),
-  getTransactionStatusController
-);
 
 export default router;
