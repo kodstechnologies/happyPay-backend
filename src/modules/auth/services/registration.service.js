@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import onboardMerchant from "../../external/services/provider.service.js";
+import onboardMerchant, { payBill } from "../../external/services/provider.service.js";
 import Category from "../../masterdata/model/catagory.model.js";
 import PropertyType from "../../masterdata/model/propertyType.model.js";
 import EducationalQualification from "../../masterdata/model/EducationalQualification.model.js";
@@ -650,7 +650,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     latitude: user.shop?.location?.latitude || 0,
     longitude: user.shop?.location?.longitude || 0,
   };
-
+  console.log("=================================payload", onboardPayload)
   let providerResult;
   try {
     providerResult = await onboardMerchant(onboardPayload);

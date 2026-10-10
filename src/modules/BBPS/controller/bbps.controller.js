@@ -13,10 +13,10 @@ import {
 const getAuthFields = (user) => {
   const outletid = user?.outletId || user?.outletid;
   const referenceKey = user?.referenceKey;
-  
+
   if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
   if (!referenceKey) throw ApiError.unauthorized("Reference Key is missing from user session.");
-  
+
   return { outletid, referenceKey };
 };
 
@@ -70,12 +70,12 @@ const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
  * Controller to get billers by category name
  */
 const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
-  const {catname} = req.body;
-  const payload = { 
+  const { catname } = req.body;
+  const payload = {
     catname,
     ...getAuthFields(req.user)
   };
-  
+
   const result = await getBillersByCategoryNameService(payload);
 
   return res.status(200).json(

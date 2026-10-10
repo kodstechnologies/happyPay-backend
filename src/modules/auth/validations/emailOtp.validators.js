@@ -1,7 +1,36 @@
 import Joi from "joi";
+import mongoose from "mongoose";
 import validate from "../../../middlewares/validate.middleware.js";
 
+const objectId = (label) =>
+  Joi.string()
+    .trim()
+    .required()
+    .custom((value, helpers) => {
+      if (!mongoose.Types.ObjectId.isValid(value)) {
+        return helpers.error("objectId.invalid", { label });
+      }
+      return value;
+    })
+    .messages({
+      "any.required": `${label} is required`,
+      "string.empty": `${label} is required`,
+      "objectId.invalid": `Invalid ${label}`,
+    });
+
 const sendEmailOtpSchema = Joi.object({
+  userId: Joi.string()
+    .trim()
+    .custom((value, helpers) => {
+      if (!mongoose.Types.ObjectId.isValid(value)) {
+        return helpers.error("objectId.invalid", { label: "User ID" });
+      }
+      return value;
+    })
+    .optional()
+    .messages({
+      "objectId.invalid": "Invalid User ID",
+    }),
   email: Joi.string()
     .trim()
     .lowercase()
@@ -15,6 +44,7 @@ const sendEmailOtpSchema = Joi.object({
 });
 
 const verifyEmailOtpSchema = Joi.object({
+  userId: objectId("User ID"),
   email: Joi.string()
     .trim()
     .lowercase()
@@ -34,7 +64,6 @@ const verifyEmailOtpSchema = Joi.object({
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
     }),
-
 });
 
 export const validateSendEmailOtp = validate(sendEmailOtpSchema);

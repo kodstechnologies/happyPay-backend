@@ -8,11 +8,14 @@ import { ApiResponse } from "../../../utils/ApiResponse.js";
 import { findByEmail } from "../repository/user.repository.js";
 
 export const sendOtp = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const { email, userId } = req.body;
 
-  // Check if email is already registered
+  // Check if email is already registered to another user
   const existingUser = await findByEmail(email);
-  if (existingUser) {
+  if (
+    existingUser &&
+    (!userId || existingUser._id.toString() !== String(userId))
+  ) {
     const response = ApiResponse.error(
       "Email is already registered",
       null,
@@ -34,9 +37,9 @@ export const sendOtp = asyncHandler(async (req, res) => {
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
+  const { userId, email, otp } = req.body;
 
-  const data = await verifyEmailOtp(email, otp);
+  const data = await verifyEmailOtp(email, otp, userId);
 
   const response = ApiResponse.success(
     data,

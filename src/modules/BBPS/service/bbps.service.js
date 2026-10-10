@@ -20,7 +20,7 @@ const getAllBillersService = async () => {
 };
 
 //  Service to fetch billers by Category ID
- 
+
 const getBillersByCategoryIdService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
   return await fetchByCatId(cleanPayload);

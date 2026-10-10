@@ -1,5 +1,5 @@
-import transporter from "../../../config/mail.js"
-;
+import transporter from "../../../config/mail.js";
+import User from "../model/user.model.js";
 
 import {
   findLatestOtp,
@@ -11,6 +11,7 @@ import {
 import {
   findByEmail,
   markEmailVerifiedByEmail,
+  setEmailVerified,
 } from "../repository/user.repository.js";
 
 
@@ -76,7 +77,7 @@ const sendEmailOtp = async (email) => {
 };
 
 
-const verifyEmailOtp = async (email, otp) => {
+const verifyEmailOtp = async (email, otp, userId = null) => {
   if (!email || !otp) {
     const error = new Error(
       "Email and OTP are required"
@@ -94,6 +95,27 @@ const verifyEmailOtp = async (email, otp) => {
     const error = new Error("OTP must be 4 digits");
     error.statusCode = 400;
     throw error;
+  }
+
+  let user = null;
+  if (userId) {
+    user = await User.findById(userId);
+    if (!user) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Check if another user already has this email
+    const existingWithEmail = await findByEmail(email);
+    if (
+      existingWithEmail &&
+      existingWithEmail._id.toString() !== String(userId)
+    ) {
+      const error = new Error("Email is already registered to another user");
+      error.statusCode = 409;
+      throw error;
+    }
   }
 
   const otpRecord = await findLatestOtp(email);
@@ -134,13 +156,24 @@ const verifyEmailOtp = async (email, otp) => {
   // Mark OTP as verified
   const verifiedOtp = await markOtpVerified(otpRecord);
 
+  // Store email and update status as email verified in user model
+  if (user) {
+    user.email = email;
+    user.isEmailVerified = true;
+    await user.save();
+  } else if (userId) {
+    await setEmailVerified(userId, email);
+  }
+
   // Mark email as verified in database
   await markEmailVerifiedByEmail(email);
 
   return {
+    userId: user?._id || userId || null,
     email: verifiedOtp.email,
     verified: true,
     isEmailVerified: true,
+    emailVerified: true,
     verifiedAt: verifiedOtp.verifiedAt,
   };
 };
