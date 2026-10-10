@@ -34,14 +34,7 @@ const verifyEmailOtpSchema = Joi.object({
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
     }),
-  mobile: Joi.string()
-    .trim()
-    .pattern(/^[6-9]\d{9}$/)
-    .optional()
-    .allow("")
-    .messages({
-      "string.pattern.base": "Please enter a valid 10-digit mobile number",
-    }),
+
 });
 
 export const validateSendEmailOtp = validate(sendEmailOtpSchema);

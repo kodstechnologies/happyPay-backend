@@ -256,6 +256,97 @@ export const uploadRetailerDocuments = multer({
   { name: "businessProofDocument", maxCount: 1 },
 ]);
 
+// Specialized multer middleware for shop details with mandatory file validation
+export const uploadShopDetailsDocuments = multer({
+  storage: retailerStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 4, // Only 4 mandatory files
+  },
+  fileFilter: retailerFileFilter,
+}).fields([
+  { name: "shopInsidePhoto", maxCount: 1 },
+  { name: "shopOutsidePhoto", maxCount: 1 },
+  { name: "shopLocationPhoto", maxCount: 1 },
+  { name: "businessProofDocument", maxCount: 1 },
+]);
+
+// Middleware to validate mandatory shop files are uploaded
+export const validateShopFiles = (req, res, next) => {
+  const mandatoryFiles = ['shopInsidePhoto', 'shopOutsidePhoto', 'shopLocationPhoto', 'businessProofDocument'];
+  const uploadedFiles = req.files || {};
+  const missingFiles = [];
+
+  // Check each mandatory file
+  mandatoryFiles.forEach(fieldName => {
+    if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) {
+      missingFiles.push(fieldName);
+    }
+  });
+
+  if (missingFiles.length > 0) {
+    const fieldLabels = {
+      shopInsidePhoto: 'Shop Inside Photo',
+      shopOutsidePhoto: 'Shop Outside Photo',
+      shopLocationPhoto: 'Shop Location Photo',
+      businessProofDocument: 'Business Proof Document'
+    };
+
+    const missingLabels = missingFiles.map(field => fieldLabels[field]);
+
+    return res.status(400).json({
+      success: false,
+      message: `The following files are mandatory: ${missingLabels.join(', ')}`,
+      statusCode: 400,
+      errors: missingFiles.map(field => `${fieldLabels[field]} is required`)
+    });
+  }
+
+  next();
+};
+
+// Specialized multer middleware for about details with mandatory selfie validation
+export const uploadAboutDetailsDocuments = multer({
+  storage: retailerStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 1, // Only selfie is required
+  },
+  fileFilter: retailerFileFilter,
+}).fields([
+  { name: "selfie", maxCount: 1 },
+]);
+
+
+
+export const uploadAdharDetailsDocuments = multer({
+  storage: retailerStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 1, // Only selfie is required
+  },
+  fileFilter: retailerFileFilter,
+}).fields([
+  { name: "aadhaarDocument", maxCount: 1 },
+]);
+
+// Middleware to validate mandatory about details files are uploaded
+export const validateAboutFiles = (req, res, next) => {
+  const uploadedFiles = req.files || {};
+
+  // Check if selfie is uploaded
+  if (!uploadedFiles.selfie || uploadedFiles.selfie.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Selfie is required for about details",
+      statusCode: 400,
+      errors: ["Selfie is required"]
+    });
+  }
+
+  next();
+};
+
 const bannerStorage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -328,23 +419,23 @@ const flattenUploadedFiles = (files) => {
  */
 export const restrictUploadedFileFields =
   (allowedFieldNames = []) =>
-  (req, res, next) => {
-    const allowed = new Set(allowedFieldNames);
+    (req, res, next) => {
+      const allowed = new Set(allowedFieldNames);
 
-    const invalid = flattenUploadedFiles(req.files).find(
-      (file) => !allowed.has(file.fieldname)
-    );
-
-    if (invalid) {
-      return next(
-        new ApiError(
-          400,
-          `Unexpected file field: ${invalid.fieldname}`
-        )
+      const invalid = flattenUploadedFiles(req.files).find(
+        (file) => !allowed.has(file.fieldname)
       );
-    }
 
-    return next();
-  };
+      if (invalid) {
+        return next(
+          new ApiError(
+            400,
+            `Unexpected file field: ${invalid.fieldname}`
+          )
+        );
+      }
+
+      return next();
+    };
 
 export default upload;

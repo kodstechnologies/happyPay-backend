@@ -46,6 +46,19 @@ const userSchema = new mongoose.Schema(
       default: "NOT_STARTED",
     },
 
+    currentRegistrationStep: {
+      type: String,
+      enum: [
+        "ACCOUNT",
+        "SHOP_DETAILS",
+        "ABOUT",
+        "AADHAAR_DETAILS",
+        "BANK_DETAILS",
+        "SUBMITTED",
+      ],
+      default: "ACCOUNT",
+    },
+
     panNumber: {
       type: String,
       trim: true,
@@ -185,9 +198,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
     },
 
-    aadhaarVerificationMethod: {
-      type: String,
-    },
+
 
     aadhaarConsent: {
       type: Boolean,
@@ -298,6 +309,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    referenceKey: {
+      type: String,
+      trim: true
+    },
 
     adminApproved: {
       type: String,
@@ -368,6 +383,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+
     // =========================
     // Authentication
     // =========================
@@ -398,7 +414,12 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+
+
   },
+
+
+
   {
     timestamps: true,
   }

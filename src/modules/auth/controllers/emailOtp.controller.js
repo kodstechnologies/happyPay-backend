@@ -34,9 +34,9 @@ export const sendOtp = asyncHandler(async (req, res) => {
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const { email, otp, mobile } = req.body;
+  const { email, otp } = req.body;
 
-  const data = await verifyEmailOtp(email, otp, mobile);
+  const data = await verifyEmailOtp(email, otp);
 
   const response = ApiResponse.success(
     data,

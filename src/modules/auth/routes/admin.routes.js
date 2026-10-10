@@ -4,6 +4,10 @@ import {
   getPendingRetailers,
   approveRetailer,
   rejectRetailer,
+  approveRetailerDocuments,
+  rejectRetailerDocuments,
+  approveRetailerDocument,
+  rejectRetailerDocument,
 } from "../controllers/admin.controller.js";
 import authMiddleware, { requireAdmin } from "../../../middlewares/auth.middleware.js";
 
@@ -31,5 +35,47 @@ router.patch(
   requireAdmin,
   rejectRetailer
 );
+
+
+//=========================================
+// Bulk: approve / reject ALL documents
+//=========================================
+
+router.patch(
+  "/retailers/documents/approved/:retailerId",
+  authMiddleware,
+  requireAdmin,
+  approveRetailerDocuments
+);
+
+router.patch(
+  "/retailers/documents/rejected/:retailerId",
+  authMiddleware,
+  requireAdmin,
+  rejectRetailerDocuments
+);
+
+//=========================================
+// Per-document: approve / reject ONE document
+// :documentField = panDocument | aadhaarDocument | selfie |
+//                 shopInsidePhoto | shopOutsidePhoto |
+//                 shopLocationPhoto | businessProofDocument
+//=========================================
+
+router.patch(
+  "/retailers/:retailerId/documents/:documentField/approve",
+  authMiddleware,
+  requireAdmin,
+  approveRetailerDocument
+);
+
+router.patch(
+  "/retailers/:retailerId/documents/:documentField/reject",
+  authMiddleware,
+  requireAdmin,
+  rejectRetailerDocument
+);
+
+
 
 export default router;

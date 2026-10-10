@@ -8,6 +8,14 @@ import {
   getRetailerDetailsService,
 } from "../services/auth.services.js";
 
+import {
+  updateShopDetails,
+  updateAboutDetails,
+  updateAadhaarDetails,
+  updateBankDetailsAndOnboard,
+  getCurrentRegistrationStep,
+} from "../services/registration.service.js";
+
 import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
@@ -227,16 +235,6 @@ const getBankListController = asyncHandler(async (req, res) => {
 });
 
 
-export {
-  sendRetailerLoginOtp,
-  verifyRetailerLoginOtp,
-  logoutRetailer,
-  registerRetailer,
-  getBankListController,
-  getRetailerDetails,
-};
-
-
 const getRetailerDetails = asyncHandler(async (req, res) => {
   const { retailerId } = req.params;
   const { registrationStatus } = req.query;
@@ -252,3 +250,53 @@ const getRetailerDetails = asyncHandler(async (req, res) => {
     )
   );
 });
+
+const updateShopDetailsController = asyncHandler(async (req, res) => {
+  const data = await updateShopDetails(req.body, req.files || {});
+  return res.status(200).json(
+    ApiResponse.success(data, "Shop details updated successfully", null, 200)
+  );
+});
+
+const updateAboutDetailsController = asyncHandler(async (req, res) => {
+  const data = await updateAboutDetails(req.body, req.files || {});
+  return res.status(200).json(
+    ApiResponse.success(data, "About details updated successfully", null, 200)
+  );
+});
+
+const updateAadhaarDetailsController = asyncHandler(async (req, res) => {
+  const data = await updateAadhaarDetails(req.body, req.files || {});
+  return res.status(200).json(
+    ApiResponse.success(data, "Aadhaar details updated successfully", null, 200)
+  );
+});
+
+const updateBankDetailsController = asyncHandler(async (req, res) => {
+  const data = await updateBankDetailsAndOnboard(req.body);
+  return res.status(200).json(
+    ApiResponse.success(data, "Bank details updated and merchant onboarded successfully", null, 200)
+  );
+});
+
+const getCurrentRegistrationStepController = asyncHandler(async (req, res) => {
+  const { userId } = req.body;
+  const data = await getCurrentRegistrationStep(userId);
+  return res.status(200).json(
+    ApiResponse.success(data, "Current registration step retrieved successfully", null, 200)
+  );
+});
+
+export {
+  sendRetailerLoginOtp,
+  verifyRetailerLoginOtp,
+  logoutRetailer,
+  registerRetailer,
+  getBankListController,
+  getRetailerDetails,
+  updateShopDetailsController,
+  updateAboutDetailsController,
+  updateAadhaarDetailsController,
+  updateBankDetailsController,
+  getCurrentRegistrationStepController,
+};

@@ -4,21 +4,43 @@ const findByMobile = async (mobile) => {
   return await User.findOne({ mobile });
 };
 
-const createUser = async (mobile) => {
-  return await User.create({
+const createUser = async (mobile, panDetails = {}) => {
+  const userData = {
     mobile,
     isMobileVerified: true,
     registrationStatus: "IN_PROGRESS",
-  });
+    currentRegistrationStep: "ACCOUNT",
+  };
+
+  // Add PAN details if provided
+  if (panDetails.panNumber) {
+    userData.panNumber = String(panDetails.panNumber).trim().toUpperCase();
+  }
+  if (panDetails.panDocument) {
+    userData.panDocument = String(panDetails.panDocument).trim();
+  }
+
+  return await User.create(userData);
 };
 
-const verifyMobile = async (userId) => {
+const verifyMobile = async (userId, panDetails = {}) => {
+  const updateData = {
+    isMobileVerified: true,
+    registrationStatus: "IN_PROGRESS",
+    currentRegistrationStep: "ACCOUNT",
+  };
+
+  // Add PAN details if provided
+  if (panDetails.panNumber) {
+    updateData.panNumber = String(panDetails.panNumber).trim().toUpperCase();
+  }
+  if (panDetails.panDocument) {
+    updateData.panDocument = String(panDetails.panDocument).trim();
+  }
+
   return await User.findByIdAndUpdate(
     userId,
-    {
-      isMobileVerified: true,
-      registrationStatus: "IN_PROGRESS",
-    },
+    updateData,
     {
       new: true,
     }

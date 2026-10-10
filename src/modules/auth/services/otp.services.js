@@ -40,7 +40,7 @@ import {
     };
   };
   
-  const verifyOtp = async (mobile, otp) => {
+  const verifyOtp = async (mobile, otp, panDetails = {}) => {
     const otpRecord = await findLatestOtp(mobile);
   
     if (!otpRecord) {
@@ -72,12 +72,12 @@ import {
     // Find retailer
     let user = await findByMobile(mobile);
   
-    // If retailer doesn't exist, create one
+    // If retailer doesn't exist, create one with PAN details
     if (!user) {
-      user = await createUser(mobile);
+      user = await createUser(mobile, panDetails);
     } else {
-      // Existing retailer
-      user = await verifyMobile(user._id);
+      // Existing retailer - update with PAN details if provided
+      user = await verifyMobile(user._id, panDetails);
     }
   
     return {

@@ -32,6 +32,16 @@ const verifyOtpSchema = Joi.object({
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
     }),
+  panNumber: Joi.string()
+    .trim()
+    .uppercase()
+    .pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
+    .required()
+    .messages({
+      "any.required": "PAN number is required",
+      "string.empty": "PAN number is required",
+      "string.pattern.base": "Please enter a valid PAN number (e.g., ABCDE1234F)",
+    }),
 });
 
 export const validateSendOtp = validate(sendOtpSchema);

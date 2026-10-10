@@ -14,7 +14,6 @@ const router = Router();
 
 router.post(
   "/send",
-  validateSendEmailOtp,
   sendOtp
 );
 
