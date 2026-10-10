@@ -73,6 +73,13 @@ const responseText = (value) => {
 
 const isKycRequired = (providerResponse) => {
   const text = responseText(providerResponse);
+  if (
+    text.includes("no-action-required") ||
+    text.includes("no action required") ||
+    text.includes("no_action_required")
+  ) {
+    return false;
+  }
   return (
     text.includes("action required") ||
     text.includes("action-required") ||

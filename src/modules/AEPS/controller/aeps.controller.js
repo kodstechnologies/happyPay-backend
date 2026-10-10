@@ -55,52 +55,162 @@ const doEkycController = async (req, res) => {
     };
 
     const result = await doEkyc(payload);
-    console.log("-------------result", result)
+    console.log("-------------result", result);
 
-    // Extract referenceKey and pidOptionWadh from the provider response
-    const referenceKey = result?.data?.referenceKey || result?.referenceKey;
-    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+    // Determine eKYC status and action from provider response
+    const rawAction = result?.data?.action || result?.action;
+    const providerAction = rawAction ? String(rawAction).trim().toUpperCase() : "";
+    const rawStatus = result?.data?.status || result?.status;
+    const providerStatus = rawStatus ? String(rawStatus).trim().toUpperCase() : "";
+    const kycRequired = isKycRequired(result);
 
-    if (!referenceKey) {
-      return res.status(400).json(
-        ApiResponse.error("referenceKey not found in provider response", null, null, 400)
+    const isNoActionRequired =
+      providerAction === "NO-ACTION-REQUIRED" ||
+      providerAction === "NO_ACTION_REQUIRED" ||
+      providerAction === "NO ACTION REQUIRED";
+
+    const isActionRequired =
+      !isNoActionRequired &&
+      (providerAction === "ACTION-REQUIRED" ||
+        providerAction === "ACTION_REQUIRED" ||
+        providerAction === "ACTION REQUIRED" ||
+        kycRequired);
+
+    if (isNoActionRequired) {
+      if (userId) {
+        await updateEKYCStatus(userId, "NO ACTION REQUIRED");
+      }
+
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: result,
+            status: "NO-ACTION-REQUIRED",
+            statusCode: 200,
+            message: "NO-ACTION-REQUIRED",
+            kycRequired: false,
+            eKYCStatus: "COMPLETED",
+          },
+          "NO-ACTION-REQUIRED",
+          null,
+          200
+        )
       );
     }
 
-    const saved = await recordEkycOutlet({
-      userId: userId,
-      outletId: outlet_id,
-      referenceKey: referenceKey,
-      pidOptionWadh: pidOptionWadh,
-    });
+    if (isActionRequired) {
+      // Extract referenceKey and pidOptionWadh from the provider response
+      const referenceKey = result?.data?.referenceKey || result?.referenceKey;
+      const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
 
-    // Determine eKYC status from provider response
-    const providerAction = result?.data?.action || result?.action;
-    const providerStatus = result?.data?.status || result?.status;
-    const kycRequired = isKycRequired(result);
+      if (!referenceKey) {
+        return res.status(400).json(
+          ApiResponse.error("referenceKey not found in provider response", null, null, 400)
+        );
+      }
 
-    let eKYCStatus = "PENDING";
-    let eKYCRejectionReason = null;
+      const saved = await recordEkycOutlet({
+        userId: userId,
+        outletId: outlet_id,
+        referenceKey: referenceKey,
+        pidOptionWadh: pidOptionWadh,
+      });
 
-    if (providerAction === "ACTION-REQUIRED" || kycRequired) {
-      eKYCStatus = "ACTION_REQUIRED";
-    } else if (providerStatus === "COMPLETED" || providerStatus === "SUCCESS") {
-      eKYCStatus = "COMPLETED";
-    } else if (providerStatus === "FAILED" || providerStatus === "REJECTED") {
-      eKYCStatus = "FAILED";
-      eKYCRejectionReason = result?.msg || result?.message || "eKYC verification failed";
+      if (userId) {
+        await updateEKYCStatus(userId, "ACTION_REQUIRED");
+      }
+
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: result,
+            status: "ACTION-REQUIRED",
+            statusCode: 200,
+            message: "ACTION-REQUIRED",
+            referenceKey: referenceKey,
+            pidOptionWadh: pidOptionWadh,
+            ekyc: saved,
+            kycRequired: true,
+            eKYCStatus: "ACTION_REQUIRED",
+          },
+          "ACTION-REQUIRED",
+          null,
+          200
+        )
+      );
     }
 
-    // Update user's eKYC status
-    await updateEKYCStatus(userId, eKYCStatus, eKYCRejectionReason);
+    if (providerStatus === "FAILED" || providerStatus === "REJECTED") {
+      const rejectionReason = result?.msg || result?.message || "eKYC verification failed";
+      if (userId) {
+        await updateEKYCStatus(userId, "FAILED", rejectionReason);
+      }
+
+      return res.status(400).json(
+        ApiResponse.error(
+          rejectionReason,
+          {
+            provider: result,
+            status: "FAILED",
+            statusCode: 400,
+            message: rejectionReason,
+            kycRequired: false,
+            eKYCStatus: "FAILED",
+          },
+          null,
+          400
+        )
+      );
+    }
+
+    if (providerStatus === "COMPLETED" || providerStatus === "SUCCESS") {
+      if (userId) {
+        await updateEKYCStatus(userId, "COMPLETED");
+      }
+
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: result,
+            status: "COMPLETED",
+            statusCode: 200,
+            message: result?.msg || result?.message || "eKYC completed successfully",
+            kycRequired: false,
+            eKYCStatus: "COMPLETED",
+          },
+          result?.msg || result?.message || "eKYC completed successfully",
+          null,
+          200
+        )
+      );
+    }
+
+    // Default fallback
+    const referenceKey = result?.data?.referenceKey || result?.referenceKey;
+    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+    let saved = null;
+
+    if (referenceKey && userId) {
+      saved = await recordEkycOutlet({
+        userId: userId,
+        outletId: outlet_id,
+        referenceKey: referenceKey,
+        pidOptionWadh: pidOptionWadh,
+      });
+    }
 
     return res.status(200).json(
       ApiResponse.success(
         {
           provider: result,
+          status: "SUCCESS",
+          statusCode: 200,
+          message: "eKYC status checked successfully",
+          referenceKey,
+          pidOptionWadh,
           ekyc: saved,
-          kycRequired: kycRequired,
-          eKYCStatus: eKYCStatus,
+          kycRequired: false,
+          eKYCStatus: "PENDING",
         },
         "eKYC status checked successfully",
         null,

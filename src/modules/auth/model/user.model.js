@@ -293,7 +293,7 @@ const userSchema = new mongoose.Schema(
     // =========================
     eKYCStatus: {
       type: String,
-      enum: ["PENDING", "COMPLETED", "FAILED", "ACTION_REQUIRED"],
+
       default: "PENDING",
     },
 
