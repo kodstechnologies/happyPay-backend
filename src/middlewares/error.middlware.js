@@ -65,7 +65,11 @@ const errorMiddleware = (error, req, res, next) => {
 
   const response = {
     success: false,
+    statusCode,
     message,
+    ...(error.data !== undefined && error.data !== null && { data: error.data }),
+    ...(error.meta !== undefined && error.meta !== null && { meta: error.meta }),
+    ...(error.providerData && !error.data && { data: error.providerData }),
     ...(errors.length > 0 && { errors }),
     ...(env.NODE_ENV === "development" && statusCode >= 500 && { stack: error.stack }),
   };

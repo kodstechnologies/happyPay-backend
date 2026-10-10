@@ -13,7 +13,8 @@ const checkProviderError = (data) => {
 
   if (status === "ERROR" || status === "FAILED" || status === "FAILURE") {
     const error = new Error(data.msg || data.message || "Provider error occurred");
-    error.statusCode = 400;
+    const rawCode = Number(data.code || data.errorCode || data.statusCode || data.status_code);
+    error.statusCode = rawCode >= 400 && rawCode < 600 ? rawCode : 400;
     error.providerError = true;
     error.providerData = {
       status: data.status,
@@ -22,6 +23,8 @@ const checkProviderError = (data) => {
       code: data.code || data.errorCode,
       details: data
     };
+    error.data = data;
+    error.meta = data;
     return error;
   }
 

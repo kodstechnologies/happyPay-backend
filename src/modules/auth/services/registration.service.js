@@ -18,6 +18,7 @@ const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   error.meta = meta;
+  error.data = meta;
   return error;
 };
 
@@ -325,18 +326,29 @@ const registerRetailer = async (body = {}) => {
       longitude: parsedLongitude,
     });
   } catch (error) {
-    const providerStatus = error.response?.status;
-    const providerData = error.response?.data;
+    const rawStatus =
+      error.statusCode ||
+      error.response?.status ||
+      error.providerData?.code;
+    const numericStatus = Number(rawStatus);
+    const providerStatus =
+      numericStatus >= 400 && numericStatus < 600 ? numericStatus : null;
+
+    const providerData =
+      error.providerData?.details ||
+      error.providerData ||
+      error.response?.data ||
+      null;
+
     const providerMessage =
       providerData?.msg ||
       providerData?.message ||
+      error.providerData?.message ||
       error.message ||
-      "Merchant onboarding failed";
+      "Merchant onboarding failed at external gateway";
 
     throw fail(
-      providerStatus && providerStatus >= 400 && providerStatus < 500
-        ? providerStatus
-        : 502,
+      providerStatus || 502,
       providerMessage,
       providerData || null
     );
@@ -344,12 +356,39 @@ const registerRetailer = async (body = {}) => {
 
   const providerStatus = String(providerResult?.status || "").toUpperCase();
   const providerData = providerResult?.data || {};
-  const outletId = providerData.outletId;
+  const outletId = providerData.outletId || providerResult?.outletId;
 
   if (providerStatus !== "SUCCESS" || isBlank(outletId)) {
+    const rawCode =
+      providerResult?.statusCode ||
+      providerResult?.status_code ||
+      providerResult?.code ||
+      providerResult?.response_code ||
+      providerData?.statusCode ||
+      providerData?.code;
+    const parsedCode = Number(rawCode);
+    const resolvedStatusCode =
+      parsedCode >= 400 && parsedCode < 600 ? parsedCode : 400;
+
+    let errorMessage;
+    if (providerStatus === "SUCCESS" && isBlank(outletId)) {
+      errorMessage =
+        providerData?.msg ||
+        providerData?.message ||
+        "Merchant onboarding completed at gateway but outletId was not returned";
+    } else {
+      errorMessage =
+        providerResult?.msg ||
+        providerResult?.message ||
+        providerData?.msg ||
+        providerData?.message ||
+        providerResult?.error ||
+        "Merchant onboarding failed at external gateway";
+    }
+
     throw fail(
-      400,
-      providerResult?.msg || "Merchant onboarding failed",
+      resolvedStatusCode,
+      errorMessage,
       providerResult || null
     );
   }
@@ -616,18 +655,29 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   try {
     providerResult = await onboardMerchant(onboardPayload);
   } catch (error) {
-    const providerStatus = error.response?.status;
-    const providerData = error.response?.data;
+    const rawStatus =
+      error.statusCode ||
+      error.response?.status ||
+      error.providerData?.code;
+    const numericStatus = Number(rawStatus);
+    const providerStatus =
+      numericStatus >= 400 && numericStatus < 600 ? numericStatus : null;
+
+    const providerData =
+      error.providerData?.details ||
+      error.providerData ||
+      error.response?.data ||
+      null;
+
     const providerMessage =
       providerData?.msg ||
       providerData?.message ||
+      error.providerData?.message ||
       error.message ||
       "Merchant onboarding failed at external gateway";
 
     throw fail(
-      providerStatus && providerStatus >= 400 && providerStatus < 500
-        ? providerStatus
-        : 502,
+      providerStatus || 502,
       providerMessage,
       providerData || null
     );
@@ -638,9 +688,37 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   const outletId = providerData.outletId || providerResult?.outletId;
 
   if (providerStatus !== "SUCCESS" || isBlank(outletId)) {
+    // Resolve status code from provider response if provided
+    const rawCode =
+      providerResult?.statusCode ||
+      providerResult?.status_code ||
+      providerResult?.code ||
+      providerResult?.response_code ||
+      providerData?.statusCode ||
+      providerData?.code;
+    const parsedCode = Number(rawCode);
+    const resolvedStatusCode =
+      parsedCode >= 400 && parsedCode < 600 ? parsedCode : 400;
+
+    let errorMessage;
+    if (providerStatus === "SUCCESS" && isBlank(outletId)) {
+      errorMessage =
+        providerData?.msg ||
+        providerData?.message ||
+        "Merchant onboarding completed at gateway but outletId was not returned";
+    } else {
+      errorMessage =
+        providerResult?.msg ||
+        providerResult?.message ||
+        providerData?.msg ||
+        providerData?.message ||
+        providerResult?.error ||
+        "Merchant onboarding failed at external gateway";
+    }
+
     throw fail(
-      400,
-      providerResult?.msg || providerResult?.message || "Merchant onboarding failed at external gateway",
+      resolvedStatusCode,
+      errorMessage,
       providerResult || null
     );
   }
