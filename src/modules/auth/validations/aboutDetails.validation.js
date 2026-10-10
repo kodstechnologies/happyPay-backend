@@ -51,12 +51,12 @@ const aboutDetailsSchema = Joi.object({
 
   gender: Joi.string()
     .trim()
-    .valid("M", "F", "Other")
+    .valid("M", "F", "T")
     .required()
     .messages({
       "any.required": "Gender is required",
       "string.empty": "Gender is required",
-      "any.only": "Gender must be Male, Female, or Other",
+      "any.only": "Gender must be M, F, or T",
     }),
 
   maritalStatus: Joi.string()
