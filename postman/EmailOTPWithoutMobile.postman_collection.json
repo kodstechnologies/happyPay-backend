@@ -1,0 +1,256 @@
+{
+  "info": {
+    "name": "Email OTP Without Mobile Verification",
+    "description": "Updated Email OTP flow that no longer requires mobile number verification",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Send Email OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/emailOtp/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "emailOtp", "send"]
+        },
+        "description": "Send OTP to email address for verification.\n\n- Generates a 4-digit OTP valid for 5 minutes\n- Sends OTP via email using configured SMTP\n- Deletes any previous active OTPs for the same email\n- Checks if email is already registered (returns 409 if exists)\n\nFor testing: OTP \"1234\" is accepted as a dummy OTP."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"email\": \"user@example.com\",\n    \"expiresAt\": \"2024-01-15T10:35:00.000Z\"\n  }\n}"
+        },
+        {
+          "name": "Error - Email Already Registered",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"existing@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Conflict",
+          "code": 409,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Email is already registered\",\n  \"statusCode\": 409\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Email OTP (No Mobile Required)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"1234\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/emailOtp/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "emailOtp", "verify"]
+        },
+        "description": "Verify email OTP without mobile number requirement.\n\n**Changes Made:**\n- ✅ Removed mobile number requirement\n- ✅ No longer checks if mobile is verified\n- ✅ No longer links email to existing user via mobile\n- ✅ Simply verifies email and marks it as verified\n\n**Process:**\n1. Validates email and OTP format\n2. Checks if OTP exists and is not expired\n3. Verifies OTP (accepts \"1234\" as dummy for testing)\n4. Marks OTP as verified in EmailOtp collection\n5. Marks email as verified in system\n\n**Response:**\n- Returns verification confirmation with timestamp\n- Email can now be used in registration process\n\n**Testing:**\n- Use OTP \"1234\" as dummy OTP for testing\n- No mobile number needed in request body"
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Email verified successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"email\": \"user@example.com\",\n    \"verified\": true,\n    \"isEmailVerified\": true,\n    \"verifiedAt\": \"2024-01-15T10:30:15.123Z\"\n  }\n}"
+        },
+        {
+          "name": "Error - Invalid OTP",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"9999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"statusCode\": 400\n}"
+        },
+        {
+          "name": "Error - OTP Expired",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"OTP has expired\",\n  \"statusCode\": 400\n}"
+        },
+        {
+          "name": "Error - OTP Not Found",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/emailOtp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "emailOtp", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"notfound@example.com\",\n  \"otp\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"OTP not found or already verified\",\n  \"statusCode\": 400\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

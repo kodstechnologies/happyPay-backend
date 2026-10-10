@@ -1,0 +1,460 @@
+{
+  "info": {
+    "name": "Retailer Registration Steps",
+    "description": "Complete retailer registration workflow with all 4 steps",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Step 1: Shop Details",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "MongoDB ObjectId of the user",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "value": "retailer@example.com",
+              "description": "Email address (will check OTP verification status)",
+              "type": "text"
+            },
+            {
+              "key": "shopName",
+              "value": "Happy Retail Store",
+              "description": "Name of the shop",
+              "type": "text"
+            },
+            {
+              "key": "shopCategory",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "Shop category ObjectId from master data",
+              "type": "text"
+            },
+            {
+              "key": "category",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "Alternative field name for shop category",
+              "type": "text"
+            },
+            {
+              "key": "propertyType",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "Property type ObjectId from master data",
+              "type": "text"
+            },
+            {
+              "key": "city",
+              "value": "Mumbai",
+              "description": "City name",
+              "type": "text"
+            },
+            {
+              "key": "pincode",
+              "value": "400001",
+              "description": "6-digit pincode",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "value": "123 Main Street, Near City Center",
+              "description": "Complete shop address",
+              "type": "text"
+            },
+            {
+              "key": "fulladdress",
+              "value": "123 Main Street, Near City Center",
+              "description": "Alternative field for complete address",
+              "type": "text"
+            },
+            {
+              "key": "latitude",
+              "value": "19.0760",
+              "description": "Shop location latitude (-90 to 90)",
+              "type": "text"
+            },
+            {
+              "key": "longitude",
+              "value": "72.8777",
+              "description": "Shop location longitude (-180 to 180)",
+              "type": "text"
+            },
+            {
+              "key": "businessProofType",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "Business proof type ObjectId from master data",
+              "type": "text"
+            },
+            {
+              "key": "businessProof",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "Alternative field for business proof type",
+              "type": "text"
+            },
+            {
+              "key": "shopInsidePhoto",
+              "description": "Shop inside photo (file upload or existing URL)",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "shopOutsidePhoto",
+              "description": "Shop outside photo (file upload or existing URL)",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "businessProofDocument",
+              "description": "Business proof document (file upload)",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "businessProofDoc",
+              "description": "Alternative field for business proof document",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/registration/shop-details",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "registration", "shop-details"]
+        },
+        "description": "Update shop details including email verification status check. Sets registrationStatus to IN_PROGRESS."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/shop-details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "shop-details"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Shop details updated successfully\",\n  \"data\": {\n    \"id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"mobile\": \"9876543210\",\n    \"isMobileVerified\": true,\n    \"email\": \"retailer@example.com\",\n    \"isEmailVerified\": true,\n    \"fullName\": \"John Doe\",\n    \"registrationStatus\": \"IN_PROGRESS\",\n    \"shop\": {\n      \"name\": \"Happy Retail Store\",\n      \"category\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n      \"address\": {\n        \"city\": \"Mumbai\",\n        \"pincode\": \"400001\"\n      },\n      \"completeAddress\": \"123 Main Street, Near City Center\",\n      \"location\": {\n        \"latitude\": 19.0760,\n        \"longitude\": 72.8777\n      }\n    }\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Step 2: About Details",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "MongoDB ObjectId of the user (Required)",
+              "type": "text"
+            },
+            {
+              "key": "fullName",
+              "value": "John Doe",
+              "description": "Full name of the retailer (Required)",
+              "type": "text"
+            },
+            {
+              "key": "name",
+              "value": "John Doe",
+              "description": "Alternative field for full name",
+              "type": "text"
+            },
+            {
+              "key": "dob",
+              "value": "1990-01-15",
+              "description": "Date of birth in YYYY-MM-DD format (Required)",
+              "type": "text"
+            },
+            {
+              "key": "dateOfBirth",
+              "value": "1990-01-15",
+              "description": "Alternative field for date of birth",
+              "type": "text"
+            },
+            {
+              "key": "gender",
+              "value": "Male",
+              "description": "Gender (Required) - Male/Female/Other",
+              "type": "text"
+            },
+            {
+              "key": "maritalStatus",
+              "value": "Single",
+              "description": "Marital status (Required) - Single/Married/Divorced/Widowed",
+              "type": "text"
+            },
+            {
+              "key": "educationalQualification",
+              "value": "Graduate",
+              "description": "Educational qualification (Required) - plain text string",
+              "type": "text"
+            },
+            {
+              "key": "fatherName",
+              "value": "Robert Doe",
+              "description": "Father's name (Optional)",
+              "type": "text"
+            },
+            {
+              "key": "selfie",
+              "description": "Selfie photo (Required - file upload)",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/registration/about",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "registration", "about"]
+        },
+        "description": "Update personal/about details of the retailer. Sets registrationStatus to IN_PROGRESS."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/about",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "about"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"About details updated successfully\",\n  \"data\": {\n    \"id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dateOfBirth\": \"1990-01-15\",\n    \"maritalStatus\": \"Single\",\n    \"educationalQualification\": \"Graduate\",\n    \"fatherName\": \"Robert Doe\",\n    \"selfie\": \"https://res.cloudinary.com/...\",\n    \"registrationStatus\": \"IN_PROGRESS\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Step 3: Aadhaar Details",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "675a1b2c3d4e5f6g7h8i9j0k",
+              "description": "MongoDB ObjectId of the user (Required)",
+              "type": "text"
+            },
+            {
+              "key": "aadhaarNumber",
+              "value": "123456789012",
+              "description": "12-digit Aadhaar number (Required)",
+              "type": "text"
+            },
+            {
+              "key": "adharNumber",
+              "value": "123456789012",
+              "description": "Alternative field for Aadhaar number",
+              "type": "text"
+            },
+            {
+              "key": "aadhaarConsent",
+              "value": "true",
+              "description": "Aadhaar consent given (true/false)",
+              "type": "text"
+            },
+            {
+              "key": "isAdharConsentGiven",
+              "value": "true",
+              "description": "Alternative field for Aadhaar consent",
+              "type": "text"
+            },
+            {
+              "key": "aadhaarMobileLinked",
+              "value": "true",
+              "description": "Is Aadhaar linked to mobile (true/false)",
+              "type": "text"
+            },
+            {
+              "key": "adharLinkedTopan",
+              "value": "true",
+              "description": "Alternative field for Aadhaar mobile linked",
+              "type": "text"
+            },
+            {
+              "key": "aadhaarDocument",
+              "description": "Aadhaar document photo (file upload)",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "adharDoc",
+              "description": "Alternative field for Aadhaar document",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/registration/adhaar-details",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "registration", "adhaar-details"]
+        },
+        "description": "Update Aadhaar details. Sets registrationStatus to IN_PROGRESS."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/adhaar-details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "adhaar-details"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Aadhaar details updated successfully\",\n  \"data\": {\n    \"id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"aadhaarNumber\": \"123456789012\",\n    \"aadhaarConsent\": true,\n    \"aadhaarMobileLinked\": true,\n    \"aadhaarDocument\": \"https://res.cloudinary.com/...\",\n    \"registrationStatus\": \"IN_PROGRESS\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Step 4: Bank Details & Onboarding",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n  \"bankName\": \"HDFC Bank\",\n  \"ifscCode\": \"HDFC0001234\",\n  \"accountNumber\": \"12345678901234\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/registration/bank-details",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "registration", "bank-details"]
+        },
+        "description": "Update bank details and call external merchant onboarding API. This is the final step that:\n1. Saves bank details as array\n2. Calls external /aeps5/bank5/onboard API\n3. Stores outletId from provider response\n4. Sets registrationStatus to COMPLETED\n5. Sets adminApproved to pending"
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/bank-details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "bank-details"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n  \"bankName\": \"HDFC Bank\",\n  \"ifscCode\": \"HDFC0001234\",\n  \"accountNumber\": \"12345678901234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Bank details updated and merchant onboarded successfully\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n      \"mobile\": \"9876543210\",\n      \"email\": \"retailer@example.com\",\n      \"fullName\": \"John Doe\",\n      \"outletId\": \"OUTLET123456\",\n      \"registrationStatus\": \"COMPLETED\",\n      \"adminApproved\": \"pending\",\n      \"banks\": [\n        {\n          \"name\": \"HDFC Bank\",\n          \"ifscCode\": \"HDFC0001234\",\n          \"accountNumber\": \"12345678901234\",\n          \"isPrimary\": true,\n          \"isActive\": true\n        }\n      ]\n    },\n    \"outletId\": \"OUTLET123456\",\n    \"onboarding\": {\n      \"status\": \"SUCCESS\",\n      \"data\": {\n        \"outletId\": \"OUTLET123456\"\n      },\n      \"msg\": \"Merchant onboarded successfully\"\n    }\n  }\n}"
+        },
+        {
+          "name": "Error - Provider API Failed",
+          "originalRequest": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/bank-details",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "bank-details"]
+            }
+          },
+          "status": "Bad Gateway",
+          "code": 502,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Your ip is not WhiteListed\",\n  \"meta\": {\n    \"status\": \"FAILURE\",\n    \"msg\": \"Your ip is not WhiteListed\"\n  }\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

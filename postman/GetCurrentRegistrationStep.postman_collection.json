@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "Get Current Registration Step",
+    "description": "API to get the current registration step and all filled data for a user",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Current Registration Step",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/registration/current-step",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "registration", "current-step"]
+        },
+        "description": "Returns the current registration step and all filled information for a user. Helps frontend to:\n1. Show which step user is currently on\n2. Resume registration from where they left off\n3. Pre-fill form fields with existing data\n4. Show progress indicator\n5. Validate if user can proceed to next step"
+      },
+      "response": [
+        {
+          "name": "Success - Account Step",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/current-step",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "current-step"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Current registration step retrieved successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"mobile\": \"9876543210\",\n    \"email\": null,\n    \"registrationStatus\": \"IN_PROGRESS\",\n    \"currentRegistrationStep\": \"ACCOUNT\",\n    \"isMobileVerified\": true,\n    \"isEmailVerified\": false,\n    \"outletId\": null,\n    \"adminApproved\": \"pending\",\n    \"eKYCStatus\": \"PENDING\",\n    \"filledData\": {\n      \"panNumber\": null,\n      \"panDocument\": null,\n      \"shop\": null,\n      \"shopInsidePhoto\": null,\n      \"shopOutsidePhoto\": null,\n      \"shopLocationPhoto\": null,\n      \"businessProofType\": null,\n      \"businessProofDocument\": null,\n      \"fullName\": null,\n      \"fatherName\": null,\n      \"gender\": null,\n      \"maritalStatus\": null,\n      \"educationalQualification\": null,\n      \"dateOfBirth\": null,\n      \"selfie\": null,\n      \"aadhaarNumber\": null,\n      \"aadhaarDocument\": null,\n      \"aadhaarConsent\": false,\n      \"aadhaarMobileLinked\": false,\n      \"aadhaarVerified\": false,\n      \"banks\": [],\n      \"primaryBank\": null\n    },\n    \"completedSteps\": {\n      \"account\": true,\n      \"shopDetails\": false,\n      \"about\": false,\n      \"aadhaarDetails\": false,\n      \"bankDetails\": false,\n      \"submitted\": false\n    }\n  }\n}"
+        },
+        {
+          "name": "Success - Shop Details Step",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/current-step",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "current-step"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Current registration step retrieved successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"mobile\": \"9876543210\",\n    \"email\": \"retailer@example.com\",\n    \"registrationStatus\": \"IN_PROGRESS\",\n    \"currentRegistrationStep\": \"SHOP_DETAILS\",\n    \"isMobileVerified\": true,\n    \"isEmailVerified\": true,\n    \"outletId\": null,\n    \"adminApproved\": \"pending\",\n    \"eKYCStatus\": \"PENDING\",\n    \"filledData\": {\n      \"panNumber\": null,\n      \"panDocument\": null,\n      \"shop\": {\n        \"name\": \"Happy Retail Store\",\n        \"category\": {\n          \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n          \"name\": \"General Store\"\n        },\n        \"propertyType\": {\n          \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n          \"name\": \"Owned\"\n        },\n        \"address\": {\n          \"addressLine\": null,\n          \"city\": \"Mumbai\",\n          \"state\": null,\n          \"pincode\": \"400001\"\n        },\n        \"completeAddress\": \"123 Main Street, Near City Center\",\n        \"location\": {\n          \"latitude\": 19.0760,\n          \"longitude\": 72.8777\n        }\n      },\n      \"shopInsidePhoto\": \"https://res.cloudinary.com/...\",\n      \"shopOutsidePhoto\": \"https://res.cloudinary.com/...\",\n      \"shopLocationPhoto\": null,\n      \"businessProofType\": {\n        \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n        \"name\": \"GST Certificate\"\n      },\n      \"businessProofDocument\": \"https://res.cloudinary.com/...\",\n      \"fullName\": null,\n      \"fatherName\": null,\n      \"gender\": null,\n      \"maritalStatus\": null,\n      \"educationalQualification\": null,\n      \"dateOfBirth\": null,\n      \"selfie\": null,\n      \"aadhaarNumber\": null,\n      \"aadhaarDocument\": null,\n      \"aadhaarConsent\": false,\n      \"aadhaarMobileLinked\": false,\n      \"aadhaarVerified\": false,\n      \"banks\": [],\n      \"primaryBank\": null\n    },\n    \"completedSteps\": {\n      \"account\": true,\n      \"shopDetails\": true,\n      \"about\": false,\n      \"aadhaarDetails\": false,\n      \"bankDetails\": false,\n      \"submitted\": false\n    }\n  }\n}"
+        },
+        {
+          "name": "Success - Complete Registration",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/current-step",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "current-step"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Current registration step retrieved successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n    \"mobile\": \"9876543210\",\n    \"email\": \"retailer@example.com\",\n    \"registrationStatus\": \"COMPLETED\",\n    \"currentRegistrationStep\": \"SUBMITTED\",\n    \"isMobileVerified\": true,\n    \"isEmailVerified\": true,\n    \"outletId\": \"OUTLET123456\",\n    \"adminApproved\": \"pending\",\n    \"eKYCStatus\": \"PENDING\",\n    \"filledData\": {\n      \"panNumber\": \"ABCDE1234F\",\n      \"panDocument\": \"https://res.cloudinary.com/...\",\n      \"shop\": {\n        \"name\": \"Happy Retail Store\",\n        \"category\": {\n          \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n          \"name\": \"General Store\"\n        },\n        \"propertyType\": {\n          \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n          \"name\": \"Owned\"\n        },\n        \"address\": {\n          \"addressLine\": \"123 Main Street\",\n          \"city\": \"Mumbai\",\n          \"state\": \"Maharashtra\",\n          \"pincode\": \"400001\"\n        },\n        \"completeAddress\": \"123 Main Street, Near City Center, Mumbai\",\n        \"location\": {\n          \"latitude\": 19.0760,\n          \"longitude\": 72.8777\n        }\n      },\n      \"shopInsidePhoto\": \"https://res.cloudinary.com/...\",\n      \"shopOutsidePhoto\": \"https://res.cloudinary.com/...\",\n      \"shopLocationPhoto\": \"https://res.cloudinary.com/...\",\n      \"businessProofType\": {\n        \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n        \"name\": \"GST Certificate\"\n      },\n      \"businessProofDocument\": \"https://res.cloudinary.com/...\",\n      \"fullName\": \"John Doe\",\n      \"fatherName\": \"Robert Doe\",\n      \"gender\": \"Male\",\n      \"maritalStatus\": \"Single\",\n      \"educationalQualification\": \"Graduate\",\n      \"dateOfBirth\": \"1990-01-15\",\n      \"selfie\": \"https://res.cloudinary.com/...\",\n      \"aadhaarNumber\": \"123456789012\",\n      \"aadhaarDocument\": \"https://res.cloudinary.com/...\",\n      \"aadhaarConsent\": true,\n      \"aadhaarMobileLinked\": true,\n      \"aadhaarVerified\": false,\n      \"banks\": [\n        {\n          \"name\": \"HDFC Bank\",\n          \"ifscCode\": \"HDFC0001234\",\n          \"accountNumber\": \"12345678901234\",\n          \"isPrimary\": true,\n          \"isActive\": true\n        }\n      ],\n      \"primaryBank\": {\n        \"name\": \"HDFC Bank\",\n        \"ifscCode\": \"HDFC0001234\",\n        \"accountNumber\": \"12345678901234\",\n        \"isPrimary\": true,\n        \"isActive\": true\n      }\n    },\n    \"completedSteps\": {\n      \"account\": true,\n      \"shopDetails\": true,\n      \"about\": true,\n      \"aadhaarDetails\": true,\n      \"bankDetails\": true,\n      \"submitted\": true\n    }\n  }\n}"
+        },
+        {
+          "name": "Error - User Not Found",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/current-step",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "current-step"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"675a1b2c3d4e5f6g7h8i9j0k\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"User not found\"\n}"
+        },
+        {
+          "name": "Error - Missing userId",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registration/current-step",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "registration", "current-step"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"User ID (userId) is required\"\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

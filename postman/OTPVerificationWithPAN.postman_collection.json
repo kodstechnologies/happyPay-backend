@@ -1,0 +1,373 @@
+{
+  "info": {
+    "name": "OTP Verification with PAN Details",
+    "description": "Updated OTP verification flow that accepts and stores PAN card details (panNumber and panDocument)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Send OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mobile\": \"9876543210\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/otp/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "otp", "send"]
+        },
+        "description": "Send OTP to mobile number for verification.\n\nGenerates a 4-digit OTP valid for 5 minutes.\nDeletes any previous active OTPs for the same mobile number.\n\nFor testing: OTP \"1234\" is accepted as a dummy OTP."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"data\": {\n    \"message\": \"OTP sent successfully\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify OTP with PAN Details",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "mobile",
+              "value": "9876543210",
+              "description": "Mobile number (Required) - 10 digit Indian mobile",
+              "type": "text"
+            },
+            {
+              "key": "otp",
+              "value": "1234",
+              "description": "4-digit OTP (Required) - Use '1234' for testing",
+              "type": "text"
+            },
+            {
+              "key": "panNumber",
+              "value": "ABCDE1234F",
+              "description": "PAN card number (Optional) - Format: ABCDE1234F",
+              "type": "text"
+            },
+            {
+              "key": "panDocument",
+              "description": "PAN card document (Optional) - File upload",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/otp/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "otp", "verify"]
+        },
+        "description": "Verify OTP and optionally provide PAN card details.\n\n**Process:**\n1. Verifies the OTP (max 5 attempts, 5 min expiry)\n2. If user doesn't exist: Creates new user with mobile + PAN details\n3. If user exists: Updates mobile verification + PAN details (if provided)\n4. Sets currentRegistrationStep = \"ACCOUNT\"\n5. Sets registrationStatus = \"IN_PROGRESS\"\n\n**PAN Details (Optional):**\n- panNumber: PAN card number in format ABCDE1234F\n- panDocument: PAN card image/PDF file upload\n\n**Testing:**\n- Use OTP \"1234\" as dummy OTP for testing\n- PAN details are optional but recommended for complete profile\n\n**Response:**\n- Returns user object with all saved details including PAN"
+      },
+      "response": [
+        {
+          "name": "Success - New User with PAN",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "otp",
+                  "value": "1234",
+                  "type": "text"
+                },
+                {
+                  "key": "panNumber",
+                  "value": "ABCDE1234F",
+                  "type": "text"
+                },
+                {
+                  "key": "panDocument",
+                  "type": "file",
+                  "src": "/path/to/pan.jpg"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n      \"mobile\": \"9876543210\",\n      \"isMobileVerified\": true,\n      \"panNumber\": \"ABCDE1234F\",\n      \"panDocument\": \"https://res.cloudinary.com/happypay/image/upload/v1234567890/pan-documents/abc123.jpg\",\n      \"registrationStatus\": \"IN_PROGRESS\",\n      \"currentRegistrationStep\": \"ACCOUNT\",\n      \"status\": \"active\",\n      \"isActive\": true,\n      \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n      \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n    }\n  }\n}"
+        },
+        {
+          "name": "Success - Without PAN",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "otp",
+                  "value": "1234",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n      \"mobile\": \"9876543210\",\n      \"isMobileVerified\": true,\n      \"panNumber\": null,\n      \"panDocument\": null,\n      \"registrationStatus\": \"IN_PROGRESS\",\n      \"currentRegistrationStep\": \"ACCOUNT\",\n      \"status\": \"active\",\n      \"isActive\": true,\n      \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n      \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n    }\n  }\n}"
+        },
+        {
+          "name": "Success - Existing User Updated",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "otp",
+                  "value": "1234",
+                  "type": "text"
+                },
+                {
+                  "key": "panNumber",
+                  "value": "ABCDE1234F",
+                  "type": "text"
+                },
+                {
+                  "key": "panDocument",
+                  "type": "file",
+                  "src": "/path/to/pan.jpg"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"statusCode\": 200,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"675a1b2c3d4e5f6g7h8i9j0k\",\n      \"mobile\": \"9876543210\",\n      \"isMobileVerified\": true,\n      \"email\": \"existing@example.com\",\n      \"isEmailVerified\": true,\n      \"panNumber\": \"ABCDE1234F\",\n      \"panDocument\": \"https://res.cloudinary.com/happypay/image/upload/v1234567890/pan-documents/abc123.jpg\",\n      \"fullName\": \"John Doe\",\n      \"registrationStatus\": \"IN_PROGRESS\",\n      \"currentRegistrationStep\": \"ACCOUNT\",\n      \"status\": \"active\",\n      \"isActive\": true,\n      \"createdAt\": \"2024-01-10T08:00:00.000Z\",\n      \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n    }\n  }\n}"
+        },
+        {
+          "name": "Error - Invalid OTP",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "otp",
+                  "value": "9999",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\"\n}"
+        },
+        {
+          "name": "Error - OTP Expired",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            }
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"OTP has expired\"\n}"
+        },
+        {
+          "name": "Error - Max Attempts Exceeded",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            }
+          },
+          "status": "Internal Server Error",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Maximum OTP attempts exceeded\"\n}"
+        },
+        {
+          "name": "Error - Invalid PAN Format",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "otp", "verify"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "otp",
+                  "value": "1234",
+                  "type": "text"
+                },
+                {
+                  "key": "panNumber",
+                  "value": "INVALID123",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"errors\": [\n    \"Please enter a valid PAN number (e.g., ABCDE1234F)\"\n  ]\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
