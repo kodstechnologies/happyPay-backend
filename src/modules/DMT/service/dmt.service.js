@@ -165,7 +165,7 @@ export const generateTransactionOtpService = async (payload = {}) => {
 export const executeTransactionService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
 
-  return await doTransaction(cleanpayload);
+  return await doTransaction(cleanPayload);
 };
 
 //  Check transaction status
