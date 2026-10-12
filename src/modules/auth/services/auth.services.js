@@ -318,6 +318,10 @@ const verifyRetailerLoginOtp = async ({
     );
 
     error.statusCode = 403;
+    
+    // Include registration status information
+    error.registrationStatus = user.registrationStatus;
+    error.currentRegistrationStep = user.currentRegistrationStep;
 
     throw error;
   }
@@ -331,6 +335,11 @@ const verifyRetailerLoginOtp = async ({
     );
 
     error.statusCode = 403;
+    
+    // Include admin approval status information
+    error.adminApproved = user.adminApproved;
+    error.reasonOfRejection = user.reasonOfRejection;
+    error.currentRegistrationStep = user.currentRegistrationStep;
 
     throw error;
   }
@@ -341,6 +350,10 @@ const verifyRetailerLoginOtp = async ({
     );
 
     error.statusCode = 403;
+    
+    // Include eKYCStatus and currentRegistrationStep in error details
+    error.eKYCStatus = user.eKYCStatus;
+    error.currentRegistrationStep = user.currentRegistrationStep;
 
     throw error;
   }
