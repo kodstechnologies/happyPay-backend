@@ -135,9 +135,18 @@ export const verifyBeneficiaryAccountController = asyncHandler(async (req, res) 
 });
 
 export const addBeneficiaryController = asyncHandler(async (req, res) => {
+  const { outletid: sessionOutletId, referenceKey } = getAuthFields(req.user);
+  const { bankId, outletid, name, ifsc, accountNumber, beneficiaryMobile, remitterMobile } = req.body;
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    bankId,
+    outletid: outletid || sessionOutletId,
+    name,
+    ifsc: ifsc.toUpperCase(),
+    accountNumber,
+    beneficiaryMobile,
+    remitterMobile,
+    referenceKey,
   };
   const result = await addBeneficiaryService(payload);
 

@@ -197,14 +197,33 @@ export const beneficiaryVerifySchema = Joi.object({
   });
 
 export const beneficiaryAddSchema = Joi.object({
-  mobile: mobileRule,
-  bene_name: Joi.string().trim().min(2).max(100).required().messages({
-    "any.required": "Beneficiary name (bene_name) is required",
-    "string.empty": "Beneficiary name (bene_name) is required",
-  }),
-  account_number: accountRule,
+  bankId: Joi.alternatives()
+    .try(Joi.string().trim().min(1), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Bank ID (bankId) is required",
+      "string.empty": "Bank ID (bankId) is required",
+    }),
+  outletid: Joi.alternatives()
+    .try(Joi.string().trim().min(1), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outletid) is required",
+      "string.empty": "Outlet ID (outletid) is required",
+    }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .required()
+    .messages({
+      "any.required": "Beneficiary name (name) is required",
+      "string.empty": "Beneficiary name (name) is required",
+    }),
   ifsc: ifscRule,
-  bank_name: Joi.string().trim().optional(),
+  accountNumber: accountRule,
+  beneficiaryMobile: mobileRule,
+  remitterMobile: mobileRule,
 });
 
 export const beneficiaryDeleteSchema = Joi.object({

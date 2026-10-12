@@ -21,7 +21,7 @@ const validate = (schema, source = "body", options = {}) => {
     if (error) {
       return res.status(400).json({
         success: false,
-        message: "Validation failed",
+        message:error?.details?.[0]?.message|| "Validation failed",
         statusCode: 400,
         errors: error.details.map((item) => item.message),
       });
