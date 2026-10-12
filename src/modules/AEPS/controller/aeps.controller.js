@@ -375,15 +375,51 @@ const doBioEkycController = asyncHandler(async (req, res) => {
 
 const verifyTfaController = async (req, res) => {
   try {
+    const { actcode, aadhaar } = req.body;
+
+    // Step 1: Check whether actcode is provided
+    if (!actcode) {
+      return res.status(400).json(
+        ApiResponse.error("actcode is required")
+      );
+    }
+
+    // Step 2: Check whether Aadhaar is provided
+    if (!aadhaar) {
+      return res.status(400).json(
+        ApiResponse.error("aadhaar is required")
+      );
+    }
+
+    // Step 3: Check whether TFA login is required
+    if (actcode !== "LOGINREQUIRED") {
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            actcode,
+            tfaRequired: false,
+            verified: false,
+          },
+          "TFA verification is not required"
+        )
+      );
+    }
+
+    // Step 4: Prepare the existing biometric payload
     const payload = pickFields(req.body, [
       ...biometricFields,
       "aadhaar",
       "ts",
     ]);
+
+    // Step 5: Verify TFA only when actcode is LOGINREQUIRED
     const result = await verifyTfa(payload);
 
     return res.status(200).json(
-      ApiResponse.success(result, "TFA verified successfully")
+      ApiResponse.success(
+        result,
+        "TFA verified successfully"
+      )
     );
   } catch (error) {
     return res
@@ -402,7 +438,7 @@ const loginStatusController = async (req, res) => {
   try {
     const result = await checkLoginStatus({
       userId: req.user?.userId,
-      outletId: req.body?.outlet_id,
+      outletId: req.user?.outlet_id || req.user?.outletId || req.user?.outletid || req.body?.outlet_id,
     });
 
     return res.status(200).json(
