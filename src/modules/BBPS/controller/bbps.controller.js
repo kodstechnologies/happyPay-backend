@@ -11,8 +11,8 @@ import {
 } from "../service/bbps.service.js";
 
 const getAuthFields = (user) => {
-  const outletid = user?.outletId || user?.outletid;
-  const referenceKey = user?.referenceKey;
+  const outletid = user?.outletId || user?.outletid ||"747932";
+  const referenceKey = user?.referenceKey ||"luKtUZUiAYzae0+RaqmBH4RCvgN6M+eEBJiMOu48dt1R1XQaph4Tec6zP+YrxfMK";
 
   if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
   if (!referenceKey) throw ApiError.unauthorized("Reference Key is missing from user session.");
