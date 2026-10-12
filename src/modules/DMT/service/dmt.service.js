@@ -35,7 +35,8 @@ export const registerRemitterService = async (payload = {}) => {
 
 //  Verify Remitter Registration OTP
 export const verifyRemitterOtpService = async (payload = {}) => {
-  return await registerRemitterVerify(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await registerRemitterVerify(cleanPayload);
 };
 
 // 4. Remitter eKYC
