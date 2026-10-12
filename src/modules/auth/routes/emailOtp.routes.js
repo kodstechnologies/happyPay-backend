@@ -12,13 +12,13 @@ import {
 const router = Router();
 
 
-router.post(
+router.patch(
   "/send",
   validateSendEmailOtp,
   sendOtp
 );
 
-router.post(
+router.patch(
   "/verify",
   validateVerifyEmailOtp,
   verifyOtp

@@ -7,7 +7,6 @@ const PROVIDER_ROUTES = {
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
   },
-
   demographic: {
     verifyAadhar: `${PROVIDER_API_PREFIX}/demographic/verifyAadhar`,
     verifyPan: `${PROVIDER_API_PREFIX}/demographic/verifyPan`,

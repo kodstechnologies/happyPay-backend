@@ -43,8 +43,9 @@ const buildAccessTokenPayload = (user, access) => ({
   userId: user._id.toString(),
   email: user.email,
   userType: "retailer",
-  outletid: user?.outletId||null,
-  referenceKey: user?.referenceKey||null,
+  outletid: user?.outletId || null,
+  outletId: user?.outletId || null,
+  referenceKey: user?.referenceKey || null,
   roles: access.roles,
   permissions: access.permissions,
 });
@@ -52,6 +53,9 @@ const buildAccessTokenPayload = (user, access) => ({
 const buildRefreshTokenPayload = (user) => ({
   userId: user._id.toString(),
   userType: "retailer",
+  outletid: user?.outletId || null,
+  outletId: user?.outletId || null,
+  referenceKey: user?.referenceKey || null,
 });
 
 
@@ -186,6 +190,39 @@ const verifyRetailerLoginOtp = async ({
     throw error;
   }
 
+  if (String(user.registrationStatus || "").toUpperCase() !== "COMPLETED") {
+    const error = new Error(
+      "Retailer registration is not completed. Please complete registration first."
+    );
+
+    error.statusCode = 403;
+
+    throw error;
+  }
+
+  if (String(user.adminApproved || "").toLowerCase() !== "approved") {
+    const isRejected = String(user.adminApproved || "").toLowerCase() === "rejected";
+    const error = new Error(
+      isRejected
+        ? `Retailer account has been rejected${user.reasonOfRejection ? `: ${user.reasonOfRejection}` : ""}`
+        : "Retailer account approval is pending. Please wait for admin approval."
+    );
+
+    error.statusCode = 403;
+
+    throw error;
+  }
+
+  if (String(user.eKYCStatus || "").toUpperCase() !== "COMPLETED") {
+    const error = new Error(
+      "eKYC is not completed. Please complete eKYC first."
+    );
+
+    error.statusCode = 403;
+
+    throw error;
+  }
+
 
   /* ==============================
      Verify OTP
@@ -264,21 +301,7 @@ const verifyRetailerLoginOtp = async ({
 
 
 
-  /* ==============================
-     Generate Tokens
-  ============================== */
-
   const access = resolveUserAccess(user);
-  const accessToken = generateAccessToken(buildAccessTokenPayload(user, access));
-  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user));
-
-  // Save Refresh Token
-  await addRefreshToken(user._id, {
-    token: refreshToken,
-    deviceId: deviceId || "unknown",
-    expiresAt: getRefreshTokenExpiry(),
-    lastUsedAt: new Date(),
-  });
 
   // Save Device Info if provided
   if (deviceId && platform) {
@@ -292,20 +315,48 @@ const verifyRetailerLoginOtp = async ({
 
   await updateLastLogin(user._id);
 
+  const accessTokenPayload = {
+    ...buildAccessTokenPayload(user, access),
+    outletId: user.outletId || null,
+    outletid: user.outletId || null,
+    referenceKey: user.referenceKey || null,
+  };
+
+  const refreshTokenPayload = {
+    ...buildRefreshTokenPayload(user),
+    outletId: user.outletId || null,
+    outletid: user.outletId || null,
+    referenceKey: user.referenceKey || null,
+  };
+
+  const accessToken = generateAccessToken(accessTokenPayload);
+  const refreshToken = generateRefreshToken(refreshTokenPayload);
+
+  await addRefreshToken(user._id, {
+    token: refreshToken,
+    deviceId: deviceId || "unknown",
+    expiresAt: getRefreshTokenExpiry(),
+    lastUsedAt: new Date(),
+  });
+
   return {
     user: {
       id: user._id,
       email: user.email,
       mobile: user.mobile,
+      fullName: user.fullName,
       status: user.status,
       kycStatus: user.kycStatus,
       adminApproved: user.adminApproved,
       outletId: user.outletId,
+      referenceKey: user.referenceKey || null,
       roles: access.roles,
       permissions: access.permissions,
     },
     accessToken,
     refreshToken,
+    token: accessToken,
+    message: "Login successful",
   };
 };
 
@@ -479,8 +530,8 @@ const retailerRegister = async (data) => {
     ...data,
     fullName: providerResult?.data?.name || name,
     aadhaarNumber: data.aadhaar,
-    dateOfBirth: providerResult?.data?.dateOfBirth 
-      ? new Date(providerResult.data.dateOfBirth) 
+    dateOfBirth: providerResult?.data?.dateOfBirth
+      ? new Date(providerResult.data.dateOfBirth)
       : (data.dob ? new Date(data.dob) : null),
     businessProofType: data.businessProof,
     isMobileVerified: true, // Mobile OTP has been verified
@@ -561,6 +612,38 @@ const retailerRegister = async (data) => {
   };
 };
 
+const generateRetailerTokens = async (userId, customPayload = {}) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const access = resolveUserAccess(user);
+  const payload = {
+    ...buildAccessTokenPayload(user, access),
+    ...customPayload,
+  };
+
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user));
+
+  await addRefreshToken(user._id, {
+    token: refreshToken,
+    deviceId: customPayload.deviceId || "unknown",
+    expiresAt: getRefreshTokenExpiry(),
+    lastUsedAt: new Date(),
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    token: accessToken,
+    user,
+  };
+};
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -568,6 +651,7 @@ export {
   retailerRegister,
   reapplyForKyc,
   getRetailerDetailsService,
+  generateRetailerTokens,
 };
 
 
@@ -580,7 +664,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
 
   // Build query
   const query = { _id: retailerId };
-  
+
   // Add registrationStatus filter if provided
   if (registrationStatus) {
     const validStatuses = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"];
@@ -600,7 +684,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
 
   if (!retailer) {
     const error = new Error(
-      registrationStatus 
+      registrationStatus
         ? `Retailer not found with registrationStatus: ${registrationStatus}`
         : "Retailer not found"
     );

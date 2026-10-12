@@ -7,6 +7,7 @@ import {
 } from "../services/aeps.service.js";
 import { doEkyc, doBioEkyc, verifyTfa } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
+import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
 
 /* ==============================
@@ -58,16 +59,13 @@ const doEkycController = async (req, res) => {
     console.log("-------------result", result);
 
     // Determine eKYC status and action from provider response
-    const rawAction = result?.data?.action || result?.action;
+    const rawAction = result?.data?.action
     const providerAction = rawAction ? String(rawAction).trim().toUpperCase() : "";
-    const rawStatus = result?.data?.status || result?.status;
-    const providerStatus = rawStatus ? String(rawStatus).trim().toUpperCase() : "";
     const kycRequired = isKycRequired(result);
 
     const isNoActionRequired =
-      providerAction === "NO-ACTION-REQUIRED" ||
-      providerAction === "NO_ACTION_REQUIRED" ||
-      providerAction === "NO ACTION REQUIRED";
+      providerAction === "NO-ACTION-REQUIRED"
+
 
     const isActionRequired =
       !isNoActionRequired &&
@@ -77,8 +75,22 @@ const doEkycController = async (req, res) => {
         kycRequired);
 
     if (isNoActionRequired) {
+      // Extract referenceKey and pidOptionWadh from the provider response
+      const referenceKey = result?.data?.referenceKey || result?.referenceKey;
+      const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+      let saved = null;
+
+      if (referenceKey && userId) {
+        saved = await recordEkycOutlet({
+          userId: userId,
+          outletId: outlet_id,
+          referenceKey: referenceKey,
+          pidOptionWadh: pidOptionWadh,
+        });
+      }
+
       if (userId) {
-        await updateEKYCStatus(userId, "NO ACTION REQUIRED");
+        await updateEKYCStatus(userId, "COMPLETED");
       }
 
       return res.status(200).json(
@@ -88,7 +100,9 @@ const doEkycController = async (req, res) => {
             status: "NO-ACTION-REQUIRED",
             statusCode: 200,
             message: "NO-ACTION-REQUIRED",
-            kycRequired: false,
+            referenceKey: referenceKey,
+            pidOptionWadh: pidOptionWadh,
+            ekyc: saved,
             eKYCStatus: "COMPLETED",
           },
           "NO-ACTION-REQUIRED",
@@ -338,9 +352,22 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   // Update the user's eKYC status to COMPLETED
   await updateEKYCStatus(req.body.userId, "COMPLETED");
 
+  const userId = req.body.userId || req.user?.userId;
+
+  if (userId) {
+    await User.findByIdAndUpdate(userId, {
+      referenceKey: referenceKey,
+      ...(payload.outlet_id ? { outletId: payload.outlet_id } : {}),
+      eKYCStatus: "COMPLETED",
+    });
+  }
+
   return res.status(200).json(
     ApiResponse.success(
-      { provider: result, ekyc: saved },
+      {
+        provider: result,
+        ekyc: saved,
+      },
       "Biometric eKYC completed successfully"
     )
   );

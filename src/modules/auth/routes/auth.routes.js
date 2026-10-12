@@ -79,4 +79,4 @@ router.get(
 router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);
 router.post("/do-bio-ekyc", validate(doBioEkycSchema, "body"), doBioEkycController);
 
-export default router;
+export default router;  
