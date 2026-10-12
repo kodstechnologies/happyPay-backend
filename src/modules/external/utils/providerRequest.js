@@ -12,7 +12,19 @@ const checkProviderError = (data) => {
   const status = String(data.status || "").toUpperCase();
 
   if (status === "ERROR" || status === "FAILED" || status === "FAILURE") {
-    const error = new Error(data.msg || data.message || "Provider error occurred");
+    let rawMsg = data.msg || data.message || "Provider error occurred";
+    if (typeof rawMsg === "object" && rawMsg !== null) {
+      try {
+        const flatMsgs = Object.values(rawMsg)
+          .flat()
+          .filter(Boolean)
+          .join(", ");
+        rawMsg = flatMsgs || JSON.stringify(rawMsg);
+      } catch {
+        rawMsg = JSON.stringify(rawMsg);
+      }
+    }
+    const error = new Error(rawMsg);
     const rawCode = Number(data.code || data.errorCode || data.statusCode || data.status_code);
     error.statusCode = rawCode >= 400 && rawCode < 600 ? rawCode : 400;
     error.providerError = true;

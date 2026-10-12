@@ -20,10 +20,59 @@ import {
 // Remitter Services (Strict Provider Contract)
 // =============================================================
 
-//   Login / Query Remitter
-
 export const getRemitterDetailsService = async (payload = {}) => {
-  return await loginRemitter(payload);
+  const loginResult = await loginRemitter(payload);
+
+  const msg = String(loginResult?.msg || loginResult?.message || "").toLowerCase();
+  const isNotFound =
+    msg.includes("not found") ||
+    msg.includes("not registered") ||
+    loginResult?.status === "FAILED" ||
+    (loginResult?.kyc === 0 && !loginResult?.name);
+
+  // If Remitter is Not Found and Aadhaar is provided, trigger internal registration
+  if (isNotFound && payload.aadhaar) {
+    const sessionRefKey = loginResult?.referenceKey || payload.referenceKey;
+    const registerPayload = sanitizePayload({
+      ...payload,
+      aadhaar: payload.aadhaar,
+      referenceKey: sessionRefKey,
+    });
+
+    console.log("[DMT Backend] Auto-initiating remitter registration for:", payload.mobile);
+    try {
+      const registerResult = await registerRemitter(registerPayload);
+      console.log("[DMT Backend] Auto-registration response:", registerResult);
+
+      return {
+        ...registerResult,
+        isNewRegistration: true,
+        referenceKey: registerResult?.referenceKey || sessionRefKey,
+        data: {
+          ...(registerResult?.data || {}),
+          referenceKey:
+            registerResult?.data?.referenceKey ||
+            registerResult?.referenceKey ||
+            sessionRefKey,
+          status: registerResult?.status || "SUCCESS",
+          msg: registerResult?.msg || "Remitter registration initiated. OTP sent to mobile number.",
+        },
+      };
+    } catch (regError) {
+      console.error("[DMT Backend] Auto-registration failed:", regError?.message || regError);
+      return {
+        ...loginResult,
+        isNewRegistration: true,
+        referenceKey: sessionRefKey,
+        data: {
+          ...(loginResult?.data || {}),
+          referenceKey: sessionRefKey,
+        },
+      };
+    }
+  }
+
+  return loginResult;
 };
 
 // 2. Register Remitter
@@ -35,7 +84,8 @@ export const registerRemitterService = async (payload = {}) => {
 
 //  Verify Remitter Registration OTP
 export const verifyRemitterOtpService = async (payload = {}) => {
-  return await registerRemitterVerify(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await registerRemitterVerify(cleanPayload);
 };
 
 // 4. Remitter eKYC
