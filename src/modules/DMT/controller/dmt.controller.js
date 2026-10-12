@@ -63,9 +63,11 @@ export const registerRemitterController = asyncHandler(async (req, res) => {
 });
 
 export const verifyRemitterOtpController = asyncHandler(async (req, res) => {
+  const authFields = getAuthFields(req.user);
   const payload = {
+    ...authFields,
     ...req.body,
-    ...getAuthFields(req.user)
+    referenceKey: req.body?.referenceKey || authFields.referenceKey,
   };
   const result = await verifyRemitterOtpService(payload);
 

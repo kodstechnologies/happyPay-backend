@@ -108,6 +108,7 @@ export const remitterRegisterSchema = Joi.object({
 export const remitterVerifyOtpSchema = Joi.object({
   otp: otpRule,
   mobile: mobileRule,
+  referenceKey: Joi.string().trim().optional().allow(""),
 });
 
 
