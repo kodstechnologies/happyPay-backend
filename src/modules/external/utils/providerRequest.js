@@ -36,8 +36,14 @@ const postProviderForm = async (path, payload = {}) => {
     const form = new FormData();
 
     for (const [key, value] of Object.entries(payload)) {
-      if (value !== undefined && value !== null) {
+      if (value === undefined || value === null) continue;
+
+      if (Buffer.isBuffer(value) || typeof value?.pipe === "function") {
         form.append(key, value);
+      } else if (typeof value === "object") {
+        form.append(key, JSON.stringify(value));
+      } else {
+        form.append(key, String(value));
       }
     }
 

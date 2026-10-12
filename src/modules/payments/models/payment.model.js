@@ -30,6 +30,13 @@ import mongoose from "mongoose";
         enum:["razorpay","upi","netbanking","card"],
         required:true
     },
-
-})
+    failureReason: {
+      type: String,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 export default mongoose.model("Payment",payment)

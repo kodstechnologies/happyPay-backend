@@ -99,6 +99,7 @@ export const remitterQuerySchema = Joi.object({
 export const remitterRegisterSchema = Joi.object({
   aadhaar: aadhaarRule,
   mobile: mobileRule,
+  referenceKey: Joi.string().trim().optional().allow(""),
 });
 
 
@@ -178,10 +179,20 @@ export const beneficiaryFetchSchema = Joi.object({
 });
 
 export const beneficiaryVerifySchema = Joi.object({
-  mobile: mobileRule,
-  account_number: accountRule,
-  ifsc: ifscRule,
-});
+  mobile: mobileRule.optional(),
+  account_number: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
+  accountNumber: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
+  ifsc: Joi.string().trim().uppercase().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
+  bankIfsc: Joi.string().trim().uppercase().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
+  txnid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+  latitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+  longitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+})
+  .or("account_number", "accountNumber")
+  .or("ifsc", "bankIfsc")
+  .messages({
+    "object.missing": "Either accountNumber/account_number and bankIfsc/ifsc are required",
+  });
 
 export const beneficiaryAddSchema = Joi.object({
   mobile: mobileRule,

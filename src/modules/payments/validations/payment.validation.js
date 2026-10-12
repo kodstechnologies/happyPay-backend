@@ -33,3 +33,15 @@ export const verifyPaymentSchema = Joi.object({
     "string.empty": "Payment purpose cannot be empty",
   }),
 });
+
+export const recordPaymentFailureSchema = Joi.object({
+  razorpay_order_id: Joi.string().trim().required().messages({
+    "any.required": "Razorpay Order ID is required",
+    "string.empty": "Razorpay Order ID cannot be empty",
+  }),
+  razorpay_payment_id: Joi.string().trim().allow(null, "").optional(),
+  reason: Joi.string().trim().allow(null, "").optional(),
+  code: Joi.string().trim().allow(null, "").optional(),
+  purpose: Joi.string().trim().optional().default("add_wallet"),
+});
+

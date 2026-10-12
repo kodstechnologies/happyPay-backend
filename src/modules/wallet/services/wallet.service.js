@@ -121,8 +121,47 @@ export const createWallet = async (userId) => {
   return await wallet.save();
 };
 
+export const recordFailedWalletPayment = async (
+  userId,
+  amount,
+  razorpay_order_id = null,
+  razorpay_payment_id = null,
+  referenceKey = null,
+  description = "Failed Wallet Topup"
+) => {
+  const wallet = await Wallet.findOne({ user: userId });
+  if (!wallet) {
+    return null;
+  }
+
+  const currentBalance = Number(wallet.balance || 0);
+  const uniqueTxnId = generate15CharTxnId("TXN");
+
+  const transaction = new Transaction({
+    wallet: wallet._id,
+    type: "credit",
+    amount: Number(amount || 0),
+    balanceBefore: currentBalance,
+    balanceAfter: currentBalance,
+    payee: {
+      bankName: "Self Wallet",
+    },
+    service: "RAZORPAY",
+    transactionId: uniqueTxnId,
+    referenceKey: referenceKey || null,
+    razorpay_order_id: razorpay_order_id || null,
+    razorpay_payment_id: razorpay_payment_id || null,
+    status: "failed",
+    description,
+  });
+
+  return await transaction.save();
+};
+
 export default {
   addAmountToWallet,
+  recordFailedWalletPayment,
   getUserWalletBalance,
   createWallet,
 };
+

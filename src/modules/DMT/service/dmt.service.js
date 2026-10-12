@@ -1,4 +1,5 @@
 import sanitizePayload from "../../../utils/sanitizePayload.js";
+import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 import {
   loginRemitter,
   registerRemitter,
@@ -6,6 +7,7 @@ import {
   remitterEkyc,
   addBeneficiary,
   verifyBeneficiary,
+  verifyAccount,
   getBeneficiaries,
   deleteBeneficiary,
   deleteBeneficiaryVerifyOtp,
@@ -54,11 +56,29 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 };
 
 /**
- * Verify beneficiary bank account via penny drop
+ * Verify beneficiary bank account via demographic verifyAccount external service
+ * Required provider fields: txnid, longitude, latitude, bankIfsc, accountNumber
  */
 export const verifyBeneficiaryAccountService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await verifyBeneficiary(cleanPayload);
+
+  // Generate unique random txnid if not supplied
+  const txnid = cleanPayload.txnid || generate15CharTxnId("TXN");
+  const bankIfsc = cleanPayload.bankIfsc || cleanPayload.ifsc || "";
+  const accountNumber = cleanPayload.accountNumber || cleanPayload.account_number || "";
+  const latitude = String(cleanPayload.latitude || "28.7041");
+  const longitude = String(cleanPayload.longitude || "77.1025");
+
+  const providerPayload = {
+    ...cleanPayload,
+    txnid,
+    bankIfsc,
+    accountNumber,
+    latitude,
+    longitude,
+  };
+
+  return await verifyAccount(providerPayload);
 };
 //  Add a new beneficiary
 
