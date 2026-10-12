@@ -8,6 +8,7 @@ import {
   performRemitterEkycController,
   fetchBeneficiariesController,
   verifyBeneficiaryAccountController,
+  verifyBeneficiaryController,
   addBeneficiaryController,
   deleteBeneficiaryController,
   verifyDeleteBeneficiaryOtpController,
@@ -21,6 +22,7 @@ import {
   remitterVerifyOtpSchema,
   remitterEkycSchema,
   beneficiaryFetchSchema,
+  accountVerifySchema,
   beneficiaryVerifySchema,
   beneficiaryAddSchema,
   beneficiaryDeleteSchema,
@@ -72,10 +74,17 @@ router.post(
 );
 
 router.post(
+  "/verify-account",
+  authMiddleware,
+  validate(accountVerifySchema, "body"),
+  verifyBeneficiaryAccountController
+);
+
+router.post(
   "/verify-beneficiary",
   authMiddleware,
   validate(beneficiaryVerifySchema, "body"),
-  verifyBeneficiaryAccountController
+  verifyBeneficiaryController
 );
 
 

@@ -9,6 +9,7 @@ import {
   fetchBeneficiariesService,
   verifyBeneficiaryAccountService,
   addBeneficiaryService,
+  verifyBeneficiaryService,
   deleteBeneficiaryService,
   verifyDeleteBeneficiaryOtpService,
   generateTransactionOtpService,
@@ -154,6 +155,27 @@ export const addBeneficiaryController = asyncHandler(async (req, res) => {
     ApiResponse.success(
       result,
       "Beneficiary added successfully"
+    )
+  );
+});
+
+export const verifyBeneficiaryController = asyncHandler(async (req, res) => {
+  const { outletid: sessionOutletId, referenceKey: sessionRefKey } = getAuthFields(req.user);
+  const { outletid, referenceKey, beneficiaryId, otp, remitterMobile } = req.body;
+
+  const payload = {
+    outletid: outletid || sessionOutletId,
+    referenceKey: referenceKey || sessionRefKey,
+    beneficiaryId,
+    otp,
+    remitterMobile,
+  };
+  const result = await verifyBeneficiaryService(payload);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Beneficiary verified and added successfully"
     )
   );
 });

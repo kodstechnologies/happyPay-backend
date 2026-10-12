@@ -137,6 +137,15 @@ export const addBeneficiaryService = async (payload = {}) => {
   return await addBeneficiary(cleanPayload);
 };
 
+/**
+ * Verify added beneficiary via OTP (rdmt/verify-bene)
+ * Required provider fields: outletid, referenceKey, beneficiaryId, otp, remitterMobile
+ */
+export const verifyBeneficiaryService = async (payload = {}) => {
+  const cleanPayload = sanitizePayload(payload);
+  return await verifyBeneficiary(cleanPayload);
+};
+
 //  Initiate beneficiary deletion (triggers OTP)
 
 export const deleteBeneficiaryService = async (payload = {}) => {
