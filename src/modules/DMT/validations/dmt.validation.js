@@ -180,7 +180,7 @@ export const beneficiaryFetchSchema = Joi.object({
   mobile: mobileRule,
 });
 
-export const beneficiaryVerifySchema = Joi.object({
+export const accountVerifySchema = Joi.object({
   mobile: mobileRule.optional(),
   account_number: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
   accountNumber: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
@@ -195,6 +195,26 @@ export const beneficiaryVerifySchema = Joi.object({
   .messages({
     "object.missing": "Either accountNumber/account_number and bankIfsc/ifsc are required",
   });
+
+export const beneficiaryVerifySchema = Joi.object({
+  outletid: Joi.alternatives()
+    .try(Joi.string().trim().min(1), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outletid) is required",
+      "string.empty": "Outlet ID (outletid) is required",
+    }),
+  referenceKey: Joi.string().trim().required().messages({
+    "any.required": "Reference Key (referenceKey) is required",
+    "string.empty": "Reference Key (referenceKey) is required",
+  }),
+  beneficiaryId: Joi.string().trim().required().messages({
+    "any.required": "Beneficiary ID (beneficiaryId) is required",
+    "string.empty": "Beneficiary ID (beneficiaryId) is required",
+  }),
+  otp: otpRule,
+  remitterMobile: mobileRule,
+});
 
 export const beneficiaryAddSchema = Joi.object({
   bankId: Joi.alternatives()

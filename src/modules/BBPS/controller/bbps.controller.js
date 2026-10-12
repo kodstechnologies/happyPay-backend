@@ -70,9 +70,10 @@ const getBillersByCategoryIdController = asyncHandler(async (req, res) => {
  * Controller to get billers by category name
  */
 const getBillersByCategoryNameController = asyncHandler(async (req, res) => {
-  const { catname } = req.body;
+  const category = req.body.category || req.body.service_name || req.body.catname;
   const payload = {
-    catname,
+    category,
+    catname: category,
     ...getAuthFields(req.user)
   };
 
