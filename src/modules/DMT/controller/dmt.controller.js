@@ -27,20 +27,24 @@ const getAuthFields = (user) => {
 };
 
 export const getRemitterDetailsController = asyncHandler(async (req, res) => {
-   const outletid = req.user?.outletid || req.user?.outletId || 748399;
-    if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
+  const authFields = getAuthFields(req.user);
   const payload = { 
+    ...authFields,
     ...req.query, 
     ...req.params, 
     ...req.body,
-   outletid
+    outletid: req.user?.outletid || req.user?.outletId || authFields.outletid,
   };
   const result = await getRemitterDetailsService(payload);
+
+  const message = result?.isNewRegistration
+    ? "New remitter detected. Registration initiated and OTP sent."
+    : "Remitter details fetched successfully";
 
   return res.status(200).json(
     ApiResponse.success(
       result,
-      "Remitter details fetched successfully"
+      message
     )
   );
 });

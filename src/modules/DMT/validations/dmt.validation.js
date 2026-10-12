@@ -91,6 +91,7 @@ const idRule = Joi.alternatives()
  */
 export const remitterQuerySchema = Joi.object({
   mobile: mobileRule,
+  aadhaar: Joi.string().trim().pattern(/^\d{12}$/).optional().allow(""),
 });
 
 /**

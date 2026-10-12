@@ -79,11 +79,26 @@ const fetchBillService = async (payload = {}) => {
     customerParams.FIELD3 ||
     customerParams.field3;
 
+  const generate11DigitOrderId = () => {
+    // Generate an 11-digit numeric string (e.g., 45645634434)
+    const firstDigit = Math.floor(Math.random() * 9) + 1; // 1-9
+    const remainingDigits = Math.floor(Math.random() * 10000000000)
+      .toString()
+      .padStart(10, "0");
+    return `${firstDigit}${remainingDigits}`;
+  };
+
+  const orderid =
+    cleanPayload.orderid ||
+    cleanPayload.orderId ||
+    cleanPayload.order_id ||
+    generate11DigitOrderId();
+
   const referenceid =
     cleanPayload.referenceid ||
     cleanPayload.reference_id ||
     cleanPayload.client_ref_id ||
-    `BBP${Date.now()}`;
+    orderid;
 
   const mode = cleanPayload.mode || "online";
 
@@ -92,6 +107,7 @@ const fetchBillService = async (payload = {}) => {
 
   const requestPayload = {
     ...restPayload,
+    orderid,
     operator,
     canumber,
     ad1,
@@ -127,11 +143,17 @@ const payBillService = async (payload = {}) => {
 
   const amount = cleanPayload.amount;
 
+  const orderid =
+    cleanPayload.orderid ||
+    cleanPayload.orderId ||
+    cleanPayload.order_id ||
+    generate11DigitOrderId();
+
   const referenceid =
     cleanPayload.referenceid ||
     cleanPayload.reference_id ||
     cleanPayload.client_ref_id ||
-    `PAY${Date.now()}`;
+    orderid;
 
   const latitude = cleanPayload.latitude || "0";
   const longitude = cleanPayload.longitude || "0";
@@ -170,6 +192,7 @@ const payBillService = async (payload = {}) => {
 
   const requestPayload = {
     ...restPayload,
+    orderid,
     operator,
     canumber,
     amount,
