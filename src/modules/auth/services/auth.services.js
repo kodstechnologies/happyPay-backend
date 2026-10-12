@@ -130,6 +130,110 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     throw error;
   }
 
+  // Check if user can login based on registration and approval status
+  const registrationStatus = String(user.registrationStatus || "").toUpperCase();
+  const eKYCStatus = String(user.eKYCStatus || "").toUpperCase();
+  const adminApproved = String(user.adminApproved || "").toLowerCase();
+
+  // Only allow login if registration is COMPLETED
+  if (registrationStatus !== "COMPLETED") {
+    const error = new Error(
+      "Registration not completed. Please complete your registration before login."
+    );
+    error.statusCode = 403;
+    // Include user details for frontend to guide completion
+    error.data = {
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
+      user: {
+        id: user._id,
+        mobile: user.mobile,
+        fullName: user.fullName,
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
+        isMobileVerified: user.isMobileVerified,
+        panNumber: user.panNumber,
+        aadhaarNumber: user.aadhaarNumber,
+        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : null,
+        gender: user.gender,
+        maritalStatus: user.maritalStatus,
+        shopName: user.shop?.name || null,
+        city: user.shop?.address?.city || null,
+        pincode: user.shop?.address?.pincode || null,
+        eKYCStatus: user.eKYCStatus,
+        adminApproved: user.adminApproved,
+        reasonOfRejection: user.reasonOfRejection || null,
+      },
+    };
+    throw error;
+  }
+
+  // Check eKYC status - should be COMPLETED
+  if (eKYCStatus === "PENDING") {
+    const error = new Error(
+      "eKYC verification is pending. Please complete eKYC verification before login."
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Check admin approval status - should be approved
+  if (adminApproved === "pending") {
+    const error = new Error(
+      "Your account is pending admin approval. Please wait for approval before login."
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (adminApproved === "rejected") {
+    const error = new Error(
+      "Your account has been rejected by admin."
+    );
+    error.statusCode = 403;
+    // Include rejection details for frontend to show specific rejected documents
+    error.data = {
+      adminApproved: user.adminApproved,
+      reasonOfRejection: user.reasonOfRejection,
+      rejectedDocuments: [],
+      user: {
+        id: user._id,
+        mobile: user.mobile,
+        fullName: user.fullName,
+        email: user.email,
+        registrationStatus: user.registrationStatus,
+        currentRegistrationStep: user.currentRegistrationStep,
+      },
+    };
+
+    // Find rejected documents from documentReviews
+    if (user.documentReviews) {
+      const documentLabels = {
+        panDocument: "PAN Document",
+        aadhaarDocument: "Aadhaar Document", 
+        selfie: "Selfie Photo",
+        shopInsidePhoto: "Shop Inside Photo",
+        shopOutsidePhoto: "Shop Outside Photo",
+        shopLocationPhoto: "Shop Location Photo",
+        businessProofDocument: "Business Proof Document",
+      };
+
+      Object.keys(documentLabels).forEach(docField => {
+        const docReview = user.documentReviews[docField];
+        if (docReview && docReview.status === "REJECTED") {
+          error.data.rejectedDocuments.push({
+            field: docField,
+            label: documentLabels[docField],
+            rejectionReason: docReview.rejectionReason || "No specific reason provided",
+            reviewedAt: docReview.reviewedAt,
+          });
+        }
+      });
+    }
+
+    throw error;
+  }
+
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -139,6 +243,24 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
   return {
     mobile: normalizedMobile,
     expiresInSeconds: 300,
+    // Include registration details for existing users
+    user: {
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      isMobileVerified: user.isMobileVerified,
+      currentRegistrationStep: user.currentRegistrationStep,
+      registrationStatus: user.registrationStatus,
+      panNumber: user.panNumber,
+      aadhaarNumber: user.aadhaarNumber,
+      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : null,
+      gender: user.gender,
+      maritalStatus: user.maritalStatus,
+      shopName: user.shop?.name || null,
+      city: user.shop?.address?.city || null,
+      pincode: user.shop?.address?.pincode || null,
+    },
   };
 };
 
