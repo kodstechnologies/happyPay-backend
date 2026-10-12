@@ -29,7 +29,7 @@ router.post(
 );
 
 router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
-  // 24 hours  verification of TFA
+// 24 hours  verification of TFA
 router.post("/login-status", authMiddleware, loginStatusController);
 router.post("/verify-tfa", authMiddleware, verifyTfaController);
 

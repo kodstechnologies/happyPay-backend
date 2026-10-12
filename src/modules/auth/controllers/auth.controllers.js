@@ -105,6 +105,32 @@ const verifyRetailerLoginOtp = async (req, res) => {
       deviceName,
     });
 
+    if (data?.accessToken) {
+      const isProduction = process.env.NODE_ENV === "production";
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+      };
+
+      res.cookie("accessToken", data.accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      if (data?.refreshToken) {
+        res.cookie("refreshToken", data.refreshToken, {
+          ...cookieOptions,
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+      }
+
+      res.cookie("token", data.accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+    }
+
     return res.status(200).json(
       ApiResponse.success(
         data,
