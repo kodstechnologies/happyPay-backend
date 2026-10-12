@@ -52,6 +52,7 @@ const PROVIDER_ROUTES = {
     doTransaction: `${PROVIDER_API_PREFIX}/rdmt/do-transaction`,
     transactionStatus: `${PROVIDER_API_PREFIX}/rdmt/status-check`,
 
+   bankList: `${PROVIDER_API_PREFIX}/nsdl/account/new-account-open`,
   },
 
   upiCashpoint: {

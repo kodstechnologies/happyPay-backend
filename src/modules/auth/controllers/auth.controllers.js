@@ -212,14 +212,14 @@ const getBankListController = asyncHandler(async (req, res) => {
 
     const limit = Math.min(
       Math.max(Number(req.query.limit) || 10, 1),
-      100
+      500
     );
 
     const result = await getBankList({
       page,
       limit,
     });
-
+  console.log("Bank list fetched successfully:", result);
     return res.status(200).json(
       ApiResponse.success(
         result.data,
