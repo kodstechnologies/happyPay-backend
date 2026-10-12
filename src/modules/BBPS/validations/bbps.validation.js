@@ -11,15 +11,15 @@ const getBillersByCategoryIdSchema = Joi.object({
 }).unknown(true);
 
 const getBillersByCategoryNameSchema = Joi.object({
-  category: Joi.string().trim().min(1).optional(),
-  service_name: Joi.string().trim().min(1).optional(),
-  catname: Joi.string().trim().min(1).optional(),
-})
-  .or("category", "service_name", "catname")
-  .unknown(true)
-  .messages({
-    "object.missing": "Category name is required",
-  });
+  catname: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "catname is required",
+      "string.empty": "catname cannot be empty",
+    }),
+});
+  
 
 const fetchBillSchema = Joi.object({
   biller_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
