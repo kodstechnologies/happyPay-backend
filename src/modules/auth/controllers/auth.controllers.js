@@ -152,11 +152,40 @@ const verifyRetailerLoginOtp = async (req, res) => {
       )
     );
   } catch (error) {
+    // Handle validation errors by including additional status information
+    let errorData = null;
+
+    // If it's an eKYC error, include the eKYC status fields in data
+    if (error.eKYCStatus !== undefined) {
+      errorData = {
+        eKYCStatus: error.eKYCStatus,
+        currentRegistrationStep: error.currentRegistrationStep
+      };
+    }
+    
+    // If it's a registration error, include the registration status fields in data
+    else if (error.registrationStatus !== undefined) {
+      errorData = {
+        registrationStatus: error.registrationStatus,
+        currentRegistrationStep: error.currentRegistrationStep
+      };
+    }
+    
+    // If it's an admin approval error, include the admin approval status fields in data
+    else if (error.adminApproved !== undefined) {
+      errorData = {
+        adminApproved: error.adminApproved,
+        reasonOfRejection: error.reasonOfRejection,
+        currentRegistrationStep: error.currentRegistrationStep
+      };
+    }
+
     return res
       .status(error.statusCode || 500)
       .json(
         ApiResponse.error(
-          error.message || "Login failed"
+          error.message || "Login failed",
+          errorData
         )
       );
   }

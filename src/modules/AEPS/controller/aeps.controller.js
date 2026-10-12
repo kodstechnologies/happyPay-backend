@@ -295,7 +295,7 @@ const pickFields = (body, fields) =>
 
 const biometricDefaults = {
   fCount: "1",
-  fType: "0",
+  fType: "2",
   iCount: "0",
   iType: "0",
   pCount: "0",
