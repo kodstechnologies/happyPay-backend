@@ -487,6 +487,11 @@ const updateShopDetails = async (body = {}, files = {}) => {
     throw fail(400, "Mobile number must be verified before proceeding with registration");
   }
 
+  // Check if email is verified (business logic validation)
+  if (!user.isEmailVerified) {
+    throw fail(400, "Email must be verified before proceeding with registration");
+  }
+
   // Process form data (all already validated by Joi)
   const shopName = body.shopName || user.shop?.name;
   const pincode = body.pincode || user.shop?.address?.pincode;
