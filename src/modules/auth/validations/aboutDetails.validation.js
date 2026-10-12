@@ -46,6 +46,8 @@ const aboutDetailsSchema = Joi.object({
       return value;
     })
     .messages({
+      "any.required": "Date of birth is required",
+      "string.empty": "Date of birth is required",
       "date.invalid": "Please enter a valid date of birth",
     }),
 

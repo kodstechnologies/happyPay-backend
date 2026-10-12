@@ -75,6 +75,20 @@ const sendRetailerLoginOtp = async (req, res) => {
       )
     );
   } catch (error) {
+    // For registration incomplete or admin rejection errors, include user details in response
+    if (error.statusCode === 403 && error.data) {
+      return res
+        .status(error.statusCode)
+        .json(
+          ApiResponse.error(
+            error.message || "Failed to send OTP",
+            error.data,
+            null,
+            error.statusCode
+          )
+        );
+    }
+
     return res
       .status(error.statusCode || 500)
       .json(
