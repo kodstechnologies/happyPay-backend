@@ -1,5 +1,5 @@
 import { createRazorpayOrder, verifyRazorpaySignature } from "../services/payment.service.js";
-import { addAmountToWallet } from "../../wallet/services/wallet.service.js";
+import { addAmountToWallet, recordFailedWalletPayment } from "../../wallet/services/wallet.service.js";
 import Payment from "../models/payment.model.js";
 import Wallet from "../../wallet/model/wallet.model.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
@@ -8,7 +8,7 @@ import { ApiError } from "../../../utils/ApiError.js";
 
 export const initiatePayment = asyncHandler(async (req, res, next) => {
   const { amount, purpose, method = "razorpay" } = req.body;
-  const userId = req.user?.userId;
+  const userId = req.user?.id || req.user?.userId || req.user?._id;
 
   const order = await createRazorpayOrder(amount);
 
@@ -60,17 +60,28 @@ export const verifyPayment = asyncHandler(async (req, res, next) => {
        throw ApiError.badRequest("Payment has already been verified");
     }
     
-     if (!isValid) {
-      if (payment) {
-        payment.status = "failed";
-        payment.razorpay_payment_id = razorpay_payment_id;
-        await payment.save();
-      }
-       throw ApiError.badRequest("Invalid payment signature");
+    if (!isValid) {
+      payment.status = "failed";
+      payment.razorpay_payment_id = razorpay_payment_id;
+      payment.failureReason = "Invalid payment signature";
+      await payment.save();
+
+      // Also record failed transaction in history
+      await recordFailedWalletPayment(
+        userId,
+        payment.amount,
+        razorpay_order_id,
+        razorpay_payment_id,
+        null,
+        "Failed Wallet Topup (Invalid Signature)"
+      );
+
+      throw ApiError.badRequest("Invalid payment signature");
     }
    
     payment.razorpay_payment_id = razorpay_payment_id;
     payment.status = "success";
+    payment.failureReason = null;
     await payment.save();
     
     await addAmountToWallet(
@@ -95,3 +106,57 @@ export const verifyPayment = asyncHandler(async (req, res, next) => {
     )
   );
 });
+
+export const recordPaymentFailure = asyncHandler(async (req, res, next) => {
+  const { razorpay_order_id, razorpay_payment_id, reason, code, purpose = "add_wallet" } = req.body;
+  const userId = req.user?.id || req.user?.userId || req.user?._id;
+
+  const failureDescription = reason || code || "Payment failed or cancelled";
+
+  if (purpose === "add_wallet") {
+    const payment = await Payment.findOne({ razorpay_order_id });
+
+    if (payment) {
+      // Don't overwrite if it was already marked success
+      if (payment.status !== "success") {
+        payment.status = "failed";
+        if (razorpay_payment_id) {
+          payment.razorpay_payment_id = razorpay_payment_id;
+        }
+        payment.failureReason = failureDescription;
+        await payment.save();
+      }
+
+      await recordFailedWalletPayment(
+        userId,
+        payment.amount,
+        razorpay_order_id,
+        razorpay_payment_id || null,
+        null,
+        `Failed Wallet Topup: ${failureDescription}`
+      );
+    } else {
+      // If payment record not found, still log transaction if possible
+      await recordFailedWalletPayment(
+        userId,
+        0,
+        razorpay_order_id,
+        razorpay_payment_id || null,
+        null,
+        `Failed Wallet Topup: ${failureDescription}`
+      );
+    }
+  }
+
+  return res.status(200).json(
+    ApiResponse.success(
+      {
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        status: "failed",
+      },
+      "Payment failure recorded successfully"
+    )
+  );
+});
+
