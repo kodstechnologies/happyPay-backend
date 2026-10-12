@@ -24,6 +24,13 @@ const getBillersByCategoryNameSchema = Joi.object({
 const fetchBillSchema = Joi.object({
   biller_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   consumer_number: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  canumber: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  CUSTNO: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  REFMOBILENO: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  AMT: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  orderid: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  opcode: Joi.string().trim().optional(),
+  service_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
 }).min(1).unknown(true).messages({
   "object.min": "At least one bill parameter is required to fetch bill details",
 });
@@ -31,12 +38,18 @@ const fetchBillSchema = Joi.object({
 const payBillSchema = Joi.object({
   amount: Joi.alternatives()
     .try(Joi.number().positive(), Joi.string().trim())
-    .required()
-    .messages({
-      "any.required": "Bill payment amount is required",
-      "number.positive": "Bill payment amount must be greater than zero",
-    }),
-}).unknown(true);
+    .optional(),
+  AMT: Joi.alternatives()
+    .try(Joi.number().positive(), Joi.string().trim())
+    .optional(),
+  CUSTNO: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  REFMOBILENO: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  orderid: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  opcode: Joi.string().trim().optional(),
+  service_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+}).min(1).unknown(true).messages({
+  "object.min": "At least one parameter is required for bill payment",
+});
 
 export {
   getBillersByCategoryIdSchema,

@@ -126,6 +126,8 @@ const doTransaction = (payload) =>
 const getTransactionStatus = (payload) =>
   postProviderForm(PROVIDER_ROUTES.dmt.transactionStatus, payload);
 
+ const getbankList=(payload)=>
+  getProvider(PROVIDER_ROUTES.dmt.bankList, payload);
 // UPI Cashpoint services
 const initiateUpiCashpointPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.upiCashpoint.intiatepayment, payload);
@@ -166,6 +168,8 @@ export {
   generateTransactionOtp,
   doTransaction,
   getTransactionStatus,
+  getbankList,
+
   initiateUpiCashpointPayment,
   initiateCmsPayment
 };
