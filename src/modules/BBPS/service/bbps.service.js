@@ -29,8 +29,7 @@ const getBillersByCategoryIdService = async (payload = {}) => {
 //  Service to fetch billers by Category Name
 const getBillersByCategoryNameService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  const category = cleanPayload.category || cleanPayload.catname || "";
-  return await fetchByCat({ category });
+  return await fetchByCat(cleanPayload);
 };
 
 // Service to fetch / view consumer bill

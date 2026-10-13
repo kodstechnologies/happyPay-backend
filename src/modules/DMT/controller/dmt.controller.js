@@ -18,7 +18,7 @@ import {
 } from "../service/dmt.service.js";
 
 const getAuthFields = (user) => {
-  const outletid = user?.outletid || user?.outletId || 748399;
+  const outletid = user?.outletid || user?.outletId ;
   const referenceKey = user?.referenceKey ||" BQXXFJeYaKfVh8OZhKDBMEofllxIpAqbHGKW1+It8USaOGfFXXU7FNSReycNR8ce";
   
   if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
@@ -85,9 +85,26 @@ export const verifyRemitterOtpController = asyncHandler(async (req, res) => {
 });
 
 export const performRemitterEkycController = asyncHandler(async (req, res) => {
+  const authFields = getAuthFields(req.user);
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    mobile: req.body.mobile,
+    outletid: req.body?.outletid || req.user?.outletid || req.user?.outletId || authFields.outletid,
+    referenceKey: req.body?.referenceKey ,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    txnid: req.body.txnid,
+    ci: req.body.ci,
+    hmac: req.body.hmac,
+    Piddata: req.body.Piddata,
+    ts: req.body.ts,
+    dpId: req.body.dpId,
+    dc: req.body.dc,
+    mi: req.body.mi,
+    mc: req.body.mc,
+    rdsVer: req.body.rdsVer,
+    rdsId: req.body.rdsId,
+    sessionKey: req.body.sessionKey,
+    srno: req.body.srno,
   };
   const result = await performRemitterEkycService(payload);
 

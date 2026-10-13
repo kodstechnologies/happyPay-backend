@@ -116,6 +116,12 @@ export const remitterVerifyOtpSchema = Joi.object({
   // 4. Remitter eKYC
 
 export const remitterEkycSchema = Joi.object({
+  outletid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number().positive()).optional().allow(""),
+  referenceKey: Joi.string().trim().optional().allow(""),
+  dpId: Joi.string().trim().required().messages({
+    "any.required": "dpId is required",
+    "string.empty": "dpId is required",
+  }),
   srno: Joi.string().trim().required().messages({
     "any.required": "srno is required",
     "string.empty": "srno is required",

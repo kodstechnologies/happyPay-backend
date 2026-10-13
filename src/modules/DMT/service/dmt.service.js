@@ -91,7 +91,27 @@ export const verifyRemitterOtpService = async (payload = {}) => {
 // 4. Remitter eKYC
 export const performRemitterEkycService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await remitterEkyc(cleanPayload);
+  const providerPayload = {
+    mobile: cleanPayload.mobile,
+    outletid: cleanPayload.outletid || cleanPayload.outletId,
+    referenceKey: cleanPayload.referenceKey,
+    latitude: String(cleanPayload.latitude),
+    longitude: String(cleanPayload.longitude),
+    txnid: cleanPayload.txnid,
+    ci: cleanPayload.ci,
+    hmac: cleanPayload.hmac,
+    Piddata: cleanPayload.Piddata,
+    ts: cleanPayload.ts,
+    dpId: cleanPayload.dpId,
+    dc: cleanPayload.dc,
+    mi: cleanPayload.mi,
+    mc: cleanPayload.mc,
+    rdsVer: cleanPayload.rdsVer,
+    rdsId: cleanPayload.rdsId,
+    sessionKey: cleanPayload.sessionKey,
+    srno: cleanPayload.srno,
+  };
+  return await remitterEkyc(providerPayload);
 };
 
 // =============================================================
@@ -149,13 +169,15 @@ export const verifyBeneficiaryService = async (payload = {}) => {
 //  Initiate beneficiary deletion (triggers OTP)
 
 export const deleteBeneficiaryService = async (payload = {}) => {
-  return await deleteBeneficiary(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await deleteBeneficiary(cleanPayload);
 };
 
 //  Verify OTP and confirm beneficiary deletion
 
 export const verifyDeleteBeneficiaryOtpService = async (payload = {}) => {
-  return await deleteBeneficiaryVerifyOtp(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await deleteBeneficiaryVerifyOtp(cleanPayload);
 };
 
 // =============================================================
