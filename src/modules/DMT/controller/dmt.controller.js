@@ -288,7 +288,8 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
     ...(targetBeneId ? { bene_id: targetBeneId } : {}),
     latlong: targetLatlong,
     client_ref_id: targetTxnId,
-    ...(req.body.otp ? { otp: String(req.body.otp).trim() } : {}),
+    otp:req.body?.otp||""
+    // ...(req.body.otp ? { otp: String(req.body.otp).trim() } : {}),
   };
   const result = await executeTransactionService(payload);
 
