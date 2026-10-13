@@ -46,6 +46,9 @@ const getBankList = async ({ page = 1, limit = 10 } = {}) => {
 const doEkyc = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.doEkyc, payload);
 
+const balanceEnquiry = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.balanceEnquiry, payload);
+
 const doBioEkyc = async (payload) => {
   console.log("========== [doBioEkyc Payload] ==========", payload);
   try {
