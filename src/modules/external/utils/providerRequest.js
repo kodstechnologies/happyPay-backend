@@ -24,6 +24,13 @@ const checkProviderError = (data) => {
         rawMsg = JSON.stringify(rawMsg);
       }
     }
+
+    // Check if upstream provider quirk returned "Transaction Successful" despite status FAILED/ERROR
+    const normalizedMsg = String(rawMsg || "").trim().toLowerCase();
+    if (normalizedMsg.includes("transaction successful") || normalizedMsg === "success" || normalizedMsg === "successful") {
+      return null;
+    }
+
     const error = new Error(rawMsg);
     const rawCode = Number(data.code || data.errorCode || data.statusCode || data.status_code);
     error.statusCode = rawCode >= 400 && rawCode < 600 ? rawCode : 400;

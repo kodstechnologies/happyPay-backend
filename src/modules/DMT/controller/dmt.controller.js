@@ -199,13 +199,13 @@ export const verifyBeneficiaryController = asyncHandler(async (req, res) => {
 
 export const deleteBeneficiaryController = asyncHandler(async (req, res) => {
   const { outletid, referenceKey } = getAuthFields(req.user);
-  const { beneficiaryId, remitterMobile } = req.body;
+  const { beneficiaryId, remitterMobile, outletid: bodyOutletId } = req.body;
 
   const payload = {
     beneficiaryId,
     remitterMobile,
-    outletid,
-    referenceKey,
+    outletid: bodyOutletId || outletid,
+    referenceKey: req.body.referenceKey || referenceKey,
   };
   const result = await deleteBeneficiaryService(payload);
 
@@ -219,14 +219,14 @@ export const deleteBeneficiaryController = asyncHandler(async (req, res) => {
 
 export const verifyDeleteBeneficiaryOtpController = asyncHandler(async (req, res) => {
   const { outletid, referenceKey } = getAuthFields(req.user);
-  const { beneficiaryId, remitterMobile, otp } = req.body;
+  const { beneficiaryId, remitterMobile, otp, outletid: bodyOutletId, referenceKey: bodyRefKey } = req.body;
 
   const payload = {
     beneficiaryId,
     remitterMobile,
     otp: String(otp).trim(),
-    outletid,
-    referenceKey,
+    outletid: bodyOutletId || outletid,
+    referenceKey: bodyRefKey || referenceKey,
   };
   const result = await verifyDeleteBeneficiaryOtpService(payload);
 
