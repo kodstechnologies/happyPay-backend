@@ -116,6 +116,12 @@ export const remitterVerifyOtpSchema = Joi.object({
   // 4. Remitter eKYC
 
 export const remitterEkycSchema = Joi.object({
+  outletid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number().positive()).optional().allow(""),
+  referenceKey: Joi.string().trim().optional().allow(""),
+  dpId: Joi.string().trim().required().messages({
+    "any.required": "dpId is required",
+    "string.empty": "dpId is required",
+  }),
   srno: Joi.string().trim().required().messages({
     "any.required": "srno is required",
     "string.empty": "srno is required",
@@ -170,7 +176,20 @@ export const remitterEkycSchema = Joi.object({
     "any.required": "latitude is required",
   }),
   mobile: mobileRule,
-});
+  // Optional RD Service metadata attributes
+  PidDatatype: Joi.string().trim().optional().allow(""),
+  errCode: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  errInfo: Joi.string().trim().optional().allow(""),
+  fCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  fType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  iCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  iType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  pCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  pType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  qScore: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  nmPoints: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
+  sysid: Joi.string().trim().optional().allow(""),
+}).unknown(true);
 
 // =============================================================
 // Beneficiary Validation Schemas

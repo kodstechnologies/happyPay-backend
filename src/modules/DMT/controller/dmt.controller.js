@@ -85,9 +85,12 @@ export const verifyRemitterOtpController = asyncHandler(async (req, res) => {
 });
 
 export const performRemitterEkycController = asyncHandler(async (req, res) => {
+  const authFields = getAuthFields(req.user);
   const payload = {
+    ...authFields,
     ...req.body,
-    ...getAuthFields(req.user)
+    referenceKey: req.body?.referenceKey || authFields.referenceKey,
+    outletid: req.body?.outletid || req.user?.outletid || req.user?.outletId || authFields.outletid,
   };
   const result = await performRemitterEkycService(payload);
 
