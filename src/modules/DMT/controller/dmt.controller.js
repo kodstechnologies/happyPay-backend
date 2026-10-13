@@ -198,9 +198,14 @@ export const verifyBeneficiaryController = asyncHandler(async (req, res) => {
 });
 
 export const deleteBeneficiaryController = asyncHandler(async (req, res) => {
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const { beneficiaryId, remitterMobile } = req.body;
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    beneficiaryId,
+    remitterMobile,
+    outletid,
+    referenceKey,
   };
   const result = await deleteBeneficiaryService(payload);
 
@@ -213,9 +218,15 @@ export const deleteBeneficiaryController = asyncHandler(async (req, res) => {
 });
 
 export const verifyDeleteBeneficiaryOtpController = asyncHandler(async (req, res) => {
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const { beneficiaryId, remitterMobile, otp } = req.body;
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    beneficiaryId,
+    remitterMobile,
+    otp: String(otp).trim(),
+    outletid,
+    referenceKey,
   };
   const result = await verifyDeleteBeneficiaryOtpService(payload);
 
@@ -232,9 +243,16 @@ export const verifyDeleteBeneficiaryOtpController = asyncHandler(async (req, res
 // =============================================================
 
 export const generateTransactionOtpController = asyncHandler(async (req, res) => {
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const targetMobile = req.body.remitterMobile || req.body.mobile;
+  const targetBeneId = req.body.bene_id || req.body.beneficiaryId;
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    mobile: targetMobile,
+    amount: req.body.amount,
+    ...(targetBeneId ? { bene_id: targetBeneId } : {}),
+    outletid,
+    referenceKey,
   };
   const result = await generateTransactionOtpService(payload);
 
@@ -247,9 +265,22 @@ export const generateTransactionOtpController = asyncHandler(async (req, res) =>
 });
 
 export const executeTransactionController = asyncHandler(async (req, res) => {
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const targetMobile = req.body.remitterMobile || req.body.mobile;
+  const targetBeneId = req.body.bene_id || req.body.beneficiaryId;
+  const targetClientRefId = req.body.client_ref_id || req.body.txnid || `TXN${Date.now()}`;
+  const targetLatlong = req.body.latlong || "28.7041,77.1025";
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    mobile: targetMobile,
+    amount: req.body.amount,
+    bene_id: targetBeneId,
+    mode: req.body.mode,
+    latlong: targetLatlong,
+    client_ref_id: targetClientRefId,
+    ...(req.body.otp ? { otp: String(req.body.otp).trim() } : {}),
+    outletid,
+    referenceKey,
   };
   const result = await executeTransactionService(payload);
 

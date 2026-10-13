@@ -253,13 +253,25 @@ export const beneficiaryAddSchema = Joi.object({
 });
 
 export const beneficiaryDeleteSchema = Joi.object({
-  mobile: mobileRule,
-  bene_id: idRule,
+  beneficiaryId: Joi.alternatives()
+    .try(Joi.string().trim().min(1), Joi.number().integer().positive())
+    .required()
+    .messages({
+      "any.required": "Beneficiary ID (beneficiaryId) is required",
+      "string.empty": "Beneficiary ID (beneficiaryId) is required",
+    }),
+  remitterMobile: mobileRule,
 });
 
 export const beneficiaryDeleteVerifySchema = Joi.object({
-  mobile: mobileRule,
-  bene_id: idRule,
+  beneficiaryId: Joi.alternatives()
+    .try(Joi.string().trim().min(1), Joi.number().integer().positive())
+    .required()
+    .messages({
+      "any.required": "Beneficiary ID (beneficiaryId) is required",
+      "string.empty": "Beneficiary ID (beneficiaryId) is required",
+    }),
+  remitterMobile: mobileRule,
   otp: otpRule,
 });
 
@@ -268,14 +280,18 @@ export const beneficiaryDeleteVerifySchema = Joi.object({
 // =============================================================
 
 export const transactionOtpSchema = Joi.object({
-  mobile: mobileRule,
+  mobile: mobileRule.optional(),
+  remitterMobile: mobileRule.optional(),
   amount: Joi.alternatives().try(Joi.number().positive(), Joi.string().trim()).required().messages({
     "any.required": "Amount is required",
   }),
-});
+  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+  beneficiaryId: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+}).or("mobile", "remitterMobile");
 
 export const transactionExecuteSchema = Joi.object({
-  mobile: mobileRule,
+  mobile: mobileRule.optional(),
+  remitterMobile: mobileRule.optional(),
   amount: Joi.alternatives()
     .try(Joi.number().positive(), Joi.string().trim().pattern(/^\d+(\.\d{1,2})?$/))
     .required()
@@ -283,16 +299,18 @@ export const transactionExecuteSchema = Joi.object({
       "any.required": "Transaction amount is required",
       "number.positive": "Transaction amount must be greater than zero",
     }),
-  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).required().messages({
-    "any.required": "Beneficiary ID (bene_id) is required",
-  }),
+  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+  beneficiaryId: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
   mode: Joi.string().trim().valid("IMPS", "NEFT", "RTGS", "UPI").required().messages({
     "any.required": "Transfer mode (IMPS/NEFT/RTGS/UPI) is required",
   }),
-  otp: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
-  latlong: Joi.string().trim().optional(),
-  client_ref_id: Joi.string().trim().optional(),
-});
+  otp: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional().allow(""),
+  latlong: Joi.string().trim().optional().allow(""),
+  client_ref_id: Joi.string().trim().optional().allow(""),
+  txnid: Joi.string().trim().optional().allow(""),
+})
+  .or("mobile", "remitterMobile")
+  .or("bene_id", "beneficiaryId");
 
 export const transactionStatusSchema = Joi.object({
   reference_id: Joi.string().trim().optional(),

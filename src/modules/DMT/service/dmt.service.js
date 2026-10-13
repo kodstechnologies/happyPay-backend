@@ -91,27 +91,27 @@ export const verifyRemitterOtpService = async (payload = {}) => {
 // 4. Remitter eKYC
 export const performRemitterEkycService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  const providerPayload = {
-    mobile: cleanPayload.mobile,
-    outletid: cleanPayload.outletid || cleanPayload.outletId,
-    referenceKey: cleanPayload.referenceKey,
-    latitude: String(cleanPayload.latitude),
-    longitude: String(cleanPayload.longitude),
-    txnid: cleanPayload.txnid,
-    ci: cleanPayload.ci,
-    hmac: cleanPayload.hmac,
-    Piddata: cleanPayload.Piddata,
-    ts: cleanPayload.ts,
-    dpId: cleanPayload.dpId,
-    dc: cleanPayload.dc,
-    mi: cleanPayload.mi,
-    mc: cleanPayload.mc,
-    rdsVer: cleanPayload.rdsVer,
-    rdsId: cleanPayload.rdsId,
-    sessionKey: cleanPayload.sessionKey,
-    srno: cleanPayload.srno,
-  };
-  return await remitterEkyc(providerPayload);
+  // const providerPayload = {
+  //   mobile: cleanPayload.mobile,
+  //   outletid: cleanPayload.outletid || cleanPayload.outletId,
+  //   referenceKey: cleanPayload.referenceKey,
+  //   latitude: String(cleanPayload.latitude),
+  //   longitude: String(cleanPayload.longitude),
+  //   txnid: cleanPayload.txnid,
+  //   ci: cleanPayload.ci,
+  //   hmac: cleanPayload.hmac,
+  //   Piddata: cleanPayload.Piddata,
+  //   ts: cleanPayload.ts,
+  //   dpId: cleanPayload.dpId,
+  //   dc: cleanPayload.dc,
+  //   mi: cleanPayload.mi,
+  //   mc: cleanPayload.mc,
+  //   rdsVer: cleanPayload.rdsVer,
+  //   rdsId: cleanPayload.rdsId,
+  //   sessionKey: cleanPayload.sessionKey,
+  //   srno: cleanPayload.srno,
+  // };
+  return await remitterEkyc(cleanPayload);
 };
 
 // =============================================================
@@ -127,12 +127,9 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 
 /**
  * Verify beneficiary bank account via demographic verifyAccount external service
- * Required provider fields: txnid, longitude, latitude, bankIfsc, accountNumber
  */
 export const verifyBeneficiaryAccountService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-
-  // Generate unique random txnid if not supplied
   const txnid = cleanPayload.txnid || generate15CharTxnId("TXN");
   const bankIfsc = cleanPayload.bankIfsc || cleanPayload.ifsc || "";
   const accountNumber = cleanPayload.accountNumber || cleanPayload.account_number || "";
@@ -187,7 +184,8 @@ export const verifyDeleteBeneficiaryOtpService = async (payload = {}) => {
 //  Generate pre-transaction OTP
 
 export const generateTransactionOtpService = async (payload = {}) => {
-  return await generateTransactionOtp(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await generateTransactionOtp(cleanPayload);
 };
 
 /**
