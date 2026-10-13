@@ -497,6 +497,15 @@ const updateShopDetails = async (body = {}, files = {}) => {
   const pincode = body.pincode || user.shop?.address?.pincode;
   const city = body.city || user.shop?.address?.city;
   const address = body.address || body.fulladdress || user.shop?.completeAddress;
+  const panNumber = body.panNumber ? String(body.panNumber).trim().toUpperCase() : user.panNumber;
+
+  // Check if PAN number already exists for a different user
+  if (panNumber && panNumber !== user.panNumber) {
+    const existingPanUser = await findByPan(panNumber);
+    if (existingPanUser && existingPanUser._id.toString() !== user._id.toString()) {
+      throw fail(409, "PAN number is already registered with another account");
+    }
+  }
 
   // Resolve master data IDs
   let shopCategoryId = user.shop?.category;
@@ -521,8 +530,13 @@ const updateShopDetails = async (body = {}, files = {}) => {
   const shopOutsidePhoto = files.shopOutsidePhoto?.[0]?.path || body.shopOutsidePhoto || user.shopOutsidePhoto;
   const shopLocationPhoto = files.shopLocationPhoto?.[0]?.path || body.shopLocationPhoto || user.shopLocationPhoto;
   const businessProofDocument = files.businessProofDocument?.[0]?.path || files.businessProofDoc?.[0]?.path || body.businessProofDocument || user.businessProofDocument;
+  const panDocument = files.panDocument?.[0]?.path || body.panDocument || user.panDocument;
 
   // Update user data (no email processing in shop details)
+
+  // Update PAN details
+  if (panNumber) user.panNumber = panNumber;
+  if (panDocument) user.panDocument = panDocument;
 
   // Update shop details
   if (!user.shop) user.shop = {};

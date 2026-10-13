@@ -34,21 +34,9 @@ const sendOtp = async (req, res, next) => {
 
 const verifyOtp = async (req, res, next) => {
   try {
-    const { mobile, otp, panNumber } = req.body;
-    const panDocument = req.file?.path || req.body.panDocument || null;
+    const { mobile, otp } = req.body;
 
-    // Check if PAN document file is uploaded (since Joi can't validate files)
-    if (!panDocument) {
-      const response = ApiResponse.error(
-        "PAN document file is required",
-        null,
-        null,
-        400
-      );
-      return res.status(response.statusCode).json(response);
-    }
-
-    const result = await otpService.verifyOtp(mobile, otp, { panNumber, panDocument });
+    const result = await otpService.verifyOtp(mobile, otp);
 
     const response = ApiResponse.success(
       result,

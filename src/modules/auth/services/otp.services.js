@@ -40,46 +40,46 @@ import {
     };
   };
   
-  const verifyOtp = async (mobile, otp, panDetails = {}) => {
+  const verifyOtp = async (mobile, otp) => {
     const otpRecord = await findLatestOtp(mobile);
-  
+
     if (!otpRecord) {
       throw new Error("OTP not found or expired");
     }
-  
+
     if (otpRecord.expiresAt < new Date()) {
       throw new Error("OTP has expired");
     }
-  
+
     // Maximum 5 attempts
     if (otpRecord.attempts >= 5) {
       throw new Error("Maximum OTP attempts exceeded");
     }
-  
+
     // Wrong OTP
     if (otpRecord.otp !== otp) {
       // Check if it's the dummy OTP for testing
       if (otp !== "1234") {
         await incrementAttempts(otpRecord._id);
-  
+
         throw new Error("Invalid OTP");
       }
     }
-  
+
     // Mark OTP verified
     await markOtpVerified(otpRecord._id);
-  
+
     // Find retailer
     let user = await findByMobile(mobile);
-  
-    // If retailer doesn't exist, create one with PAN details
+
+    // If retailer doesn't exist, create one
     if (!user) {
-      user = await createUser(mobile, panDetails);
+      user = await createUser(mobile);
     } else {
-      // Existing retailer - update with PAN details if provided
-      user = await verifyMobile(user._id, panDetails);
+      // Existing retailer - update mobile verification status
+      user = await verifyMobile(user._id);
     }
-  
+
     return {
       user,
     };

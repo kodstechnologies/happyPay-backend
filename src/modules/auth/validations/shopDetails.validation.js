@@ -20,7 +20,18 @@ const objectId = (label) =>
 
 const shopDetailsSchema = Joi.object({
   userId: objectId("User ID"),
-  
+
+  panNumber: Joi.string()
+    .trim()
+    .uppercase()
+    .pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/)
+    .required()
+    .messages({
+      "any.required": "PAN number is required",
+      "string.empty": "PAN number is required",
+      "string.pattern.base": "Please enter a valid PAN number (e.g., ABCDE1234F)",
+    }),
+
   shopName: Joi.string()
     .trim()
     .min(2)
@@ -34,7 +45,7 @@ const shopDetailsSchema = Joi.object({
     }),
 
   shopCategory: objectId("Shop category"),
-  
+
   propertyType: objectId("Property type"),
 
   city: Joi.string()
@@ -107,7 +118,7 @@ const shopDetailsSchema = Joi.object({
     }),
   businessProof: objectId("Business proof type").optional(),
 
-  // Note: File fields (shopInsidePhoto, shopOutsidePhoto, businessProofDocument, businessProofDoc) 
+  // Note: File fields (shopInsidePhoto, shopOutsidePhoto, shopLocationPhoto, businessProofDocument, panDocument)
   // are handled by multer middleware and available in req.files, not req.body
 });
 

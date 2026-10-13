@@ -261,7 +261,7 @@ export const uploadShopDetailsDocuments = multer({
   storage: retailerStorage,
   limits: {
     fileSize: 10 * 1024 * 1024,
-    files: 4, // Only 4 mandatory files
+    files: 5, // 5 mandatory files including panDocument
   },
   fileFilter: retailerFileFilter,
 }).fields([
@@ -269,11 +269,12 @@ export const uploadShopDetailsDocuments = multer({
   { name: "shopOutsidePhoto", maxCount: 1 },
   { name: "shopLocationPhoto", maxCount: 1 },
   { name: "businessProofDocument", maxCount: 1 },
+  { name: "panDocument", maxCount: 1 },
 ]);
 
 // Middleware to validate mandatory shop files are uploaded
 export const validateShopFiles = (req, res, next) => {
-  const mandatoryFiles = ['shopInsidePhoto', 'shopOutsidePhoto', 'shopLocationPhoto', 'businessProofDocument'];
+  const mandatoryFiles = ['shopInsidePhoto', 'shopOutsidePhoto', 'shopLocationPhoto', 'businessProofDocument', 'panDocument'];
   const uploadedFiles = req.files || {};
   const missingFiles = [];
 
@@ -289,7 +290,8 @@ export const validateShopFiles = (req, res, next) => {
       shopInsidePhoto: 'Shop Inside Photo',
       shopOutsidePhoto: 'Shop Outside Photo',
       shopLocationPhoto: 'Shop Location Photo',
-      businessProofDocument: 'Business Proof Document'
+      businessProofDocument: 'Business Proof Document',
+      panDocument: 'PAN Document'
     };
 
     const missingLabels = missingFiles.map(field => fieldLabels[field]);
