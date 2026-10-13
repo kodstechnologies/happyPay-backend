@@ -349,8 +349,8 @@ const updateBankDetailsController = asyncHandler(async (req, res) => {
 });
 
 const getCurrentRegistrationStepController = asyncHandler(async (req, res) => {
-  const { userId } = req.body;
-  const data = await getCurrentRegistrationStep(userId);
+  const { userId, mobile } = req.body;
+  const data = await getCurrentRegistrationStep({ userId, mobile });
   return res.status(200).json(
     ApiResponse.success(data, "Current registration step retrieved successfully", null, 200)
   );

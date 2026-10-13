@@ -4,7 +4,29 @@ import ApiResponse from "../../../utils/ApiResponse.js";
 
 const sendOtp = async (req, res, next) => {
   try {
+    // Check if request body is provided
+    if (!req.body || Object.keys(req.body).length === 0) {
+      const response = ApiResponse.error(
+        "Request body is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
     const { mobile } = req.body;
+
+    // Check if mobile is present
+    if (!mobile) {
+      const response = ApiResponse.error(
+        "Mobile number is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
 
     // Check if mobile number is already registered
     const existingUser = await findByMobile(mobile);
@@ -34,7 +56,39 @@ const sendOtp = async (req, res, next) => {
 
 const verifyOtp = async (req, res, next) => {
   try {
+    // Check if request body is provided
+    if (!req.body || Object.keys(req.body).length === 0) {
+      const response = ApiResponse.error(
+        "Request body is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
     const { mobile, otp } = req.body;
+
+    // Check if required fields are present
+    if (!mobile) {
+      const response = ApiResponse.error(
+        "Mobile number is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    if (!otp) {
+      const response = ApiResponse.error(
+        "OTP is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
 
     const result = await otpService.verifyOtp(mobile, otp);
 

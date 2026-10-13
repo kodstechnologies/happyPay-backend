@@ -774,15 +774,28 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
 
 
-const getCurrentRegistrationStep = async (userId) => {
-  if (!userId) {
-    throw fail(400, "User ID (userId) is required");
+const getCurrentRegistrationStep = async (params = {}) => {
+  const { userId, mobile } = params;
+
+  if (!userId && !mobile) {
+    throw fail(400, "Either User ID (userId) or Mobile number (mobile) is required");
   }
 
-  const user = await User.findById(userId)
-    .populate('shop.category', 'name')
-    .populate('shop.propertyType', 'name')
-    .populate('businessProofType', 'name');
+  let user;
+
+  // If mobile is provided, find user by mobile
+  if (mobile) {
+    user = await User.findOne({ mobile })
+      .populate('shop.category', 'name')
+      .populate('shop.propertyType', 'name')
+      .populate('businessProofType', 'name');
+  } else {
+    // Otherwise, find by userId
+    user = await User.findById(userId)
+      .populate('shop.category', 'name')
+      .populate('shop.propertyType', 'name')
+      .populate('businessProofType', 'name');
+  }
 
   if (!user) {
     throw fail(404, "User not found");
