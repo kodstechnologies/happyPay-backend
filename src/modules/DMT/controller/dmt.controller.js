@@ -18,7 +18,7 @@ import {
 } from "../service/dmt.service.js";
 
 const getAuthFields = (user) => {
-  const outletid = user?.outletid || user?.outletId || 748399;
+  const outletid = user?.outletid || user?.outletId ;
   const referenceKey = user?.referenceKey ||" BQXXFJeYaKfVh8OZhKDBMEofllxIpAqbHGKW1+It8USaOGfFXXU7FNSReycNR8ce";
   
   if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
