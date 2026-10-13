@@ -169,13 +169,15 @@ export const verifyBeneficiaryService = async (payload = {}) => {
 //  Initiate beneficiary deletion (triggers OTP)
 
 export const deleteBeneficiaryService = async (payload = {}) => {
-  return await deleteBeneficiary(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await deleteBeneficiary(cleanPayload);
 };
 
 //  Verify OTP and confirm beneficiary deletion
 
 export const verifyDeleteBeneficiaryOtpService = async (payload = {}) => {
-  return await deleteBeneficiaryVerifyOtp(payload);
+  const cleanPayload = sanitizePayload(payload);
+  return await deleteBeneficiaryVerifyOtp(cleanPayload);
 };
 
 // =============================================================
