@@ -294,7 +294,9 @@ export const transactionOtpSchema = Joi.object({
   }),
   bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
   beneficiaryId: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
-}).or("mobile", "remitterMobile");
+  outletid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional().allow(""),
+  referenceKey: Joi.string().trim().optional().allow(""),
+}).or("mobile", "remitterMobile").unknown(true);
 
 export const transactionExecuteSchema = Joi.object({
   latitude: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),

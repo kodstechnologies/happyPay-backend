@@ -251,8 +251,8 @@ export const generateTransactionOtpController = asyncHandler(async (req, res) =>
     mobile: targetMobile,
     amount: req.body.amount,
     ...(targetBeneId ? { bene_id: targetBeneId } : {}),
-    outletid,
-    referenceKey,
+    outletid: req.body.outletid || outletid,
+    referenceKey: req.body.referenceKey || referenceKey,
   };
   const result = await generateTransactionOtpService(payload);
 
