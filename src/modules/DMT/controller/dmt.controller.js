@@ -87,10 +87,24 @@ export const verifyRemitterOtpController = asyncHandler(async (req, res) => {
 export const performRemitterEkycController = asyncHandler(async (req, res) => {
   const authFields = getAuthFields(req.user);
   const payload = {
-    ...authFields,
-    ...req.body,
-    referenceKey: req.body?.referenceKey || authFields.referenceKey,
+    mobile: req.body.mobile,
     outletid: req.body?.outletid || req.user?.outletid || req.user?.outletId || authFields.outletid,
+    referenceKey: req.body?.referenceKey || authFields.referenceKey,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    txnid: req.body.txnid,
+    ci: req.body.ci,
+    hmac: req.body.hmac,
+    Piddata: req.body.Piddata,
+    ts: req.body.ts,
+    dpId: req.body.dpId,
+    dc: req.body.dc,
+    mi: req.body.mi,
+    mc: req.body.mc,
+    rdsVer: req.body.rdsVer,
+    rdsId: req.body.rdsId,
+    sessionKey: req.body.sessionKey,
+    srno: req.body.srno,
   };
   const result = await performRemitterEkycService(payload);
 

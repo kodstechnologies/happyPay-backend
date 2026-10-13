@@ -176,20 +176,7 @@ export const remitterEkycSchema = Joi.object({
     "any.required": "latitude is required",
   }),
   mobile: mobileRule,
-  // Optional RD Service metadata attributes
-  PidDatatype: Joi.string().trim().optional().allow(""),
-  errCode: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  errInfo: Joi.string().trim().optional().allow(""),
-  fCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  fType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  iCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  iType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  pCount: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  pType: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  qScore: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  nmPoints: Joi.alternatives().try(Joi.string(), Joi.number()).optional().allow(""),
-  sysid: Joi.string().trim().optional().allow(""),
-}).unknown(true);
+});
 
 // =============================================================
 // Beneficiary Validation Schemas

@@ -111,7 +111,7 @@ export const performRemitterEkycService = async (payload = {}) => {
     sessionKey: cleanPayload.sessionKey,
     srno: cleanPayload.srno,
   };
-  return await remitterEkyc(sanitizePayload(providerPayload));
+  return await remitterEkyc(providerPayload);
 };
 
 // =============================================================
