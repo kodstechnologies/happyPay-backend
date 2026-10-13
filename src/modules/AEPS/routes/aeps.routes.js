@@ -5,10 +5,11 @@ import {
   doBioEkycController,
   verifyTfaController,
   loginStatusController,
+  balanceEnquiryController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
-import { getRetailerKycParamsSchema, doEkycSchema } from "../validations/aeps.validation.js";
+import { getRetailerKycParamsSchema, doEkycSchema, balanceEnquirySchema } from "../validations/aeps.validation.js";
 
 const router = Router();
 
@@ -32,5 +33,14 @@ router.post("/do-bio-ekyc", authMiddleware, doBioEkycController);
 // 24 hours  verification of TFA
 router.post("/login-status", authMiddleware, loginStatusController);
 router.post("/verify-tfa", authMiddleware, verifyTfaController);
+
+// Balance Enquiry
+router.post(
+  "/balance-enquiry",
+  authMiddleware,
+  validate(balanceEnquirySchema, "body"),
+  balanceEnquiryController
+);
+
 
 export default router;

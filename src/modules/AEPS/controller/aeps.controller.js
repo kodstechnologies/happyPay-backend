@@ -5,7 +5,7 @@ import {
   checkLoginStatus,
   isKycRequired,
 } from "../services/aeps.service.js";
-import { doEkyc, doBioEkyc, verifyTfa } from "../../external/services/provider.service.js";
+import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
@@ -457,10 +457,108 @@ const loginStatusController = async (req, res) => {
   }
 };
 
+const balanceEnquiryController = async (req, res) => {
+  try {
+    const {
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      ts,
+      // Biometric fields
+      dc,
+      ci,
+      hmac,
+      mc,
+      dpId,
+      PidDatatype,
+      Piddata,
+      rdsId,
+      rdsVer,
+      sessionKey,
+      mi,
+      errInfo,
+      errCode,
+      fCount,
+      fType,
+      iCount,
+      iType,
+      pCount,
+      pType,
+      qScore,
+      nmPoints,
+      srno,
+      sysid,
+    } = req.body;
+
+    // Prepare payload for provider API
+    const payload = {
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      ts,
+      // Include biometric fields if provided
+      ...(dc && { dc }),
+      ...(ci && { ci }),
+      ...(hmac && { hmac }),
+      ...(mc && { mc }),
+      ...(dpId && { dpId }),
+      ...(PidDatatype && { PidDatatype }),
+      ...(Piddata && { Piddata }),
+      ...(rdsId && { rdsId }),
+      ...(rdsVer && { rdsVer }),
+      ...(sessionKey && { sessionKey }),
+      ...(mi && { mi }),
+      ...(errInfo && { errInfo }),
+      ...(errCode && { errCode }),
+      ...(fCount && { fCount }),
+      ...(fType && { fType }),
+      ...(iCount && { iCount }),
+      ...(iType && { iType }),
+      ...(pCount && { pCount }),
+      ...(pType && { pType }),
+      ...(qScore && { qScore }),
+      ...(nmPoints && { nmPoints }),
+      ...(srno && { srno }),
+      ...(sysid && { sysid }),
+    };
+
+    console.log("Balance Enquiry Payload:", payload);
+
+    // Call provider API
+    const result = await balanceEnquiry(payload);
+
+    console.log("Balance Enquiry Response:", result);
+
+    return res.status(200).json(
+      ApiResponse.success(
+        result,
+        "Balance enquiry completed successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Balance Enquiry Error:", error);
+
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to complete balance enquiry"
+        )
+      );
+  }
+};
+
 export {
   getRetailerKycDetailsController,
   doEkycController,
   doBioEkycController,
   verifyTfaController,
   loginStatusController,
+  balanceEnquiryController,
 };
