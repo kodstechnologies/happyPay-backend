@@ -5,6 +5,7 @@ import {
   verifyRetailerLoginOtp,
   logoutRetailer,
   registerRetailer,
+  refreshAccessTokenController,
   getBankListController,
   getRetailerDetails,
   updateShopDetailsController,
@@ -65,6 +66,11 @@ router.post(
   logoutRetailer
 );
 
+router.post(
+  "/retailer/refresh-token",
+  refreshAccessTokenController
+);
+
 
 // router.patch(
 //   "retailer/update/:retailerId"
@@ -74,6 +80,7 @@ router.get(
   "/banks",
   getBankListController
 );
+
 
 
 router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);

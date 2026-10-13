@@ -5,6 +5,7 @@ import User from "../model/user.model.js";
 import {
   generateAccessToken,
   generateRefreshToken,
+  verifyRefreshToken,
 } from "../../../utils/jwt.js";
 import { resolveUserAccess } from "../../../utils/rbac.js";
 import { getBankList, onboardMerchant } from "../../external/services/provider.service.js";
@@ -779,6 +780,107 @@ const generateRetailerTokens = async (userId, customPayload = {}) => {
   };
 };
 
+const refreshAccessToken = async (refreshToken) => {
+  if (!refreshToken) {
+    const error = new Error("Refresh token is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Verify the refresh token
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(refreshToken);
+  } catch (err) {
+    const error = new Error("Invalid or expired refresh token");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // Find user by refresh token
+  const user = await findUserByRefreshToken(refreshToken);
+  if (!user) {
+    const error = new Error("Refresh token not found or revoked");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // Check if the refresh token has expired
+  const storedToken = user.refreshTokens.find(
+    (rt) => rt.token === refreshToken
+  );
+
+  if (!storedToken) {
+    const error = new Error("Refresh token not found");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (new Date(storedToken.expiresAt) < new Date()) {
+    // Remove expired token
+    await removeRefreshToken({
+      userId: user._id,
+      refreshToken,
+    });
+    const error = new Error("Refresh token has expired");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  // Generate new tokens
+  const access = resolveUserAccess(user);
+
+  const accessTokenPayload = {
+    ...buildAccessTokenPayload(user, access),
+    outletId: user.outletId || null,
+    outletid: user.outletId || null,
+    referenceKey: user.referenceKey || null,
+  };
+
+  const refreshTokenPayload = {
+    ...buildRefreshTokenPayload(user),
+    outletId: user.outletId || null,
+    outletid: user.outletId || null,
+    referenceKey: user.referenceKey || null,
+  };
+
+  const newAccessToken = generateAccessToken(accessTokenPayload);
+  const newRefreshToken = generateRefreshToken(refreshTokenPayload);
+
+  // Remove old refresh token and add new one
+  await removeRefreshToken({
+    userId: user._id,
+    refreshToken,
+  });
+
+  await addRefreshToken(user._id, {
+    token: newRefreshToken,
+    deviceId: storedToken.deviceId || "unknown",
+    expiresAt: getRefreshTokenExpiry(),
+    lastUsedAt: new Date(),
+  });
+
+  return {
+    user: {
+      id: user._id,
+      email: user.email,
+      mobile: user.mobile,
+      fullName: user.fullName,
+      status: user.status,
+      kycStatus: user.kycStatus,
+      adminApproved: user.adminApproved,
+      outletId: user.outletId,
+      referenceKey: user.referenceKey || null,
+      roles: access.roles,
+      permissions: access.permissions,
+    },
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+    token: newAccessToken,
+    message: "Token refreshed successfully",
+  };
+};
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -787,6 +889,7 @@ export {
   reapplyForKyc,
   getRetailerDetailsService,
   generateRetailerTokens,
+  refreshAccessToken,
 };
 
 

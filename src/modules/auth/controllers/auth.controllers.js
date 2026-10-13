@@ -6,6 +6,7 @@ import {
   retailerRegister,
   reapplyForKyc,
   getRetailerDetailsService,
+  refreshAccessToken,
 } from "../services/auth.services.js";
 
 import {
@@ -215,6 +216,34 @@ const logoutRetailer = async (
       )
     );
 };
+
+const refreshAccessTokenController = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json(
+      ApiResponse.error("Refresh token is required", null, null, 400)
+    );
+  }
+
+  try {
+    const result = await refreshAccessToken(refreshToken);
+    return res.status(200).json(
+      ApiResponse.success(result, "Token refreshed successfully", null, 200)
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || 401)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to refresh token",
+          null,
+          null,
+          error.statusCode || 401
+        )
+      );
+  }
+});
 //change
 const registerRetailer = asyncHandler(async (req, res) => {
   const files = uploadedRetailerFiles(req.files);
@@ -361,6 +390,7 @@ export {
   verifyRetailerLoginOtp,
   logoutRetailer,
   registerRetailer,
+  refreshAccessTokenController,
   getBankListController,
   getRetailerDetails,
   updateShopDetailsController,
