@@ -260,6 +260,9 @@ export const beneficiaryDeleteSchema = Joi.object({
       "any.required": "Beneficiary ID (beneficiaryId) is required",
       "string.empty": "Beneficiary ID (beneficiaryId) is required",
     }),
+  outletid: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .optional(),
   remitterMobile: mobileRule,
 });
 
@@ -271,7 +274,11 @@ export const beneficiaryDeleteVerifySchema = Joi.object({
       "any.required": "Beneficiary ID (beneficiaryId) is required",
       "string.empty": "Beneficiary ID (beneficiaryId) is required",
     }),
+  outletid: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .optional(),
   remitterMobile: mobileRule,
+  referenceKey: Joi.string().trim().allow("").optional(),
   otp: otpRule,
 });
 
