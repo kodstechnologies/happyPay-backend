@@ -58,6 +58,7 @@ const fetchBillService = async (payload = {}) => {
     orderid,
     opcode,
     service_id,
+    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1) } : {}),
   };
 
   return await viewBill(sanitizePayload(requestPayload));
@@ -96,6 +97,7 @@ const payBillService = async (payload = {}) => {
     referenceid: String(cleanPayload.referenceid || orderid),
     latitude: cleanPayload.latitude || "0",
     longitude: cleanPayload.longitude || "0",
+    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1) } : {}),
   };
 
   return await payBill(sanitizePayload(requestPayload));

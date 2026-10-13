@@ -31,6 +31,7 @@ const fetchBillSchema = Joi.object({
   orderid: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   opcode: Joi.string().trim().optional(),
   service_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  FIELD1: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
 }).min(1).unknown(true).messages({
   "object.min": "At least one bill parameter is required to fetch bill details",
 });
@@ -47,6 +48,7 @@ const payBillSchema = Joi.object({
   orderid: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   opcode: Joi.string().trim().optional(),
   service_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  FIELD1: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
 }).min(1).unknown(true).messages({
   "object.min": "At least one parameter is required for bill payment",
 });

@@ -39,11 +39,9 @@ export const getRemitterDetailsService = async (payload = {}) => {
       referenceKey: sessionRefKey,
     });
 
-    console.log("[DMT Backend] Auto-initiating remitter registration for:", payload.mobile);
     try {
       const registerResult = await registerRemitter(registerPayload);
-      console.log("[DMT Backend] Auto-registration response:", registerResult);
-
+     
       return {
         ...registerResult,
         isNewRegistration: true,
@@ -91,26 +89,6 @@ export const verifyRemitterOtpService = async (payload = {}) => {
 // 4. Remitter eKYC
 export const performRemitterEkycService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  // const providerPayload = {
-  //   mobile: cleanPayload.mobile,
-  //   outletid: cleanPayload.outletid || cleanPayload.outletId,
-  //   referenceKey: cleanPayload.referenceKey,
-  //   latitude: String(cleanPayload.latitude),
-  //   longitude: String(cleanPayload.longitude),
-  //   txnid: cleanPayload.txnid,
-  //   ci: cleanPayload.ci,
-  //   hmac: cleanPayload.hmac,
-  //   Piddata: cleanPayload.Piddata,
-  //   ts: cleanPayload.ts,
-  //   dpId: cleanPayload.dpId,
-  //   dc: cleanPayload.dc,
-  //   mi: cleanPayload.mi,
-  //   mc: cleanPayload.mc,
-  //   rdsVer: cleanPayload.rdsVer,
-  //   rdsId: cleanPayload.rdsId,
-  //   sessionKey: cleanPayload.sessionKey,
-  //   srno: cleanPayload.srno,
-  // };
   return await remitterEkyc(cleanPayload);
 };
 
@@ -192,9 +170,9 @@ export const generateTransactionOtpService = async (payload = {}) => {
  * Execute money transfer transaction (IMPS / NEFT)
  */
 export const executeTransactionService = async (payload = {}) => {
-  const cleanPayload = sanitizePayload(payload);
+  // const cleanPayload = sanitizePayload(payload);
 
-  return await doTransaction(cleanPayload);
+  return await doTransaction(payload);
 };
 
 //  Check transaction status
