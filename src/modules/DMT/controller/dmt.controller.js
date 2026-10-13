@@ -18,7 +18,7 @@ import {
 } from "../service/dmt.service.js";
 
 const getAuthFields = (user) => {
-  const outletid = user?.outletid || user?.outletId || 748399;
+  const outletid = user?.outletid || user?.outletId ;
   const referenceKey = user?.referenceKey ||" BQXXFJeYaKfVh8OZhKDBMEofllxIpAqbHGKW1+It8USaOGfFXXU7FNSReycNR8ce";
   
   if (!outletid) throw ApiError.unauthorized("Outlet ID is missing from user session.");
@@ -89,7 +89,7 @@ export const performRemitterEkycController = asyncHandler(async (req, res) => {
   const payload = {
     mobile: req.body.mobile,
     outletid: req.body?.outletid || req.user?.outletid || req.user?.outletId || authFields.outletid,
-    referenceKey: req.body?.referenceKey || authFields.referenceKey,
+    referenceKey: req.body?.referenceKey ,
     latitude: req.body.latitude,
     longitude: req.body.longitude,
     txnid: req.body.txnid,
