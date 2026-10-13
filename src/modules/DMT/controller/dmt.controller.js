@@ -89,7 +89,7 @@ export const performRemitterEkycController = asyncHandler(async (req, res) => {
   const payload = {
     mobile: req.body.mobile,
     outletid: req.body?.outletid || req.user?.outletid || req.user?.outletId || authFields.outletid,
-    referenceKey: authFields.referenceKey|| req.body?.referenceKey ,
+    referenceKey: req.body?.referenceKey ,
     latitude: req.body.latitude,
     longitude: req.body.longitude,
     txnid: req.body.txnid,
