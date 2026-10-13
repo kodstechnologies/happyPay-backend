@@ -146,6 +146,7 @@ export {
   verifyAccount,
   getBankList,
   doEkyc,
+  balanceEnquiry,
   doBioEkyc,
   verifyTfa,
   getLoginStatus,
