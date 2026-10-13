@@ -268,19 +268,27 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
   const { outletid, referenceKey } = getAuthFields(req.user);
   const targetMobile = req.body.remitterMobile || req.body.mobile;
   const targetBeneId = req.body.bene_id || req.body.beneficiaryId;
-  const targetClientRefId = req.body.client_ref_id || req.body.txnid || `TXN${Date.now()}`;
-  const targetLatlong = req.body.latlong || "28.7041,77.1025";
+  const targetTxnId = req.body.txnid || req.body.client_ref_id || `DMT_${Date.now()}`;
+  const targetLatlong = req.body.latitude && req.body.longitude
+    ? `${req.body.latitude},${req.body.longitude}`
+    : req.body.latlong || "28.7041,77.1025";
 
   const payload = {
-    mobile: targetMobile,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    txnid: targetTxnId,
     amount: req.body.amount,
-    bene_id: targetBeneId,
     mode: req.body.mode,
+    ifsc: req.body.ifsc,
+    referenceKey: req.body.referenceKey || referenceKey,
+    account: req.body.account,
+    remitterMobile: targetMobile,
+    outletid: req.body.outletid || outletid,
+    mobile: targetMobile,
+    ...(targetBeneId ? { bene_id: targetBeneId } : {}),
     latlong: targetLatlong,
-    client_ref_id: targetClientRefId,
+    client_ref_id: targetTxnId,
     ...(req.body.otp ? { otp: String(req.body.otp).trim() } : {}),
-    outletid,
-    referenceKey,
   };
   const result = await executeTransactionService(payload);
 
