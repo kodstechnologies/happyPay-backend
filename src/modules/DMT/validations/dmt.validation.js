@@ -297,8 +297,9 @@ export const transactionOtpSchema = Joi.object({
 }).or("mobile", "remitterMobile");
 
 export const transactionExecuteSchema = Joi.object({
-  mobile: mobileRule.optional(),
-  remitterMobile: mobileRule.optional(),
+  latitude: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  longitude: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  txnid: Joi.string().trim().optional().allow(""),
   amount: Joi.alternatives()
     .try(Joi.number().positive(), Joi.string().trim().pattern(/^\d+(\.\d{1,2})?$/))
     .required()
@@ -306,18 +307,21 @@ export const transactionExecuteSchema = Joi.object({
       "any.required": "Transaction amount is required",
       "number.positive": "Transaction amount must be greater than zero",
     }),
-  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
-  beneficiaryId: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
   mode: Joi.string().trim().valid("IMPS", "NEFT", "RTGS", "UPI").required().messages({
     "any.required": "Transfer mode (IMPS/NEFT/RTGS/UPI) is required",
   }),
+  ifsc: Joi.string().trim().optional().allow(""),
+  referenceKey: Joi.string().trim().allow("").optional(),
+  account: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
+  remitterMobile: mobileRule.optional(),
+  mobile: mobileRule.optional(),
+  outletid: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   otp: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional().allow(""),
+  bene_id: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
+  beneficiaryId: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
   latlong: Joi.string().trim().optional().allow(""),
   client_ref_id: Joi.string().trim().optional().allow(""),
-  txnid: Joi.string().trim().optional().allow(""),
-})
-  .or("mobile", "remitterMobile")
-  .or("bene_id", "beneficiaryId");
+});
 
 export const transactionStatusSchema = Joi.object({
   reference_id: Joi.string().trim().optional(),
