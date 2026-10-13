@@ -23,6 +23,7 @@ import {
   deactivateDevice,
   updateKycStatusToPending,
 } from "../repository/auth.repository.js";
+import { findById } from "../repository/user.repository.js";
 
 import {
   createOtp,
@@ -881,6 +882,27 @@ const refreshAccessToken = async (refreshToken) => {
   };
 };
 
+const getRetailerAadhaarAndMobile = async (userId) => {
+  if (!userId) {
+    const error = new Error("User ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await findById(userId);
+
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    aadhaarNumber: user.aadhaarNumber || null,
+    mobile: user.mobile || null,
+  };
+};
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -890,6 +912,7 @@ export {
   getRetailerDetailsService,
   generateRetailerTokens,
   refreshAccessToken,
+  getRetailerAadhaarAndMobile,
 };
 
 
