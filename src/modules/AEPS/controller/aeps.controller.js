@@ -466,6 +466,7 @@ const balanceEnquiryController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
+      bankiin,
       ts,
       // Biometric fields
       dc,
@@ -502,6 +503,7 @@ const balanceEnquiryController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
+      bankiin,
       ts,
       // Include biometric fields if provided
       ...(dc && { dc }),

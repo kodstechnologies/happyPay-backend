@@ -147,6 +147,13 @@ const balanceEnquirySchema = Joi.object({
       "string.pattern.base": "Please enter a valid 10-digit mobile number",
     }),
 
+  bankiin: Joi.string()
+    .trim()
+    .optional()
+    .messages({
+      "string.empty": "Bank IIN cannot be empty",
+    }),
+
   ts: Joi.string().trim().required()
     .messages({
       "any.required": "Timestamp is required",
