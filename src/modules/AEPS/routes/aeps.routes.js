@@ -6,10 +6,12 @@ import {
   verifyTfaController,
   loginStatusController,
   balanceEnquiryController,
+  miniStatementController,
+  cashWithdrawController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
-import { getRetailerKycParamsSchema, doEkycSchema, balanceEnquirySchema } from "../validations/aeps.validation.js";
+import { getRetailerKycParamsSchema, doEkycSchema, balanceEnquirySchema, miniStatementSchema, cashWithdrawSchema } from "../validations/aeps.validation.js";
 
 const router = Router();
 
@@ -40,6 +42,20 @@ router.post(
   authMiddleware,
   // validate(balanceEnquirySchema, "body"),
   balanceEnquiryController
+);
+
+// Mini Statement
+router.post(
+  "/mini-statement",
+  validate(miniStatementSchema, "body"),
+  miniStatementController
+);
+
+// Cash Withdrawal
+router.post(
+  "/cash-withdraw",
+  validate(cashWithdrawSchema, "body"),
+  cashWithdrawController
 );
 
 
