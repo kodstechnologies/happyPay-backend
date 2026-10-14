@@ -46,14 +46,38 @@ const getBankList = async ({ page = 1, limit = 10 } = {}) => {
 const doEkyc = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.doEkyc, payload);
 
-const balanceEnquiry = (payload) =>
-  postProviderForm(PROVIDER_ROUTES.aeps.balanceEnquiry, payload);
+const balanceEnquiry = async (payload) => {
+  try {
+    const response = await postProviderForm(PROVIDER_ROUTES.aeps.balanceEnquiry, payload);
+    console.log("========== [balanceEnquiry Success Response] ==========", response);
+    return response;
+  } catch (error) {
+    console.error("========== [balanceEnquiry Error Response] ==========", error?.response?.data || error?.message || error);
+    throw error;
+  }
+};
 
-const miniStatement = (payload) =>
-  postProviderForm(PROVIDER_ROUTES.aeps.miniStatement, payload);
+const miniStatement = async (payload) => {
+  try {
+    const response = await postProviderForm(PROVIDER_ROUTES.aeps.miniStatement, payload);
+    console.log("========== [miniStatement Success Response] ==========", response);
+    return response;
+  } catch (error) {
+    console.error("========== [miniStatement Error Response] ==========", error?.response?.data || error?.message || error);
+    throw error;
+  }
+};
 
-const cashWithdraw = (payload) =>
-  postProviderForm(PROVIDER_ROUTES.aeps.cashWithdraw, payload);
+const cashWithdraw = async (payload) => {
+  try {
+    const response = await postProviderForm(PROVIDER_ROUTES.aeps.cashWithdraw, payload);
+    console.log("========== [cashWithdraw Success Response] ==========", response);
+    return response;
+  } catch (error) {
+    console.error("========== [cashWithdraw Error Response] ==========", error?.response?.data || error?.message || error);
+    throw error;
+  }
+};
 
 const doBioEkyc = async (payload) => {
   console.log("========== [doBioEkyc Payload] ==========", payload);
