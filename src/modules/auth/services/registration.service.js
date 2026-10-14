@@ -765,8 +765,9 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   await user.save();
   return {
-    user: buildRetailerResponse(user),
+    userId: user._id,
     outletId: user.outletId,
+    user: buildRetailerResponse(user),
     onboarding: providerResult,
     eKYCStatus: user.eKYCStatus,
   };
