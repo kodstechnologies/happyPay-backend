@@ -1,6 +1,7 @@
 import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import User from "../model/user.model.js";
+import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
 
 import {
   generateAccessToken,
@@ -271,6 +272,16 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
    Retailer Login — Verify OTP
 ============================== */
 
+const getEkycReferenceKey = async (userId) => {
+  try {
+    const ekycRecord = await AepsEkyc.findOne({ userId });
+    return ekycRecord?.referenceKey || null;
+  } catch (error) {
+    console.error("Error fetching eKYC reference key:", error);
+    return null;
+  }
+};
+
 const verifyRetailerLoginOtp = async ({
   mobile,
   otp,
@@ -452,18 +463,24 @@ const verifyRetailerLoginOtp = async ({
 
   await updateLastLogin(user._id);
 
+  // Fetch reference key from eKYC model if not present in user record
+  let referenceKey = user.referenceKey || null;
+  if (!referenceKey) {
+    referenceKey = await getEkycReferenceKey(user._id);
+  }
+
   const accessTokenPayload = {
     ...buildAccessTokenPayload(user, access),
     outletId: user.outletId || null,
     outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
+    referenceKey: referenceKey || null,
   };
 
   const refreshTokenPayload = {
     ...buildRefreshTokenPayload(user),
     outletId: user.outletId || null,
     outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
+    referenceKey: referenceKey || null,
   };
 
   const accessToken = generateAccessToken(accessTokenPayload);
