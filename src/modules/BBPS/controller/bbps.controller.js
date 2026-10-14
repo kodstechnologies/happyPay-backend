@@ -9,6 +9,7 @@ import {
   fetchBillService,
   payBillService,
 } from "../service/bbps.service.js";
+import { sync } from "../../DataSyncWithDb/sync.js";
 
 const getAuthFields = (user) => {
   const outletid = user?.outletId || user?.outletid ||"747932";
@@ -118,6 +119,20 @@ const payBillController = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * Controller to sync BBPS categories and billers into database
+ */
+const syncBbpsDataController = asyncHandler(async (req, res) => {
+  const result = await sync();
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "BBPS categories and billers synchronized successfully"
+    )
+  );
+});
+
 export {
   getBillerCategoriesController,
   getAllBillersController,
@@ -125,4 +140,5 @@ export {
   getBillersByCategoryNameController,
   fetchBillController,
   payBillController,
+  syncBbpsDataController,
 };

@@ -8,6 +8,7 @@ import {
   getBillersByCategoryNameController,
   fetchBillController,
   payBillController,
+  syncBbpsDataController,
 } from "../controller/bbps.controller.js";
 import {
   getBillersByCategoryIdSchema,
@@ -55,5 +56,8 @@ router.post(
   validate(payBillSchema, "body"),
   payBillController
 );
+
+// Sync BBPS categories and billers to database
+router.post("/sync", authMiddleware, syncBbpsDataController);
 
 export default router;

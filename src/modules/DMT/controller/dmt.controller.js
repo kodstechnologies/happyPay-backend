@@ -123,13 +123,11 @@ export const performRemitterEkycController = asyncHandler(async (req, res) => {
 
 export const fetchBeneficiariesController = asyncHandler(async (req, res) => {
   const payload = { 
-    ...req.query, 
-    ...req.params, 
     ...req.body,
     ...getAuthFields(req.user)
   };
   // fetchBeneficiaries call for get data from db
-  // const result = await fetchBeneficiariesService(payload);
+  // const result = await fetchBeneficiariesService(payload); call this t get data from provider
   const result = await fetchBeneficiaries(payload);
 
   return res.status(200).json(

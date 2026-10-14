@@ -203,8 +203,11 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 
 // fetch benificiaries from our databse
 export const fetchBeneficiaries = async (payload = {}) => {
-  const cleanPayload = sanitizePayload(payload);
-  return await getBenificiary(cleanPayload);
+   const cleanpayload={
+    remitterMobile:payload.mobile,
+    outletid:payload.outletid
+   }
+  return await getBenificiary(cleanpayload);
 };
 /**
  * Verify beneficiary bank account via demographic verifyAccount external service

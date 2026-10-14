@@ -1,6 +1,6 @@
 import mongoose  from "mongoose";
 
-const category=new mongoose.schema({
+const category = new mongoose.Schema({
 id:{
     type:String,
     required:true
