@@ -177,6 +177,11 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
       "eKYC verification is pending. Please complete eKYC verification before login."
     );
     error.statusCode = 403;
+    error.data = {
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
+    };
     throw error;
   }
 
@@ -186,6 +191,11 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
       "Your account is pending admin approval. Please wait for approval before login."
     );
     error.statusCode = 403;
+    error.data = {
+      adminApproved: user.adminApproved,
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+    };
     throw error;
   }
 
@@ -199,6 +209,9 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
       adminApproved: user.adminApproved,
       reasonOfRejection: user.reasonOfRejection,
       rejectedDocuments: [],
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
       user: {
         id: user._id,
         mobile: user.mobile,
@@ -237,6 +250,7 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     throw error;
   }
 
+  // Only send OTP if all checks pass
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
