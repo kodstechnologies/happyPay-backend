@@ -1,6 +1,7 @@
 import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import User from "../model/user.model.js";
+import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
 
 import {
   generateAccessToken,
@@ -23,6 +24,7 @@ import {
   deactivateDevice,
   updateKycStatusToPending,
 } from "../repository/auth.repository.js";
+import { findById } from "../repository/user.repository.js";
 
 import {
   createOtp,
@@ -270,6 +272,16 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
    Retailer Login — Verify OTP
 ============================== */
 
+const getEkycReferenceKey = async (userId) => {
+  try {
+    const ekycRecord = await AepsEkyc.findOne({ userId });
+    return ekycRecord?.referenceKey || null;
+  } catch (error) {
+    console.error("Error fetching eKYC reference key:", error);
+    return null;
+  }
+};
+
 const verifyRetailerLoginOtp = async ({
   mobile,
   otp,
@@ -451,18 +463,24 @@ const verifyRetailerLoginOtp = async ({
 
   await updateLastLogin(user._id);
 
+  // Fetch reference key from eKYC model if not present in user record
+  let referenceKey = user.referenceKey || null;
+  if (!referenceKey) {
+    referenceKey = await getEkycReferenceKey(user._id);
+  }
+
   const accessTokenPayload = {
     ...buildAccessTokenPayload(user, access),
     outletId: user.outletId || null,
     outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
+    referenceKey: referenceKey || null,
   };
 
   const refreshTokenPayload = {
     ...buildRefreshTokenPayload(user),
     outletId: user.outletId || null,
     outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
+    referenceKey: referenceKey || null,
   };
 
   const accessToken = generateAccessToken(accessTokenPayload);
@@ -881,6 +899,27 @@ const refreshAccessToken = async (refreshToken) => {
   };
 };
 
+const getRetailerAadhaarAndMobile = async (userId) => {
+  if (!userId) {
+    const error = new Error("User ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await findById(userId);
+
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    aadhaarNumber: user.aadhaarNumber || null,
+    mobile: user.mobile || null,
+  };
+};
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -890,6 +929,7 @@ export {
   getRetailerDetailsService,
   generateRetailerTokens,
   refreshAccessToken,
+  getRetailerAadhaarAndMobile,
 };
 
 

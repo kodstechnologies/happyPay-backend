@@ -49,6 +49,12 @@ const doEkyc = (payload) =>
 const balanceEnquiry = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.balanceEnquiry, payload);
 
+const miniStatement = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.miniStatement, payload);
+
+const cashWithdraw = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.cashWithdraw, payload);
+
 const doBioEkyc = async (payload) => {
   console.log("========== [doBioEkyc Payload] ==========", payload);
   try {
@@ -147,6 +153,8 @@ export {
   getBankList,
   doEkyc,
   balanceEnquiry,
+  miniStatement,
+  cashWithdraw,
   doBioEkyc,
   verifyTfa,
   getLoginStatus,

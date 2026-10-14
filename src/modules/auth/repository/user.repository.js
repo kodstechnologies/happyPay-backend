@@ -129,10 +129,15 @@ const saveRetailerRegistration = async (userId, payload) => {
   ).select("-refreshTokens -devices");
 };
 
+const findById = async (userId) => {
+  return await User.findById(userId).select("aadhaarNumber mobile");
+};
+
 export {
   findByMobile,
   createUser,
   verifyMobile,
+  findById,
   findByEmail,
   findByPan,
   findByAadhaar,

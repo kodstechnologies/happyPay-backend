@@ -7,6 +7,7 @@ import {
   reapplyForKyc,
   getRetailerDetailsService,
   refreshAccessToken,
+  getRetailerAadhaarAndMobile,
 } from "../services/auth.services.js";
 
 import {
@@ -244,6 +245,34 @@ const refreshAccessTokenController = asyncHandler(async (req, res) => {
       );
   }
 });
+
+const getRetailerAadhaarAndMobileController = asyncHandler(async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json(
+      ApiResponse.error("User ID is required", null, null, 400)
+    );
+  }
+
+  try {
+    const result = await getRetailerAadhaarAndMobile(userId);
+    return res.status(200).json(
+      ApiResponse.success(result, "Aadhaar and mobile fetched successfully", null, 200)
+    );
+  } catch (error) {
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to fetch Aadhaar and mobile",
+          null,
+          null,
+          error.statusCode || 500
+        )
+      );
+  }
+});
 //change
 const registerRetailer = asyncHandler(async (req, res) => {
   const files = uploadedRetailerFiles(req.files);
@@ -391,6 +420,7 @@ export {
   logoutRetailer,
   registerRetailer,
   refreshAccessTokenController,
+  getRetailerAadhaarAndMobileController,
   getBankListController,
   getRetailerDetails,
   updateShopDetailsController,

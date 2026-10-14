@@ -269,18 +269,18 @@ export const verifyDeleteBeneficiaryOtpController = asyncHandler(async (req, res
 // =============================================================
 
 export const generateTransactionOtpController = asyncHandler(async (req, res) => {
-  // const { outletid, referenceKey } = getAuthFields(req.user);
-  // const targetMobile = req.body.remitterMobile;
-  // const targetBeneId = req.body.beneficiaryId;
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const targetMobile = req.body.remitterMobile;
+  const targetBeneId = req.body.beneficiaryId;
 
-  // const payload = {
-  //   remitterMobile: targetMobile,
-  //   amount: req.body.amount,
-  //  beneficiaryId: targetBeneId,
-  //   outletid: req.body.outletid || outletid,
-  //   referenceKey: req.body.referenceKey || referenceKey,
-  // };
-  const result = await generateTransactionOtpService(req.body);
+  const payload = {
+    remitterMobile: targetMobile,
+    amount: req.body.amount,
+   beneficiaryId: targetBeneId,
+    outletid: req.body.outletid || outletid,
+    referenceKey: req.body.referenceKey || referenceKey,
+  };
+  const result = await generateTransactionOtpService(payload);
 
   return res.status(200).json(
     ApiResponse.success(

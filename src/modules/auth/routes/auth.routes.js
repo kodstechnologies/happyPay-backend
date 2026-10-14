@@ -6,6 +6,7 @@ import {
   logoutRetailer,
   registerRetailer,
   refreshAccessTokenController,
+  getRetailerAadhaarAndMobileController,
   getBankListController,
   getRetailerDetails,
   updateShopDetailsController,
@@ -69,6 +70,11 @@ router.post(
 router.post(
   "/retailer/refresh-token",
   refreshAccessTokenController
+);
+
+router.post(
+  "/retailer/aadhaar-mobile",
+  getRetailerAadhaarAndMobileController
 );
 
 
