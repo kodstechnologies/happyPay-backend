@@ -146,6 +146,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     error.statusCode = 403;
     // Include user details for frontend to guide completion
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       registrationStatus: user.registrationStatus,
       currentRegistrationStep: user.currentRegistrationStep,
       user: {
@@ -177,6 +179,13 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
       "eKYC verification is pending. Please complete eKYC verification before login."
     );
     error.statusCode = 403;
+    error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
+    };
     throw error;
   }
 
@@ -186,6 +195,13 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
       "Your account is pending admin approval. Please wait for approval before login."
     );
     error.statusCode = 403;
+    error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
+      adminApproved: user.adminApproved,
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+    };
     throw error;
   }
 
@@ -196,9 +212,14 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     error.statusCode = 403;
     // Include rejection details for frontend to show specific rejected documents
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       adminApproved: user.adminApproved,
       reasonOfRejection: user.reasonOfRejection,
       rejectedDocuments: [],
+      eKYCStatus: user.eKYCStatus,
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
       user: {
         id: user._id,
         mobile: user.mobile,
@@ -237,6 +258,7 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     throw error;
   }
 
+  // Only send OTP if all checks pass
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -246,6 +268,9 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
   return {
     mobile: normalizedMobile,
     expiresInSeconds: 300,
+    userId: user._id,
+    outletId: user.outletId || null,
+    eKYCStatus: user.eKYCStatus || null,
     // Include registration details for existing users
     user: {
       id: user._id,

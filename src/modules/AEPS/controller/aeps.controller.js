@@ -553,7 +553,10 @@ const balanceEnquiryController = async (req, res) => {
         ApiResponse.error(
           error.response?.data?.message ||
           error.message ||
-          "Failed to complete balance enquiry"
+          "Failed to complete balance enquiry",
+          error.response?.data || error.providerData || null,
+          null,
+          error.statusCode || error.response?.status || 500
         )
       );
   }
@@ -655,7 +658,10 @@ const miniStatementController = async (req, res) => {
         ApiResponse.error(
           error.response?.data?.message ||
           error.message ||
-          "Failed to fetch mini statement"
+          "Failed to fetch mini statement",
+          error.response?.data || error.providerData || null,
+          null,
+          error.statusCode || error.response?.status || 500
         )
       );
   }
@@ -759,7 +765,10 @@ const cashWithdrawController = async (req, res) => {
         ApiResponse.error(
           error.response?.data?.message ||
           error.message ||
-          "Failed to complete cash withdrawal"
+          "Failed to complete cash withdrawal",
+          error.response?.data || error.providerData || null,
+          null,
+          error.statusCode || error.response?.status || 500
         )
       );
   }

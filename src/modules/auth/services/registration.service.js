@@ -77,6 +77,7 @@ const buildRetailerResponse = (user) => ({
   documentReviews: user.documentReviews || null,
   registrationStatus: user.registrationStatus || "NOT_STARTED",
   currentRegistrationStep: user.currentRegistrationStep || "ACCOUNT",
+  eKYCStatus: user.eKYCStatus || null,
 });
 
 const assertActiveMaster = async (Model, id, label) => {
@@ -764,9 +765,11 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   await user.save();
   return {
-    user: buildRetailerResponse(user),
+    userId: user._id,
     outletId: user.outletId,
+    user: buildRetailerResponse(user),
     onboarding: providerResult,
+    eKYCStatus: user.eKYCStatus,
   };
 };
 

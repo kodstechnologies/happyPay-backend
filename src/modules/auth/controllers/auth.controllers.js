@@ -311,10 +311,10 @@ const getBankListController = asyncHandler(async (req, res) => {
       1
     );
 
-    const limit = Math.min(
-      Math.max(Number(req.query.limit) || 10, 1),
-      500
-    );
+    // Only apply limit if explicitly provided in query
+    const limit = req.query.limit
+      ? Math.min(Math.max(Number(req.query.limit), 1), 500)
+      : undefined;
 
     const result = await getBankList({
       page,
