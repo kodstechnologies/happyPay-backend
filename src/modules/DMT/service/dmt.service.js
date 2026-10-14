@@ -15,6 +15,15 @@ import {
   doTransaction,
   getTransactionStatus,
 } from "../../external/services/provider.service.js";
+import {
+  upsertRemitter,
+  updateRemitterEkycStatus,
+} from "../repository/remitter.repository.js";
+import {
+  upsertBeneficiary,
+  updateBeneficiaryVerificationStatus,
+  deleteBeneficiaryRecord,
+} from "../repository/benificiary.repository.js";
 
 // =============================================================
 // Remitter Services (Strict Provider Contract)
@@ -41,6 +50,17 @@ export const getRemitterDetailsService = async (payload = {}) => {
 
     try {
       const registerResult = await registerRemitter(registerPayload);
+
+      // Persist remitter record in database
+      try {
+        await upsertRemitter({
+          mobile: payload.mobile,
+          aadhar: payload.aadhaar || payload.aadhar,
+          outletId: payload.outletid || payload.outletId,
+        });
+      } catch (dbErr) {
+        console.error("[DMT Backend] Auto-registration DB persist failed:", dbErr?.message || dbErr);
+      }
      
       return {
         ...registerResult,
@@ -70,26 +90,103 @@ export const getRemitterDetailsService = async (payload = {}) => {
     }
   }
 
+  // If remitter was found in provider, synchronize with local database
+  if (!isNotFound && payload.mobile) {
+    try {
+      const isKycDone =
+        loginResult?.kyc === 1 ||
+        String(loginResult?.kyc_status || "").toUpperCase() === "SUCCESS";
+
+      await upsertRemitter({
+        mobile: payload.mobile,
+        aadhar: payload.aadhaar || payload.aadhar,
+        name: loginResult?.name || loginResult?.remitterName || "",
+        outletId: payload.outletid || payload.outletId,
+      });
+
+      if (isKycDone) {
+        await updateRemitterEkycStatus(payload.mobile, "COMPLETED");
+      }
+    } catch (dbErr) {
+      console.error("[DMT Backend] Syncing existing remitter in DB failed:", dbErr?.message || dbErr);
+    }
+  }
+
   return loginResult;
 };
 
 // 2. Register Remitter
-
 export const registerRemitterService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await registerRemitter(cleanPayload);
+  const registerResult = await registerRemitter(cleanPayload);
+
+  // Persist remitter in database on successful provider registration initiation
+  try {
+    const aadharValue = cleanPayload.aadhaar || cleanPayload.aadhar || payload.aadhaar || payload.aadhar;
+    if (cleanPayload.mobile && aadharValue) {
+      await upsertRemitter({
+        mobile: cleanPayload.mobile,
+        aadhar: aadharValue,
+        outletId: cleanPayload.outletid || payload.outletid || payload.outletId,
+      });
+    }
+  } catch (dbErr) {
+    console.error("[DMT Backend] Remitter DB registration failed:", dbErr?.message || dbErr);
+  }
+
+  return registerResult;
 };
 
 //  Verify Remitter Registration OTP
 export const verifyRemitterOtpService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await registerRemitterVerify(cleanPayload);
+  const verifyResult = await registerRemitterVerify(cleanPayload);
+
+  // Sync remitter name if provided in OTP verification response
+  try {
+    const remitterName =
+      verifyResult?.data?.name ||
+      verifyResult?.name ||
+      verifyResult?.remitterName ||
+      verifyResult?.data?.remitterName;
+
+    if (cleanPayload.mobile && remitterName) {
+      await upsertRemitter({
+        mobile: cleanPayload.mobile,
+        name: remitterName,
+        outletId: cleanPayload.outletid || payload.outletid || payload.outletId,
+      });
+    }
+  } catch (dbErr) {
+    console.error("[DMT Backend] Remitter DB update on verify OTP failed:", dbErr?.message || dbErr);
+  }
+
+  return verifyResult;
 };
 
 // 4. Remitter eKYC
 export const performRemitterEkycService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await remitterEkyc(cleanPayload);
+  const ekycResult = await remitterEkyc(cleanPayload);
+
+  const isSuccess =
+    ekycResult?.status === "SUCCESS" ||
+    ekycResult?.status === true ||
+    ekycResult?.status === 1 ||
+    ekycResult?.success === true ||
+    ekycResult?.response_code === 1 ||
+    ekycResult?.statusCode === 200 ||
+    /success/i.test(String(ekycResult?.msg || ekycResult?.message || ""));
+
+  if (isSuccess && cleanPayload.mobile) {
+    try {
+      await updateRemitterEkycStatus(cleanPayload.mobile, "COMPLETED");
+    } catch (dbErr) {
+      console.error("[DMT Backend] Remitter DB eKYC status update failed:", dbErr?.message || dbErr);
+    }
+  }
+
+  return ekycResult;
 };
 
 // =============================================================
@@ -109,8 +206,8 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 export const verifyBeneficiaryAccountService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
   const txnid = cleanPayload.txnid || generate15CharTxnId("TXN");
-  const bankIfsc = cleanPayload.bankIfsc || cleanPayload.ifsc || "";
-  const accountNumber = cleanPayload.accountNumber || cleanPayload.account_number || "";
+  const bankIfsc = cleanPayload.bankIfsc;
+  const accountNumber = cleanPayload.accountNumber;
   const latitude = String(cleanPayload.latitude || "28.7041");
   const longitude = String(cleanPayload.longitude || "77.1025");
 
@@ -123,13 +220,79 @@ export const verifyBeneficiaryAccountService = async (payload = {}) => {
     longitude,
   };
 
-  return await verifyAccount(providerPayload);
+  const verifyResult = await verifyAccount(providerPayload);
+
+  // Check if provider verification was successful
+  const isSuccess =
+    verifyResult?.status === "SUCCESS" ||
+    verifyResult?.status === true ||
+    verifyResult?.status === 1 ||
+    verifyResult?.success === true ||
+    verifyResult?.response_code === 1 ||
+    verifyResult?.statusCode === 200 ||
+    /success/i.test(String(verifyResult?.msg || verifyResult?.message || ""));
+
+  if (isSuccess && accountNumber) {
+    try {
+      await updateBeneficiaryVerificationStatus({
+        accountNumber,
+        remitterMobile: cleanPayload.remitterMobile,
+        verified: true,
+      });
+    } catch (dbErr) {
+      console.error(
+        "[DMT Backend] Beneficiary DB verification status update failed:",
+        dbErr?.message || dbErr
+      );
+    }
+  }
+
+  return verifyResult;
 };
 //  Add a new beneficiary
 
 export const addBeneficiaryService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await addBeneficiary(cleanPayload);
+  const providerResult = await addBeneficiary(cleanPayload);
+
+  // Persist beneficiary in DB if provider call succeeded
+  const isSuccess =
+    providerResult?.status === "SUCCESS" ||
+    providerResult?.status === true ||
+    providerResult?.status === 1 ||
+    providerResult?.success === true ||
+    providerResult?.response_code === 1 ||
+    providerResult?.statusCode === 200 ||
+    /success|otp sent|initiated/i.test(String(providerResult?.msg || providerResult?.message || ""));
+
+  if (isSuccess) {
+    try {
+      const returnedBeneficiaryId =
+        providerResult?.beneficiaryId ||
+        providerResult?.data?.beneficiaryId ||
+        cleanPayload.beneficiaryId ||
+        "";
+
+      await upsertBeneficiary({
+        name: cleanPayload.name,
+        ifsc: cleanPayload.ifsc,
+        accountNumber: cleanPayload.accountNumber,
+        bankId: cleanPayload.bankId,
+        beneficiaryMobile: cleanPayload.beneficiaryMobile,
+        beneficiaryId: String(returnedBeneficiaryId).trim(),
+        remitterMobile: cleanPayload.remitterMobile,
+        outletid: cleanPayload.outletid,
+        verified: Boolean(cleanPayload.verified || false),
+      });
+    } catch (dbErr) {
+      console.error(
+        "[DMT Backend] Beneficiary DB persist failed:",
+        dbErr?.message || dbErr
+      );
+    }
+  }
+
+  return providerResult;
 };
 
 /**
@@ -138,7 +301,39 @@ export const addBeneficiaryService = async (payload = {}) => {
  */
 export const verifyBeneficiaryService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await verifyBeneficiary(cleanPayload);
+  const verifyResult = await verifyBeneficiary(cleanPayload);
+
+  // Check if provider OTP verification was successful
+  const isSuccess =
+    verifyResult?.status === "SUCCESS" ||
+    verifyResult?.status === true ||
+    verifyResult?.status === 1 ||
+    verifyResult?.success === true ||
+    verifyResult?.response_code === 1 ||
+    verifyResult?.statusCode === 200 ||
+    /success/i.test(String(verifyResult?.msg || verifyResult?.message || ""));
+
+  const beneficiaryId =
+    verifyResult?.beneficiaryId ||
+    verifyResult?.data?.beneficiaryId ||
+    cleanPayload.beneficiaryId;
+
+  if (isSuccess && beneficiaryId) {
+    try {
+      await updateBeneficiaryVerificationStatus({
+        beneficiaryId: String(beneficiaryId).trim(),
+        remitterMobile: cleanPayload.remitterMobile,
+        verified: true,
+      });
+    } catch (dbErr) {
+      console.error(
+        "[DMT Backend] Beneficiary DB OTP verification update failed:",
+        dbErr?.message || dbErr
+      );
+    }
+  }
+
+  return verifyResult;
 };
 
 //  Initiate beneficiary deletion (triggers OTP)
@@ -152,7 +347,33 @@ export const deleteBeneficiaryService = async (payload = {}) => {
 
 export const verifyDeleteBeneficiaryOtpService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
-  return await deleteBeneficiaryVerifyOtp(cleanPayload);
+  const deleteResult = await deleteBeneficiaryVerifyOtp(cleanPayload);
+
+  // Check if provider deletion completed successfully
+  const isSuccess =
+    deleteResult?.statuscode === "TXN" ||
+    deleteResult?.status === "SUCCESS" ||
+    deleteResult?.status === true ||
+    deleteResult?.statusCode === 200 ||
+    /transaction successful|successful|success|deleted/i.test(
+      String(deleteResult?.status || deleteResult?.msg || deleteResult?.message || "")
+    );
+
+  if (isSuccess && cleanPayload.beneficiaryId) {
+    try {
+      await deleteBeneficiaryRecord({
+        beneficiaryId: String(cleanPayload.beneficiaryId).trim(),
+        remitterMobile: cleanPayload.remitterMobile,
+      });
+    } catch (dbErr) {
+      console.error(
+        "[DMT Backend] Beneficiary DB deletion failed:",
+        dbErr?.message || dbErr
+      );
+    }
+  }
+
+  return deleteResult;
 };
 
 // =============================================================

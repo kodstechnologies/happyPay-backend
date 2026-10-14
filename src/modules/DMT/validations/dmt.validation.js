@@ -187,20 +187,13 @@ export const beneficiaryFetchSchema = Joi.object({
 });
 
 export const accountVerifySchema = Joi.object({
-  mobile: mobileRule.optional(),
-  account_number: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
-  accountNumber: Joi.string().trim().pattern(/^\d{8,20}$/).optional(),
-  ifsc: Joi.string().trim().uppercase().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
-  bankIfsc: Joi.string().trim().uppercase().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional(),
-  txnid: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
-  latitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
-  longitude: Joi.alternatives().try(Joi.string().trim().min(1), Joi.number()).optional(),
-})
-  .or("account_number", "accountNumber")
-  .or("ifsc", "bankIfsc")
-  .messages({
-    "object.missing": "Either accountNumber/account_number and bankIfsc/ifsc are required",
-  });
+  accountNumber: accountRule,
+  bankIfsc: ifscRule,
+  remitterMobile: mobileRule.optional(),
+  txnid: Joi.string().trim().optional(),
+  latitude: Joi.string().trim().optional(),
+  longitude: Joi.string().trim().optional(),
+});
 
 export const beneficiaryVerifySchema = Joi.object({
   outletid: Joi.alternatives()
@@ -250,6 +243,7 @@ export const beneficiaryAddSchema = Joi.object({
   accountNumber: accountRule,
   beneficiaryMobile: mobileRule,
   remitterMobile: mobileRule,
+  verified: Joi.boolean().optional(),
 });
 
 export const beneficiaryDeleteSchema = Joi.object({
