@@ -139,6 +139,14 @@ const balanceEnquirySchema = Joi.object({
       "string.pattern.base": "Please enter a valid 12-digit Aadhaar number",
     }),
 
+  mobile: Joi.string()
+    .trim()
+    .pattern(/^\d{10}$/)
+    .optional()
+    .messages({
+      "string.pattern.base": "Please enter a valid 10-digit mobile number",
+    }),
+
   ts: Joi.string().trim().required()
     .messages({
       "any.required": "Timestamp is required",

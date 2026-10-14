@@ -465,6 +465,7 @@ const balanceEnquiryController = async (req, res) => {
       latitude,
       longitude,
       aadhaar,
+      mobile,
       ts,
       // Biometric fields
       dc,
@@ -490,6 +491,7 @@ const balanceEnquiryController = async (req, res) => {
       nmPoints,
       srno,
       sysid,
+      
     } = req.body;
 
     // Prepare payload for provider API
@@ -499,6 +501,7 @@ const balanceEnquiryController = async (req, res) => {
       latitude,
       longitude,
       aadhaar,
+      mobile,
       ts,
       // Include biometric fields if provided
       ...(dc && { dc }),
