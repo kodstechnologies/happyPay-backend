@@ -15,6 +15,7 @@ import {
   generateTransactionOtpService,
   executeTransactionService,
   checkTransactionStatusService,
+  fetchBeneficiaries,
 } from "../service/dmt.service.js";
 
 const getAuthFields = (user) => {
@@ -127,7 +128,9 @@ export const fetchBeneficiariesController = asyncHandler(async (req, res) => {
     ...req.body,
     ...getAuthFields(req.user)
   };
-  const result = await fetchBeneficiariesService(payload);
+  // fetchBeneficiaries call for get data from db
+  // const result = await fetchBeneficiariesService(payload);
+  const result = await fetchBeneficiaries(payload);
 
   return res.status(200).json(
     ApiResponse.success(

@@ -23,6 +23,7 @@ import {
   upsertBeneficiary,
   updateBeneficiaryVerificationStatus,
   deleteBeneficiaryRecord,
+  getBenificiary,
 } from "../repository/benificiary.repository.js";
 
 // =============================================================
@@ -200,6 +201,11 @@ export const fetchBeneficiariesService = async (payload = {}) => {
   return await getBeneficiaries(cleanPayload);
 };
 
+// fetch benificiaries from our databse
+export const fetchBeneficiaries = async (payload = {}) => {
+  const cleanPayload = sanitizePayload(payload);
+  return await getBenificiary(cleanPayload);
+};
 /**
  * Verify beneficiary bank account via demographic verifyAccount external service
  */

@@ -1,5 +1,9 @@
 import Benificiary from "../models/benificiary.model.js";
 
+export const getBenificiary=async(payload)=>{
+   return await Benificiary.find(payload)
+}
+
 /**
  * Upsert beneficiary record idempotently
  * If beneficiary exists for the remitter and account, updates metadata while preserving verification status.

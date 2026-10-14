@@ -17,7 +17,6 @@ const benificiarySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
     bankId: {
       type: String,
@@ -33,12 +32,10 @@ const benificiarySchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
-      index: true,
     },
     verified: {
       type: Boolean,
       default: false,
-      index: true,
     },
     verificationDate: {
       type: Date,
