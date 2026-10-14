@@ -366,4 +366,70 @@ const cashWithdrawSchema = Joi.object({
   sysid: Joi.string().trim().optional().allow(""),
 }).unknown(true);
 
-export { getRetailerKycParamsSchema, doEkycSchema, doBioEkycSchema, balanceEnquirySchema, miniStatementSchema, cashWithdrawSchema };
+const sendOtpSchema = Joi.object({
+  outlet_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outlet_id) is required",
+      "string.empty": "Outlet ID (outlet_id) is required",
+    }),
+
+  referenceKey: Joi.string().trim().required()
+    .messages({
+      "any.required": "Reference key is required",
+      "string.empty": "Reference key is required",
+    }),
+
+  latitude: Joi.alternatives()
+    .try(Joi.number().min(-90).max(90), Joi.string().trim())
+    .required()
+    .messages({
+      "any.required": "Latitude is required",
+    }),
+
+  longitude: Joi.alternatives()
+    .try(Joi.number().min(-180).max(180), Joi.string().trim())
+    .required()
+    .messages({
+      "any.required": "Longitude is required",
+    }),
+
+  aadhaar: Joi.string()
+    .trim()
+    .pattern(/^\d{12}$/)
+    .required()
+    .messages({
+      "any.required": "Aadhaar number is required",
+      "string.empty": "Aadhaar number is required",
+      "string.pattern.base": "Please enter a valid 12-digit Aadhaar number",
+    }),
+
+  MobileNumber: Joi.string()
+    .trim()
+    .pattern(/^\d{10}$/)
+    .required()
+    .messages({
+      "any.required": "Mobile number is required",
+      "string.empty": "Mobile number is required",
+      "string.pattern.base": "Please enter a valid 10-digit mobile number",
+    }),
+
+  bankiin: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "Bank IIN is required",
+      "string.empty": "Bank IIN cannot be empty",
+    }),
+
+  amount: Joi.alternatives()
+    .try(Joi.number().min(0), Joi.string().trim())
+    .required()
+    .messages({
+      "any.required": "Amount is required",
+      "number.min": "Amount must be greater than or equal to 0",
+    }),
+}).unknown(true);
+
+export { getRetailerKycParamsSchema, doEkycSchema, doBioEkycSchema, balanceEnquirySchema, miniStatementSchema, cashWithdrawSchema, sendOtpSchema };

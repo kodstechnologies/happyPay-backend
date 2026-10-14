@@ -24,6 +24,9 @@ const PROVIDER_ROUTES = {
     miniStatement: `${PROVIDER_API_PREFIX}/aeps5/bank5/ms`,
     cashWithdraw: `${PROVIDER_API_PREFIX}/aeps5/bank5/cw`,
     deposite: `${PROVIDER_API_PREFIX}/csd/v3/cashdeposit`,
+
+
+    sendOtp: `${PROVIDER_API_PREFIX}/aeps5/bank5/txnOtp`,
   },
   bbps: {
     billerCat: `${PROVIDER_API_PREFIX}/_bbps/billers-cat`,

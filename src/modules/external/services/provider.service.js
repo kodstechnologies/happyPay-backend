@@ -79,6 +79,17 @@ const cashWithdraw = async (payload) => {
   }
 };
 
+const sendOtp = async (payload) => {
+  try {
+    const response = await postProviderForm(PROVIDER_ROUTES.aeps.sendOtp, payload);
+    console.log("========== [sendOtp Success Response] ==========", response);
+    return response;
+  } catch (error) {
+    console.error("========== [sendOtp Error Response] ==========", error?.response?.data || error?.message || error);
+    throw error;
+  }
+};
+
 const doBioEkyc = async (payload) => {
   console.log("========== [doBioEkyc Payload] ==========", payload);
   try {
@@ -179,6 +190,7 @@ export {
   balanceEnquiry,
   miniStatement,
   cashWithdraw,
+  sendOtp,
   doBioEkyc,
   verifyTfa,
   getLoginStatus,

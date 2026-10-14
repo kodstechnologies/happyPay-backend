@@ -5,7 +5,7 @@ import {
   checkLoginStatus,
   isKycRequired,
 } from "../services/aeps.service.js";
-import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw } from "../../external/services/provider.service.js";
+import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw, sendOtp } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
@@ -752,7 +752,10 @@ const cashWithdrawController = async (req, res) => {
 
     return res.status(200).json(
       ApiResponse.success(
-        result,
+        {
+          ...result,
+          amount,
+        },
         "Cash withdrawal completed successfully"
       )
     );
@@ -774,6 +777,62 @@ const cashWithdrawController = async (req, res) => {
   }
 };
 
+const sendOtpController = async (req, res) => {
+  try {
+    const {
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      MobileNumber,
+      bankiin,
+      amount,
+    } = req.body;
+
+    // Prepare payload for provider API
+    const payload = {
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      MobileNumber,
+      bankiin,
+      amount,
+    };
+
+    console.log("Send OTP Payload:", payload);
+
+    // Call provider API
+    const result = await sendOtp(payload);
+
+    console.log("Send OTP Response:", result);
+
+    return res.status(200).json(
+      ApiResponse.success(
+        result,
+        "OTP sent successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Send OTP Error:", error);
+
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to send OTP",
+          error.response?.data || error.providerData || null,
+          null,
+          error.statusCode || error.response?.status || 500
+        )
+      );
+  }
+};
+
 export {
   getRetailerKycDetailsController,
   doEkycController,
@@ -783,4 +842,5 @@ export {
   balanceEnquiryController,
   miniStatementController,
   cashWithdrawController,
+  sendOtpController,
 };
