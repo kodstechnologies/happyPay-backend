@@ -260,6 +260,9 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
   return {
     mobile: normalizedMobile,
     expiresInSeconds: 300,
+    userId: user._id,
+    outletId: user.outletId || null,
+    eKYCStatus: user.eKYCStatus || null,
     // Include registration details for existing users
     user: {
       id: user._id,
