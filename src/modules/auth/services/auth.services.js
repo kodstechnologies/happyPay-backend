@@ -146,6 +146,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     error.statusCode = 403;
     // Include user details for frontend to guide completion
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       registrationStatus: user.registrationStatus,
       currentRegistrationStep: user.currentRegistrationStep,
       user: {
@@ -178,6 +180,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     );
     error.statusCode = 403;
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       eKYCStatus: user.eKYCStatus,
       registrationStatus: user.registrationStatus,
       currentRegistrationStep: user.currentRegistrationStep,
@@ -192,6 +196,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     );
     error.statusCode = 403;
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       adminApproved: user.adminApproved,
       eKYCStatus: user.eKYCStatus,
       registrationStatus: user.registrationStatus,
@@ -206,6 +212,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     error.statusCode = 403;
     // Include rejection details for frontend to show specific rejected documents
     error.data = {
+      userId: user._id,
+      outletId: user.outletId || null,
       adminApproved: user.adminApproved,
       reasonOfRejection: user.reasonOfRejection,
       rejectedDocuments: [],
