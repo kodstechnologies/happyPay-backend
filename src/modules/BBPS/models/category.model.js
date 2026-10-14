@@ -14,5 +14,4 @@ icon:{
     default:null
 }
 },{timestamps:true})
- 
-export default mongoose.model("Category",category)
+export default mongoose.models.BbpsCategory || mongoose.model("BbpsCategory", category);

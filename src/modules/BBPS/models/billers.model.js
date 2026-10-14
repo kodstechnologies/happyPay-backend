@@ -31,4 +31,4 @@ REFMOBILENO:{
 }
 })
 
-export default mongoose.model("Biller",biller)
+export default mongoose.models.Biller || mongoose.model("Biller", biller);
