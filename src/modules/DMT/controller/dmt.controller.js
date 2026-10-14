@@ -138,9 +138,25 @@ export const fetchBeneficiariesController = asyncHandler(async (req, res) => {
 });
 
 export const verifyBeneficiaryAccountController = asyncHandler(async (req, res) => {
+  const { outletid, referenceKey } = getAuthFields(req.user);
+  const {
+    accountNumber,
+    bankIfsc,
+    remitterMobile,
+    txnid,
+    latitude,
+    longitude,
+  } = req.body;
+
   const payload = {
-    ...req.body,
-    ...getAuthFields(req.user)
+    accountNumber,
+    bankIfsc: bankIfsc.toUpperCase(),
+    remitterMobile,
+    txnid,
+    latitude,
+    longitude,
+    outletid,
+    referenceKey,
   };
   const result = await verifyBeneficiaryAccountService(payload);
 
@@ -154,7 +170,16 @@ export const verifyBeneficiaryAccountController = asyncHandler(async (req, res) 
 
 export const addBeneficiaryController = asyncHandler(async (req, res) => {
   const { outletid: sessionOutletId, referenceKey } = getAuthFields(req.user);
-  const { bankId, outletid, name, ifsc, accountNumber, beneficiaryMobile, remitterMobile } = req.body;
+  const {
+    bankId,
+    outletid,
+    name,
+    ifsc,
+    accountNumber,
+    beneficiaryMobile,
+    remitterMobile,
+    verified,
+  } = req.body;
 
   const payload = {
     bankId,
@@ -165,6 +190,7 @@ export const addBeneficiaryController = asyncHandler(async (req, res) => {
     beneficiaryMobile,
     remitterMobile,
     referenceKey,
+    verified,
   };
   const result = await addBeneficiaryService(payload);
 

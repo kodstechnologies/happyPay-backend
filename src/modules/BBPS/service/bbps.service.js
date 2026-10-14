@@ -51,6 +51,9 @@ const fetchBillService = async (payload = {}) => {
   const AMT = String(cleanPayload.AMT ?? cleanPayload.amount ?? "0");
   const service_id = String(cleanPayload.service_id ?? cleanPayload.biller_id ?? "0");
 
+  const field2Value =
+    cleanPayload.FIELD2 ?? cleanPayload.email ?? cleanPayload.email_id;
+
   const requestPayload = {
     REFMOBILENO,
     AMT,
@@ -58,7 +61,8 @@ const fetchBillService = async (payload = {}) => {
     orderid,
     opcode,
     service_id,
-    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1) } : {}),
+    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1).trim() } : {}),
+    ...(field2Value ? { FIELD2: String(field2Value).trim() } : {}),
   };
 
   return await viewBill(sanitizePayload(requestPayload));
@@ -82,6 +86,8 @@ const payBillService = async (payload = {}) => {
   const REFMOBILENO = String(cleanPayload.REFMOBILENO || cleanPayload.mobile || CUSTNO || "9876543210");
   const AMT = String(cleanPayload.AMT ?? cleanPayload.amount ?? "0");
   const service_id = String(cleanPayload.service_id ?? cleanPayload.biller_id ?? "0");
+  const field2Value =
+    cleanPayload.FIELD2 ?? cleanPayload.email ?? cleanPayload.email_id;
 
   const requestPayload = {
     REFMOBILENO,
@@ -97,7 +103,8 @@ const payBillService = async (payload = {}) => {
     referenceid: String(cleanPayload.referenceid || orderid),
     latitude: cleanPayload.latitude || "0",
     longitude: cleanPayload.longitude || "0",
-    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1) } : {}),
+    ...(cleanPayload.FIELD1 ? { FIELD1: String(cleanPayload.FIELD1).trim() } : {}),
+    ...(field2Value ? { FIELD2: String(field2Value).trim() } : {}),
   };
 
   return await payBill(sanitizePayload(requestPayload));
