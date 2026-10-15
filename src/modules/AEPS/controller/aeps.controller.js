@@ -9,6 +9,7 @@ import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdr
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
+import generate15CharTxnId from "../../../utils/generateTxnId.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -679,6 +680,7 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
+      otp,
       // Biometric fields
       dc,
       ci,
@@ -706,10 +708,12 @@ const cashWithdrawController = async (req, res) => {
       
     } = req.body;
 
+    const txnid=generate15CharTxnId("TXN")
     // Prepare payload for provider API
     const payload = {
       outlet_id,
       referenceKey,
+      txnid,
       latitude,
       longitude,
       aadhaar,
@@ -717,6 +721,7 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
+      ...(otp && { otp }),
       // Include biometric fields if provided
       ...(dc && { dc }),
       ...(ci && { ci }),
