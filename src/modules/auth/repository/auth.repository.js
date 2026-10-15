@@ -115,28 +115,40 @@ const addOrUpdateDevice = async (
     return null;
   }
 
+  if (!user.devices) {
+    user.devices = [];
+  }
+
   const existingDevice = user.devices.find(
     (device) =>
       device.deviceId === deviceData.deviceId
   );
 
+  const cleanToken = (deviceData.fcmToken && deviceData.fcmToken !== "dummy" && typeof deviceData.fcmToken === "string")
+    ? deviceData.fcmToken.trim()
+    : null;
+
   if (existingDevice) {
-    existingDevice.fcmToken =
-      deviceData.fcmToken;
+    if (cleanToken) {
+      existingDevice.fcmToken = cleanToken;
+    }
 
-    existingDevice.platform =
-      deviceData.platform;
+    if (deviceData.platform) {
+      existingDevice.platform = deviceData.platform;
+    }
 
-    existingDevice.deviceName =
-      deviceData.deviceName;
+    if (deviceData.deviceName) {
+      existingDevice.deviceName = deviceData.deviceName;
+    }
 
-    existingDevice.lastUsedAt =
-      new Date();
-
+    existingDevice.lastUsedAt = new Date();
     existingDevice.isActive = true;
   } else {
     user.devices.push({
-      ...deviceData,
+      deviceId: deviceData.deviceId,
+      fcmToken: cleanToken,
+      platform: deviceData.platform || "web",
+      deviceName: deviceData.deviceName || "Web browser",
       lastUsedAt: new Date(),
       isActive: true,
     });

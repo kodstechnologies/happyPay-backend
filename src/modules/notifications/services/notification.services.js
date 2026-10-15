@@ -40,20 +40,22 @@ const sendKycApprovedNotification = async ({
     },
   });
 
-  // 3. Get active FCM devices
+  // 3. Get active FCM devices with valid tokens
   const devices =
     retailer.devices?.filter(
       (device) =>
         device.isActive &&
-        device.fcmToken
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
     ) || [];
 
-  if (devices.length === 0) {
+  if (devices.length === 0 || !firebaseMessaging) {
     return {
       success: true,
       statusCode: 200,
-      message:
-        "KYC approved and notification saved, but no active FCM device found.",
+      message: !firebaseMessaging
+        ? "KYC approved and notification saved, but Firebase messaging is not configured."
+        : "KYC approved and notification saved, but no active FCM device found.",
       data: notification,
     };
   }
@@ -145,20 +147,22 @@ const sendKycRejectedNotification = async ({
     },
   });
 
-  // 3. Get active devices
+  // 3. Get active devices with valid tokens
   const devices =
     retailer.devices?.filter(
       (device) =>
         device.isActive &&
-        device.fcmToken
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
     ) || [];
 
-  if (devices.length === 0) {
+  if (devices.length === 0 || !firebaseMessaging) {
     return {
       success: true,
       statusCode: 200,
-      message:
-        "KYC rejection saved but no active FCM device found.",
+      message: !firebaseMessaging
+        ? "KYC rejection saved, but Firebase messaging is not configured."
+        : "KYC rejection saved but no active FCM device found.",
       data: notification,
     };
   }

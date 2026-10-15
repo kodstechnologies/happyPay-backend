@@ -66,6 +66,11 @@ const bankDetailsSchema = Joi.object({
       "string.min": "Branch name must be at least 2 characters",
       "string.max": "Branch name must not exceed 100 characters",
     }),
+
+  fcmToken: Joi.string().trim().allow("", null).optional(),
+  deviceId: Joi.string().trim().allow("", null).optional(),
+  platform: Joi.string().trim().valid("android", "ios", "web").allow("", null).optional(),
+  deviceName: Joi.string().trim().allow("", null).optional(),
 });
 
 export const validateBankDetails = validate(bankDetailsSchema);

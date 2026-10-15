@@ -480,7 +480,7 @@ const verifyRetailerLoginOtp = async ({
   if (deviceId && platform) {
     await addOrUpdateDevice(user._id, {
       deviceId,
-      fcmToken: fcmToken || "dummy",
+      fcmToken: (fcmToken && fcmToken !== "dummy") ? fcmToken : null,
       platform,
       deviceName,
     });
@@ -762,10 +762,10 @@ const retailerRegister = async (data) => {
     lastUsedAt: new Date(),
   });
 
-  if (deviceId && fcmToken && platform) {
+  if (deviceId && platform) {
     await addOrUpdateDevice(user._id, {
       deviceId,
-      fcmToken,
+      fcmToken: (fcmToken && fcmToken !== "dummy") ? fcmToken : null,
       platform,
       deviceName,
     });

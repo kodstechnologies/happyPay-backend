@@ -9,6 +9,7 @@ import createAdminAuditLog from "../utils/createAdminAuditLog.js";
 import { findRetailerById, listRetailers, updateRetailerKyc } from "../repository/adminRetailer.repository.js";
 import User from "../../auth/model/user.model.js";
 import { sendPushNotification } from "../../../utils/notification.js";
+import { sendKycApprovedNotification, sendKycRejectedNotification } from "../../notifications/services/notification.services.js";
 import bcrypt from "bcrypt";
 import findAdminAuditLogs from "../repository/adminAudit.repository.js";
 
@@ -128,17 +129,14 @@ const updateRetailerKycStatus = async (id, status, reason = "") => {
 
   const updatedRetailer = await updateRetailerKyc(id, kycData);
 
-  const fcmTokens = updatedRetailer.devices
-    .map(device => device.fcmToken)
-    .filter(token => token);
-
-  if (fcmTokens.length > 0) {
-    const title = status === "approved" ? "KYC Approved" : "KYC Rejected";
-    const body = status === "approved"
-      ? "Your KYC documents have been verified successfully. You can now use all features."
-      : `Your KYC documents were rejected. Reason: ${reason}. Please reapply.`;
-    
-    await sendPushNotification(fcmTokens, title, body, { type: "KYC_UPDATE", status });
+  try {
+    if (status === "approved") {
+      await sendKycApprovedNotification({ retailerId: id });
+    } else if (status === "rejected") {
+      await sendKycRejectedNotification({ retailerId: id, rejectionReason: reason });
+    }
+  } catch (notifError) {
+    console.error("KYC notification error in admin service:", notifError?.message);
   }
 
   return { id: updatedRetailer._id.toString(), kycStatus: updatedRetailer.kycStatus, kycRejectionReason: updatedRetailer.kycRejectionReason };
