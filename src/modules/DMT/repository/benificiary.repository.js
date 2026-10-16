@@ -19,6 +19,7 @@ export const upsertBeneficiary = async ({
   outletid,
   verified = false,
   verificationDate = null,
+  referenceKey
 }) => {
   if (!accountNumber || !remitterMobile) return null;
 
@@ -43,6 +44,7 @@ export const upsertBeneficiary = async ({
       ifsc: String(ifsc || existing.ifsc || "").trim().toUpperCase(),
       bankId: String(bankId || existing.bankId || "").trim(),
       beneficiaryMobile: String(beneficiaryMobile || existing.beneficiaryMobile || "").trim(),
+      referenceKey
     };
 
     if (cleanBeneficiaryId) {
@@ -76,6 +78,7 @@ export const upsertBeneficiary = async ({
     outletid: String(outletid || "").trim(),
     verified: Boolean(verified),
     verificationDate: verified ? (verificationDate || new Date()) : null,
+    referenceKey
   });
 
   return { beneficiary: created, isNew: true };
