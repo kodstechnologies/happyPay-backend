@@ -50,7 +50,7 @@ router.post("/verify-tfa", authMiddleware, verifyTfaController);
 router.post(
   "/balance-enquiry",
   authMiddleware,
-  validate(balanceEnquirySchema, "body"),
+  // validate(balanceEnquirySchema, "body"),
   balanceEnquiryController
 );
 
