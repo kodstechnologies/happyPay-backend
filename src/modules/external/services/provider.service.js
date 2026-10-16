@@ -68,6 +68,17 @@ const miniStatement = async (payload) => {
   }
 };
 
+const cashDeposite = async (payload) => {
+  try {
+    const response = await postProviderForm(PROVIDER_ROUTES.aeps.deposite, payload);
+    console.log("========== [cashDeposite Success Response] ==========", response);
+    return response;
+  } catch (error) {
+    console.error("========== [cashDeposite Error Response] ==========", error?.response?.data || error?.message || error);
+    throw error;
+  }
+};
+
 const cashWithdraw = async (payload) => {
   try {
     const response = await postProviderForm(PROVIDER_ROUTES.aeps.cashWithdraw, payload);
@@ -190,6 +201,7 @@ export {
   balanceEnquiry,
   miniStatement,
   cashWithdraw,
+  cashDeposite,
   sendOtp,
   doBioEkyc,
   verifyTfa,

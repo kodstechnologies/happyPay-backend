@@ -5,10 +5,11 @@ import {
   checkLoginStatus,
   isKycRequired,
 } from "../services/aeps.service.js";
-import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw, sendOtp } from "../../external/services/provider.service.js";
+import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw, cashDeposite, sendOtp } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
+import generate15CharTxnId from "../../../utils/generateTxnId.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -679,6 +680,7 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
+      otp,
       // Biometric fields
       dc,
       ci,
@@ -706,10 +708,12 @@ const cashWithdrawController = async (req, res) => {
       
     } = req.body;
 
+    const txnid=generate15CharTxnId("TXN")
     // Prepare payload for provider API
     const payload = {
       outlet_id,
       referenceKey,
+      txnid,
       latitude,
       longitude,
       aadhaar,
@@ -717,6 +721,7 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
+      ...(otp && { otp }),
       // Include biometric fields if provided
       ...(dc && { dc }),
       ...(ci && { ci }),
@@ -833,6 +838,119 @@ const sendOtpController = async (req, res) => {
   }
 };
 
+/* ==============================
+   Cash Deposit Controller
+============================== */
+
+const cashDepositController = async (req, res) => {
+  try {
+    const {
+      txnid,
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      mobile,
+      bankiin,
+      amount,
+      ts,
+      // Biometric fields
+      dc,
+      ci,
+      hmac,
+      mc,
+      dpId,
+      pidDatatype,
+      PidDatatype,
+      Piddata,
+      rdsId,
+      rdsVer,
+      sessionKey,
+      mi,
+      errInfo,
+      errCode,
+      fCount,
+      fType,
+      iCount,
+      iType,
+      pCount,
+      pType,
+      qScore,
+      nmPoints,
+      srno,
+      sysid,
+    } = req.body;
+
+    const payload = {
+      txnid,
+      outlet_id,
+      referenceKey,
+      latitude,
+      longitude,
+      aadhaar,
+      mobile,
+      bankiin,
+      amount,
+      ts,
+      dc,
+      ci,
+      hmac,
+      mc,
+      dpId,
+      pidDatatype: pidDatatype || PidDatatype,
+      Piddata,
+      rdsId,
+      rdsVer,
+      sessionKey,
+      mi,
+      errInfo,
+      errCode,
+      fCount,
+      fType,
+      iCount,
+      iType,
+      pCount,
+      pType,
+      qScore,
+      nmPoints,
+      srno,
+      sysid,
+    };
+
+    console.log("Cash Deposit Payload:", payload);
+
+    // Call external provider API
+    const result = await cashDeposite(payload);
+
+    console.log("Cash Deposit Response:", result);
+
+    return res.status(200).json(
+      ApiResponse.success(
+        {
+          ...result,
+          amount,
+        },
+        "Cash deposit completed successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Cash Deposit Error:", error);
+
+    return res
+      .status(error.statusCode || error.response?.status || 500)
+      .json(
+        ApiResponse.error(
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to complete cash deposit",
+          error.statusCode || error.response?.status || 500,
+          error.response?.data?.errors || null
+        )
+      );
+  }
+};
+
 export {
   getRetailerKycDetailsController,
   doEkycController,
@@ -842,5 +960,6 @@ export {
   balanceEnquiryController,
   miniStatementController,
   cashWithdrawController,
+  cashDepositController,
   sendOtpController,
 };

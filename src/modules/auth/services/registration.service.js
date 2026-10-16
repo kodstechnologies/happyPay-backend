@@ -13,6 +13,7 @@ import {
   findByPan,
   saveRetailerRegistration,
 } from "../repository/user.repository.js";
+import { addOrUpdateDevice } from "../repository/auth.repository.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -764,6 +765,21 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   }
 
   await user.save();
+
+  // Safely save device info if provided during onboarding
+  if (body.deviceId && body.platform) {
+    try {
+      await addOrUpdateDevice(user._id, {
+        deviceId: body.deviceId,
+        fcmToken: body.fcmToken,
+        platform: body.platform,
+        deviceName: body.deviceName,
+      });
+    } catch (deviceError) {
+      console.warn("Device info save skipped during onboarding:", deviceError?.message);
+    }
+  }
+
   return {
     userId: user._id,
     outletId: user.outletId,

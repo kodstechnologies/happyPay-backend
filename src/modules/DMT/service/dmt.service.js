@@ -282,7 +282,7 @@ export const addBeneficiaryService = async (payload = {}) => {
         cleanPayload.beneficiaryId ||
         "";
 
-      await upsertBeneficiary({
+      const saveResult = await upsertBeneficiary({
         name: cleanPayload.name,
         ifsc: cleanPayload.ifsc,
         accountNumber: cleanPayload.accountNumber,
@@ -293,6 +293,10 @@ export const addBeneficiaryService = async (payload = {}) => {
         outletid: cleanPayload.outletid,
         verified: Boolean(cleanPayload.verified || false),
       });
+
+      console.log(
+        `[DMT Backend] Beneficiary ${saveResult?.isNew ? "CREATED" : "UPDATED"} for remitter ${cleanPayload.remitterMobile} (Account: ${cleanPayload.accountNumber})`
+      );
     } catch (dbErr) {
       console.error(
         "[DMT Backend] Beneficiary DB persist failed:",

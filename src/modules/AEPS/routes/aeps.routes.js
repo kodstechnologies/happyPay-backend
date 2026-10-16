@@ -8,11 +8,20 @@ import {
   balanceEnquiryController,
   miniStatementController,
   cashWithdrawController,
+  cashDepositController,
   sendOtpController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
-import { getRetailerKycParamsSchema, doEkycSchema, balanceEnquirySchema, miniStatementSchema, cashWithdrawSchema, sendOtpSchema } from "../validations/aeps.validation.js";
+import {
+  getRetailerKycParamsSchema,
+  doEkycSchema,
+  balanceEnquirySchema,
+  miniStatementSchema,
+  cashWithdrawSchema,
+  cashDepositSchema,
+  sendOtpSchema,
+} from "../validations/aeps.validation.js";
 
 const router = Router();
 
@@ -55,8 +64,17 @@ router.post(
 // Cash Withdrawal
 router.post(
   "/cash-withdraw",
+  authMiddleware,
   validate(cashWithdrawSchema, "body"),
   cashWithdrawController
+);
+
+// Cash Deposit
+router.post(
+  "/cash-deposit",
+  authMiddleware,
+  validate(cashDepositSchema, "body"),
+  cashDepositController
 );
 
 // Send OTP
@@ -66,6 +84,5 @@ router.post(
   validate(sendOtpSchema, "body"),
   sendOtpController
 );
-
 
 export default router;

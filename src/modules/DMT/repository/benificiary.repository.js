@@ -5,8 +5,8 @@ export const getBenificiary=async(payload)=>{
 }
 
 /**
- * Upsert beneficiary record idempotently
- * If beneficiary exists for the remitter and account, updates metadata while preserving verification status.
+ * Check if beneficiary exists for remitter; update if exists, create if new.
+ * Guarantees duplicate prevention and preserves verified status.
  */
 export const upsertBeneficiary = async ({
   name,
@@ -24,44 +24,64 @@ export const upsertBeneficiary = async ({
 
   const cleanAccount = String(accountNumber).trim();
   const cleanRemitterMobile = String(remitterMobile).trim();
+  const cleanBeneficiaryId = String(beneficiaryId || "").trim();
 
-  const updateFields = {
-    outletid: String(outletid || "").trim(),
-  };
+  // 1. Explicit Check: Does this beneficiary already exist for this remitter?
+  const existing = await Benificiary.findOne({
+    remitterMobile: cleanRemitterMobile,
+    $or: [
+      { accountNumber: cleanAccount },
+      ...(cleanBeneficiaryId ? [{ beneficiaryId: cleanBeneficiaryId }] : []),
+    ],
+  });
 
-  if (name) updateFields.name = String(name).trim();
-  if (ifsc) updateFields.ifsc = String(ifsc).trim().toUpperCase();
-  if (bankId) updateFields.bankId = String(bankId).trim();
-  if (beneficiaryMobile) updateFields.beneficiaryMobile = String(beneficiaryMobile).trim();
-  if (beneficiaryId) updateFields.beneficiaryId = String(beneficiaryId).trim();
+  if (existing) {
+    // Beneficiary already exists for this remitter -> Update record
+    const updateFields = {
+      outletid: String(outletid || existing.outletid || "").trim(),
+      name: String(name || existing.name || "").trim(),
+      ifsc: String(ifsc || existing.ifsc || "").trim().toUpperCase(),
+      bankId: String(bankId || existing.bankId || "").trim(),
+      beneficiaryMobile: String(beneficiaryMobile || existing.beneficiaryMobile || "").trim(),
+    };
 
-  // If verified is explicitly true, update the verification fields
-  if (verified === true) {
-    updateFields.verified = true;
-    updateFields.verificationDate = verificationDate || new Date();
+    if (cleanBeneficiaryId) {
+      updateFields.beneficiaryId = cleanBeneficiaryId;
+    }
+
+    // Preserve verified status if already verified, or update if verified now
+    if (verified === true || existing.verified === true) {
+      updateFields.verified = true;
+      updateFields.verificationDate = existing.verificationDate || verificationDate || new Date();
+    }
+
+    const updated = await Benificiary.findByIdAndUpdate(
+      existing._id,
+      { $set: updateFields },
+      { new: true }
+    );
+
+    return { beneficiary: updated, isNew: false };
   }
 
-  return await Benificiary.findOneAndUpdate(
-    {
-      remitterMobile: cleanRemitterMobile,
-      accountNumber: cleanAccount,
-    },
-    {
-      $set: updateFields,
-      $setOnInsert: {
-        remitterMobile: cleanRemitterMobile,
-        accountNumber: cleanAccount,
-        verified: Boolean(verified),
-        verificationDate: verified ? (verificationDate || new Date()) : null,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    }
-  );
+  // 2. Beneficiary does not exist for this remitter -> Create new record
+  const created = await Benificiary.create({
+    name: String(name || "").trim(),
+    ifsc: String(ifsc || "").trim().toUpperCase(),
+    accountNumber: cleanAccount,
+    bankId: String(bankId || "").trim(),
+    beneficiaryMobile: String(beneficiaryMobile || "").trim(),
+    beneficiaryId: cleanBeneficiaryId,
+    remitterMobile: cleanRemitterMobile,
+    outletid: String(outletid || "").trim(),
+    verified: Boolean(verified),
+    verificationDate: verified ? (verificationDate || new Date()) : null,
+  });
+
+  return { beneficiary: created, isNew: true };
 };
+
+export const checkAndSaveBeneficiary = upsertBeneficiary;
 
 /**
  * Update Beneficiary verification status upon successful account or OTP verification
@@ -128,6 +148,7 @@ export const deleteBeneficiaryRecord = async ({ beneficiaryId, remitterMobile })
 
 export default {
   upsertBeneficiary,
+  checkAndSaveBeneficiary,
   updateBeneficiaryVerificationStatus,
   findBeneficiaryByAccount,
   findBeneficiariesByRemitter,
