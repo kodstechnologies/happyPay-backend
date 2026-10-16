@@ -354,51 +354,52 @@ const verifyRetailerLoginOtp = async ({
     throw error;
   }
 
-  if (String(user.registrationStatus || "").toUpperCase() !== "COMPLETED") {
-    const error = new Error(
-      "Retailer registration is not completed. Please complete registration first."
-    );
+  // Commented out: Only verify OTP, skip other validations
+  // if (String(user.registrationStatus || "").toUpperCase() !== "COMPLETED") {
+  //   const error = new Error(
+  //     "Retailer registration is not completed. Please complete registration first."
+  //   );
 
-    error.statusCode = 403;
+  //   error.statusCode = 403;
     
-    // Include registration status information
-    error.registrationStatus = user.registrationStatus;
-    error.currentRegistrationStep = user.currentRegistrationStep;
+  //   // Include registration status information
+  //   error.registrationStatus = user.registrationStatus;
+  //   error.currentRegistrationStep = user.currentRegistrationStep;
 
-    throw error;
-  }
+  //   throw error;
+  // }
 
-  if (String(user.adminApproved || "").toLowerCase() !== "approved") {
-    const isRejected = String(user.adminApproved || "").toLowerCase() === "rejected";
-    const error = new Error(
-      isRejected
-        ? `Retailer account has been rejected${user.reasonOfRejection ? `: ${user.reasonOfRejection}` : ""}`
-        : "Retailer account approval is pending. Please wait for admin approval."
-    );
+  // if (String(user.adminApproved || "").toLowerCase() !== "approved") {
+  //   const isRejected = String(user.adminApproved || "").toLowerCase() === "rejected";
+  //   const error = new Error(
+  //     isRejected
+  //       ? `Retailer account has been rejected${user.reasonOfRejection ? `: ${user.reasonOfRejection}` : ""}`
+  //       : "Retailer account approval is pending. Please wait for admin approval."
+  //   );
 
-    error.statusCode = 403;
+  //   error.statusCode = 403;
     
-    // Include admin approval status information
-    error.adminApproved = user.adminApproved;
-    error.reasonOfRejection = user.reasonOfRejection;
-    error.currentRegistrationStep = user.currentRegistrationStep;
+  //   // Include admin approval status information
+  //   error.adminApproved = user.adminApproved;
+  //   error.reasonOfRejection = user.reasonOfRejection;
+  //   error.currentRegistrationStep = user.currentRegistrationStep;
 
-    throw error;
-  }
+  //   throw error;
+  // }
 
-  if (String(user.eKYCStatus || "").toUpperCase() !== "COMPLETED") {
-    const error = new Error(
-      "eKYC is not completed. Please complete eKYC first."
-    );
+  // if (String(user.eKYCStatus || "").toUpperCase() !== "COMPLETED") {
+  //   const error = new Error(
+  //     "eKYC is not completed. Please complete eKYC first."
+  //   );
 
-    error.statusCode = 403;
+  //   error.statusCode = 403;
     
-    // Include eKYCStatus and currentRegistrationStep in error details
-    error.eKYCStatus = user.eKYCStatus;
-    error.currentRegistrationStep = user.currentRegistrationStep;
+  //   // Include eKYCStatus and currentRegistrationStep in error details
+  //   error.eKYCStatus = user.eKYCStatus;
+  //   error.currentRegistrationStep = user.currentRegistrationStep;
 
-    throw error;
-  }
+  //   throw error;
+  // }
 
 
   /* ==============================
