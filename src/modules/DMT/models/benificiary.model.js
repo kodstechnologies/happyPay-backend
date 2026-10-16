@@ -53,6 +53,12 @@ const benificiarySchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    referenceKey:{
+       type: String,
+      required: true,
+      trim: true,
+      index: true,
+    }
   },
   { timestamps: true }
 );

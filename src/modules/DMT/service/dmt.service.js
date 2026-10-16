@@ -205,7 +205,8 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 export const fetchBeneficiaries = async (payload = {}) => {
    const cleanpayload={
     remitterMobile:payload.mobile,
-    outletid:payload.outletid
+    outletid:payload.outletid,
+    verified:true
    }
   return await getBenificiary(cleanpayload);
 };
@@ -266,43 +267,21 @@ export const addBeneficiaryService = async (payload = {}) => {
 
   // Persist beneficiary in DB if provider call succeeded
   const isSuccess =
-    providerResult?.status === "SUCCESS" ||
-    providerResult?.status === true ||
-    providerResult?.status === 1 ||
-    providerResult?.success === true ||
-    providerResult?.response_code === 1 ||
-    providerResult?.statusCode === 200 ||
-    /success|otp sent|initiated/i.test(String(providerResult?.msg || providerResult?.message || ""));
-
+    providerResult?.status === "SUCCESS" 
+  
   if (isSuccess) {
-    try {
-      const returnedBeneficiaryId =
-        providerResult?.beneficiaryId ||
-        providerResult?.data?.beneficiaryId ||
-        cleanPayload.beneficiaryId ||
-        "";
 
-      const saveResult = await upsertBeneficiary({
+       await upsertBeneficiary({
         name: cleanPayload.name,
         ifsc: cleanPayload.ifsc,
         accountNumber: cleanPayload.accountNumber,
         bankId: cleanPayload.bankId,
         beneficiaryMobile: cleanPayload.beneficiaryMobile,
-        beneficiaryId: String(returnedBeneficiaryId).trim(),
+        beneficiaryId: String( providerResult?.beneficiaryId)?.trim(),
         remitterMobile: cleanPayload.remitterMobile,
         outletid: cleanPayload.outletid,
-        verified: Boolean(cleanPayload.verified || false),
+        referenceKey:providerResult?.referenceKey
       });
-
-      console.log(
-        `[DMT Backend] Beneficiary ${saveResult?.isNew ? "CREATED" : "UPDATED"} for remitter ${cleanPayload.remitterMobile} (Account: ${cleanPayload.accountNumber})`
-      );
-    } catch (dbErr) {
-      console.error(
-        "[DMT Backend] Beneficiary DB persist failed:",
-        dbErr?.message || dbErr
-      );
-    }
   }
 
   return providerResult;
