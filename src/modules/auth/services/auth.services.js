@@ -173,6 +173,9 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     throw error;
   }
 
+  // eKYC and admin approval status checks commented out as per user request
+  // OTP will be sent irrespective of eKYC status or admin approval status
+  /*
   // Check eKYC status - should be COMPLETED
   if (eKYCStatus === "PENDING") {
     const error = new Error(
@@ -257,6 +260,7 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
 
     throw error;
   }
+  */
 
   // Only send OTP if all checks pass
   const otp = generateOtp();
