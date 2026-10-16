@@ -22,6 +22,7 @@ import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
+import { getRetailerDashboardData } from "../services/retailerDashboard.service.js";
 
 const retailerFileFields = [
   "selfie",
@@ -378,6 +379,51 @@ const getRetailerDetails = asyncHandler(async (req, res) => {
   );
 });
 
+const getRetailerProfileController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId || req.user?.id;
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("Unauthorized: Retailer identity not found in token", null, null, 401)
+    );
+  }
+
+  const retailer = await getRetailerDetailsService(retailerId);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      retailer,
+      "Retailer profile retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
+const getRetailerDashboardController = asyncHandler(async (req, res) => {
+  const retailerId =
+    req.query.retailerId ||
+    req.params.retailerId ||
+    req.user?.userId ||
+    req.user?.id;
+
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("Unauthorized: Retailer identity not found in token", null, null, 401)
+    );
+  }
+
+  const data = await getRetailerDashboardData(retailerId);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      data,
+      "Retailer dashboard data retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
 const updateShopDetailsController = asyncHandler(async (req, res) => {
   const data = await updateShopDetails(req.body, req.files || {});
   return res.status(200).json(
@@ -423,6 +469,8 @@ export {
   getRetailerAadhaarAndMobileController,
   getBankListController,
   getRetailerDetails,
+  getRetailerProfileController,
+  getRetailerDashboardController,
   updateShopDetailsController,
   updateAboutDetailsController,
   updateAadhaarDetailsController,

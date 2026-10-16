@@ -40,6 +40,12 @@ router.use("/api/v1/transactions", transactionRoutes);
 
 // router.use("/api/v1/admin/support", adminSupportRoutes);
 
+import authMiddleware from "../middlewares/auth.middleware.js";
+import { getRetailerDashboardController } from "../modules/auth/controllers/auth.controllers.js";
+
+router.get("/api/v1/retailer/dashboard", authMiddleware, getRetailerDashboardController);
+router.get("/api/v1/retailer/dashboard/:retailerId", authMiddleware, getRetailerDashboardController);
+
 router.use("/api/admin", adminRoutes);
 router.use("/api/v1/banners", bannerRoutes);
 

@@ -9,6 +9,8 @@ import {
   getRetailerAadhaarAndMobileController,
   getBankListController,
   getRetailerDetails,
+  getRetailerProfileController,
+  getRetailerDashboardController,
   updateShopDetailsController,
   updateAboutDetailsController,
   updateAadhaarDetailsController,
@@ -49,6 +51,13 @@ router.patch("/registration/bank-details", validateBankDetails, updateBankDetail
 //patch the details if rejeceted by admin
 // router.patch("/correct-details/")
 
+
+// Get authenticated retailer's full profile
+router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
+
+// Get authenticated retailer's dashboard summary (details, wallet balance, today's earnings, latest 5 transactions)
+router.get("/retailer/dashboard", authMiddleware, getRetailerDashboardController);
+router.get("/retailer/dashboard/:retailerId", authMiddleware, getRetailerDashboardController);
 
 router.get("/retailer/details/:retailerId", getRetailerDetails);
 
