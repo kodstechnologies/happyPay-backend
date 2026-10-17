@@ -161,7 +161,7 @@ const buildRetailerReview = (user) => ({
   businessProofDocument: user.businessProofDocument || null,
   banks: user.banks || [],
   primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
-  outletId: user.outletId,
+  outletId: user.AepsEkyc?.outletId || null,
   adminApproved: user.adminApproved,
   reasonOfRejection: user.reasonOfRejection || null,
   documentReviews: user.documentReviews || null,
@@ -179,7 +179,7 @@ const getPendingRetailerReview = async (retailerId) => {
 
   const retailer = await findRetailerById(retailerId);
 
-  if (!retailer || !retailer.outletId) {
+  if (!retailer || !retailer.AepsEkyc) {
     throw fail(404, "Registered retailer not found");
   }
 

@@ -1,6 +1,7 @@
 import User from "../model/user.model.js";
 import "../model/role.model.js";
 import "../model/permission.model.js";
+import "../../AEPS/model/aepsEkyc.model.js";
 
 const rbacPopulate = [
   {
@@ -11,6 +12,9 @@ const rbacPopulate = [
   },
   {
     path: "permissions",
+  },
+  {
+    path: "AepsEkyc",
   },
 ];
 

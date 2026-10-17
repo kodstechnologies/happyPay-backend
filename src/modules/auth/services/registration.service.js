@@ -14,6 +14,8 @@ import {
   saveRetailerRegistration,
 } from "../repository/user.repository.js";
 import { addOrUpdateDevice } from "../repository/auth.repository.js";
+import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
+import "../../AEPS/model/aepsEkyc.model.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -36,26 +38,28 @@ const toDateOnly = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
-const buildRetailerResponse = (user) => ({
+const buildRetailerResponse = (user, ekycDoc = null) => {
+  const ekyc = ekycDoc || (user.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
+  return {
   id: user._id,
   mobile: user.mobile,
-  isMobileVerified: user.isMobileVerified,
+  fullName: user.fullName,
   email: user.email,
   isEmailVerified: user.isEmailVerified,
-  fullName: user.fullName,
-  gender: user.gender,
+  isMobileVerified: user.isMobileVerified,
   panNumber: user.panNumber,
   aadhaarNumber: user.aadhaarNumber,
   dateOfBirth: user.dateOfBirth
     ? new Date(user.dateOfBirth).toISOString().slice(0, 10)
     : null,
-  fullAddress: user.shop?.address?.addressLine || null,
-  city: user.shop?.address?.city || null,
-  state: user.shop?.address?.state || null,
-  pincode: user.shop?.address?.pincode || null,
+  gender: user.gender,
   shopName: user.shop?.name || null,
   shopCategory: user.shop?.category || null,
   propertyType: user.shop?.propertyType || null,
+  addressLine: user.shop?.address?.addressLine || null,
+  city: user.shop?.address?.city || null,
+  state: user.shop?.address?.state || null,
+  pincode: user.shop?.address?.pincode || null,
   shopAddress: user.shop?.completeAddress || null,
   latitude: user.shop?.location?.latitude ?? null,
   longitude: user.shop?.location?.longitude ?? null,
@@ -72,14 +76,16 @@ const buildRetailerResponse = (user) => ({
   businessProofDocument: user.businessProofDocument || null,
   banks: user.banks || [],
   primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
-  outletId: user.outletId || null,
+  outletId: ekyc?.outletId || null,
   adminApproved: user.adminApproved,
   reasonOfRejection: user.reasonOfRejection || null,
   documentReviews: user.documentReviews || null,
   registrationStatus: user.registrationStatus || "NOT_STARTED",
   currentRegistrationStep: user.currentRegistrationStep || "ACCOUNT",
-  eKYCStatus: user.eKYCStatus || null,
-});
+  eKYCStatus: ekyc?.eKYCStatus || null,
+  referenceKey: ekyc?.referenceKey || null,
+};
+};
 
 const assertActiveMaster = async (Model, id, label) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -279,7 +285,7 @@ const registerRetailer = async (body = {}) => {
     );
   }
 
-  if (user.outletId) {
+  if (user.AepsEkyc) {
     throw fail(409, "Retailer is already registered");
   }
 
@@ -434,7 +440,6 @@ const registerRetailer = async (body = {}) => {
         isActive: true,
       },
     ],
-    outletId: String(outletId),
     registrationStatus: "COMPLETED",
     adminApproved: "pending",
     reasonOfRejection: null,
@@ -463,7 +468,15 @@ const registerRetailer = async (body = {}) => {
     },
   });
 
-  return buildRetailerResponse(savedUser);
+  const ekycDoc = await saveAepsEkyc({
+    userId: user._id,
+    outletId: String(outletId),
+    eKYCStatus: "PENDING",
+  });
+  savedUser.AepsEkyc = ekycDoc._id;
+  await savedUser.save();
+
+  return buildRetailerResponse(savedUser, ekycDoc);
 };
 
 export { registerRetailer };
@@ -744,7 +757,13 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     );
   }
 
-  user.outletId = String(outletId);
+  const ekycDoc = await saveAepsEkyc({
+    userId: user._id,
+    outletId: String(outletId),
+    eKYCStatus: "PENDING",
+  });
+
+  user.AepsEkyc = ekycDoc._id;
   user.registrationStatus = "COMPLETED";
   user.currentRegistrationStep = "SUBMITTED";
 
@@ -782,10 +801,10 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   return {
     userId: user._id,
-    outletId: user.outletId,
-    user: buildRetailerResponse(user),
+    outletId: ekycDoc.outletId,
+    user: buildRetailerResponse(user, ekycDoc),
     onboarding: providerResult,
-    eKYCStatus: user.eKYCStatus,
+    eKYCStatus: ekycDoc.eKYCStatus,
   };
 };
 
@@ -807,18 +826,23 @@ const getCurrentRegistrationStep = async (params = {}) => {
     user = await User.findOne({ mobile })
       .populate('shop.category', 'name')
       .populate('shop.propertyType', 'name')
-      .populate('businessProofType', 'name');
+      .populate('businessProofType', 'name')
+      .populate('AepsEkyc');
   } else {
     // Otherwise, find by userId
     user = await User.findById(userId)
       .populate('shop.category', 'name')
       .populate('shop.propertyType', 'name')
-      .populate('businessProofType', 'name');
+      .populate('businessProofType', 'name')
+      .populate('AepsEkyc');
   }
 
   if (!user) {
     throw fail(404, "User not found");
   }
+
+  const outletId = user.AepsEkyc?.outletId || null;
+  const eKYCStatus = user.AepsEkyc?.eKYCStatus || null;
 
   return {
     userId: user._id,
@@ -828,9 +852,9 @@ const getCurrentRegistrationStep = async (params = {}) => {
     currentRegistrationStep: user.currentRegistrationStep,
     isMobileVerified: user.isMobileVerified,
     isEmailVerified: user.isEmailVerified,
-    outletId: user.outletId || null,
+    outletId,
     adminApproved: user.adminApproved,
-    eKYCStatus: user.eKYCStatus,
+    eKYCStatus,
 
     // All filled information
     filledData: {
@@ -889,7 +913,7 @@ const getCurrentRegistrationStep = async (params = {}) => {
       about: !!(user.fullName && user.dateOfBirth && user.gender && user.maritalStatus && user.educationalQualification && user.selfie),
       aadhaarDetails: !!user.aadhaarNumber,
       bankDetails: !!(user.banks && user.banks.length > 0),
-      submitted: !!user.outletId,
+      submitted: !!user.AepsEkyc,
     },
   };
 };

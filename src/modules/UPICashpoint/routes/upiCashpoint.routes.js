@@ -14,4 +14,12 @@ router.post(
   initiateUpiCashpointController
 );
 
+router.post(
+  "/",
+  authMiddleware,
+  validate(initiateUpiCashpointSchema, "body"),
+  initiateUpiCashpointController
+);
+
 export default router;
+

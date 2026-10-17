@@ -280,7 +280,7 @@ export const addBeneficiaryService = async (payload = {}) => {
         beneficiaryId: String( providerResult?.beneficiaryId)?.trim(),
         remitterMobile: cleanPayload.remitterMobile,
         outletid: cleanPayload.outletid,
-        referenceKey:providerResult?.referenceKey||providerResult?.data?.referenceKey
+        referenceKey:providerResult?.referenceKey
       });
   }
 

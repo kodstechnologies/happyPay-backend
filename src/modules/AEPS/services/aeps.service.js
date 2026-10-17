@@ -31,14 +31,14 @@ const getRetailerKycDetails = async (retailerId) => {
     retailerId: retailer._id,
     aadhaarNumber: retailer.aadhaarNumber || null,
     panNumber: retailer.panNumber || null,
-    outletId: retailer.outletId || null,
+    outletId: retailer.AepsEkyc?.outletId || null,
     fullName: retailer.fullName || null,
     mobile: retailer.mobile || null,
     email: retailer.email || null,
   };
 };
 
-const recordEkycOutlet = async ({ userId, outletId, referenceKey, pidOptionWadh }) => {
+const recordEkycOutlet = async ({ userId, outletId, referenceKey, pidOptionWadh, eKYCStatus }) => {
   if (!userId) {
     const error = new Error("User id is required");
     error.statusCode = 401;
@@ -62,6 +62,7 @@ const recordEkycOutlet = async ({ userId, outletId, referenceKey, pidOptionWadh 
     outletId: String(outletId).trim(),
     referenceKey: String(referenceKey).trim(),
     pidOptionWadh: pidOptionWadh ? String(pidOptionWadh).trim() : undefined,
+    eKYCStatus,
   });
 };
 
@@ -103,7 +104,7 @@ const checkLoginStatus = async ({ userId, outletId }) => {
   ]);
 
   const resolvedOutletId = String(
-    outletId || saved?.outletId || retailer?.outletId || "",
+    outletId || saved?.outletId || retailer?.AepsEkyc?.outletId || "",
   ).trim();
 
   if (!resolvedOutletId) {

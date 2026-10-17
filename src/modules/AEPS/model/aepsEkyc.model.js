@@ -15,13 +15,24 @@ const aepsEkycSchema = new mongoose.Schema(
     },
     referenceKey: {
       type: String,
-      required: true,
       trim: true,
+      default: null,
     },
     pidOptionWadh: {
       type: String,
       trim: true,
-    }
+      default: null,
+    },
+    eKYCStatus: {
+      type: String,
+      enum: ["PENDING", "ACTION_REQUIRED", "COMPLETED", "FAILED"],
+      default: "PENDING",
+    },
+    eKYCRejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
   {
     timestamps: true,

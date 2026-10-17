@@ -1,6 +1,28 @@
 import Joi from "joi";
 
 const initiateCmsPaymentSchema = Joi.object({
+  latitude: Joi.alternatives()
+    .try(
+      Joi.number().min(-90).max(90),
+      Joi.string().trim().min(1)
+    )
+    .required()
+    .messages({
+      "any.required": "Latitude is required",
+      "string.empty": "Latitude cannot be empty",
+    }),
+
+  longitude: Joi.alternatives()
+    .try(
+      Joi.number().min(-180).max(180),
+      Joi.string().trim().min(1)
+    )
+    .required()
+    .messages({
+      "any.required": "Longitude is required",
+      "string.empty": "Longitude cannot be empty",
+    }),
+
   amount: Joi.alternatives()
     .try(
       Joi.number().positive(),
@@ -17,6 +39,7 @@ const initiateCmsPaymentSchema = Joi.object({
   biller_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   consumer_id: Joi.alternatives().try(Joi.string().trim(), Joi.number()).optional(),
   mobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
+  txnid: Joi.string().trim().optional(),
 }).unknown(true);
 
 export { initiateCmsPaymentSchema };

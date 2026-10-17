@@ -32,8 +32,13 @@ const sendOtp = async (req, res, next) => {
     const existingUser = await findByMobile(mobile);
     if (existingUser) {
       const response = ApiResponse.error(
-        "Mobile number is already registered",
-        null,
+        "Account already exists. Please login.",
+        {
+          userId: existingUser._id,
+          registrationStatus: existingUser.registrationStatus,
+          currentRegistrationStep: existingUser.currentRegistrationStep,
+          adminApproved: existingUser.adminApproved,
+        },
         null,
         409
       );

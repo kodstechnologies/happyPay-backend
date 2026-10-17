@@ -6,6 +6,7 @@ import {
   retailerRegister,
   reapplyForKyc,
   getRetailerDetailsService,
+  getAuthenticatedRetailerService,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
 } from "../services/auth.services.js";
@@ -378,6 +379,28 @@ const getRetailerDetails = asyncHandler(async (req, res) => {
   );
 });
 
+const getAuthenticatedRetailer = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  if (!retailerId) {
+    return res.status(401).json({
+      success: false,
+      statusCode: 401,
+      message: "User not authenticated",
+    });
+  }
+
+  const retailer = await getAuthenticatedRetailerService(retailerId);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      retailer,
+      "Authenticated retailer details retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
 const updateShopDetailsController = asyncHandler(async (req, res) => {
   const data = await updateShopDetails(req.body, req.files || {});
   return res.status(200).json(
@@ -423,6 +446,7 @@ export {
   getRetailerAadhaarAndMobileController,
   getBankListController,
   getRetailerDetails,
+  getAuthenticatedRetailer,
   updateShopDetailsController,
   updateAboutDetailsController,
   updateAadhaarDetailsController,

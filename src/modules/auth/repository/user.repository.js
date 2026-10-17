@@ -1,4 +1,5 @@
 import User from "../model/user.model.js";
+import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
 
 const findByMobile = async (mobile) => {
   return await User.findOne({ mobile });
@@ -22,13 +23,7 @@ const verifyMobile = async (userId) => {
     currentRegistrationStep: "ACCOUNT",
   };
 
-  return await User.findByIdAndUpdate(
-    userId,
-    updateData,
-    {
-      new: true,
-    }
-  );
+  return await User.findByIdAndUpdate(userId, updateData, { new: true });
 };
 
 const findByEmail = async (email) => {
@@ -46,31 +41,24 @@ const findByAadhaar = async (aadhaarNumber) => {
 const setEmailVerified = async (userId, email) => {
   return await User.findByIdAndUpdate(
     userId,
-    {
-      email,
-      isEmailVerified: true,
-    },
-    {
-      new: true,
-    }
+    { email, isEmailVerified: true },
+    { new: true }
   );
 };
 
 const markEmailVerifiedByEmail = async (email) => {
-  return await User.updateMany(
-    { email },
-    { isEmailVerified: true }
-  );
+  return await User.updateMany({ email }, { isEmailVerified: true });
 };
 
+/* ==============================
+   Registration Gate Filter
+   Uses AepsEkyc reference existence instead of the removed outletId field.
+============================== */
 const registeredOutletFilter = {
-  outletId: { $exists: true, $nin: [null, ""] },
+  AepsEkyc: { $exists: true, $ne: null },
 };
 
-const findPendingRegisteredRetailers = async ({
-  page = 1,
-  limit = 10,
-} = {}) => {
+const findPendingRegisteredRetailers = async ({ page = 1, limit = 10 } = {}) => {
   const skip = (page - 1) * limit;
 
   const filter = {
@@ -81,10 +69,10 @@ const findPendingRegisteredRetailers = async ({
   const [retailers, total] = await Promise.all([
     User.find(filter)
       .select("-refreshTokens -devices")
+      .populate("AepsEkyc")
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(limit),
-
     User.countDocuments(filter),
   ]);
 
@@ -98,9 +86,9 @@ const findPendingRegisteredRetailers = async ({
 };
 
 const findRetailerById = async (retailerId) => {
-  return await User.findById(retailerId).select(
-    "-refreshTokens -devices"
-  );
+  return await User.findById(retailerId)
+    .select("-refreshTokens -devices")
+    .populate("AepsEkyc");
 };
 
 const updateRetailerReview = async (retailerId, payload) => {
@@ -111,26 +99,37 @@ const updateRetailerReview = async (retailerId, payload) => {
       ...registeredOutletFilter,
     },
     payload,
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).select("-refreshTokens -devices");
+    { new: true, runValidators: true }
+  )
+    .select("-refreshTokens -devices")
+    .populate("AepsEkyc");
 };
 
 const saveRetailerRegistration = async (userId, payload) => {
-  return await User.findByIdAndUpdate(
-    userId,
-    payload,
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).select("-refreshTokens -devices");
+  return await User.findByIdAndUpdate(userId, payload, {
+    new: true,
+    runValidators: true,
+  }).select("-refreshTokens -devices");
 };
 
 const findById = async (userId) => {
   return await User.findById(userId).select("aadhaarNumber mobile");
+};
+
+/* ==============================
+   Update eKYC Status — writes to AepsEkyc document, not User.
+   Accepts optional extraEkycFields to allow atomic multi-field updates.
+============================== */
+const updateEKYCStatus = async (userId, status, rejectionReason = null, extraEkycFields = {}) => {
+  return AepsEkyc.findOneAndUpdate(
+    { userId },
+    {
+      eKYCStatus: status,
+      eKYCRejectionReason: rejectionReason,
+      ...extraEkycFields,
+    },
+    { new: true, upsert: false }
+  );
 };
 
 export {
@@ -150,16 +149,3 @@ export {
   updateEKYCStatus,
 };
 
-
-const updateEKYCStatus = async (userId, status, rejectionReason = null) => {
-  return await User.findByIdAndUpdate(
-    userId,
-    {
-      eKYCStatus: status,
-      eKYCRejectionReason: rejectionReason,
-    },
-    {
-      new: true,
-    }
-  );
-};

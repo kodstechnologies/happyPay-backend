@@ -2,6 +2,7 @@ import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import User from "../model/user.model.js";
 import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
+import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
 
 import {
   generateAccessToken,
@@ -39,27 +40,56 @@ import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
 
 
 /* ==============================
+   Helper to Resolve eKYC Data
+============================== */
+
+const resolveEkycData = async (user) => {
+  if (!user) return null;
+  if (user.AepsEkyc && typeof user.AepsEkyc === "object" && user.AepsEkyc.outletId !== undefined) {
+    return user.AepsEkyc;
+  }
+  if (user.AepsEkyc) {
+    return await AepsEkyc.findById(user.AepsEkyc);
+  }
+  return await AepsEkyc.findOne({ userId: user._id });
+};
+
+/* ==============================
    Token Payloads
 ============================== */
 
-const buildAccessTokenPayload = (user, access) => ({
-  userId: user._id.toString(),
-  email: user.email,
-  userType: "retailer",
-  outletid: user?.outletId || null,
-  outletId: user?.outletId || null,
-  referenceKey: user?.referenceKey || null,
-  roles: access.roles,
-  permissions: access.permissions,
-});
+const buildAccessTokenPayload = (user, access, ekycData = null) => {
+  const ekyc = ekycData || (user?.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
+  const outletId = ekyc?.outletId || null;
+  const referenceKey = ekyc?.referenceKey || null;
+  const eKYCStatus = ekyc?.eKYCStatus || "PENDING";
 
-const buildRefreshTokenPayload = (user) => ({
-  userId: user._id.toString(),
-  userType: "retailer",
-  outletid: user?.outletId || null,
-  outletId: user?.outletId || null,
-  referenceKey: user?.referenceKey || null,
-});
+  return {
+    userId: user._id.toString(),
+    email: user.email,
+    userType: "retailer",
+    outletid: outletId,
+    outletId: outletId,
+    referenceKey: referenceKey,
+    eKYCStatus: eKYCStatus,
+    roles: access.roles,
+    permissions: access.permissions,
+  };
+};
+
+const buildRefreshTokenPayload = (user, ekycData = null) => {
+  const ekyc = ekycData || (user?.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
+  const outletId = ekyc?.outletId || null;
+  const referenceKey = ekyc?.referenceKey || null;
+
+  return {
+    userId: user._id.toString(),
+    userType: "retailer",
+    outletid: outletId,
+    outletId: outletId,
+    referenceKey: referenceKey,
+  };
+};
 
 
 /* ==============================
@@ -133,136 +163,10 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     throw error;
   }
 
-  // Check if user can login based on registration and approval status
-  const registrationStatus = String(user.registrationStatus || "").toUpperCase();
-  const eKYCStatus = String(user.eKYCStatus || "").toUpperCase();
-  const adminApproved = String(user.adminApproved || "").toLowerCase();
+  const ekycData = await resolveEkycData(user);
 
-  // Only allow login if registration is COMPLETED
-  if (registrationStatus !== "COMPLETED") {
-    const error = new Error(
-      "Registration not completed. Please complete your registration before login."
-    );
-    error.statusCode = 403;
-    // Include user details for frontend to guide completion
-    error.data = {
-      userId: user._id,
-      outletId: user.outletId || null,
-      registrationStatus: user.registrationStatus,
-      currentRegistrationStep: user.currentRegistrationStep,
-      user: {
-        id: user._id,
-        mobile: user.mobile,
-        fullName: user.fullName,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified,
-        isMobileVerified: user.isMobileVerified,
-        panNumber: user.panNumber,
-        aadhaarNumber: user.aadhaarNumber,
-        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : null,
-        gender: user.gender,
-        maritalStatus: user.maritalStatus,
-        shopName: user.shop?.name || null,
-        city: user.shop?.address?.city || null,
-        pincode: user.shop?.address?.pincode || null,
-        eKYCStatus: user.eKYCStatus,
-        adminApproved: user.adminApproved,
-        reasonOfRejection: user.reasonOfRejection || null,
-      },
-    };
-    throw error;
-  }
-
-  // eKYC and admin approval status checks commented out as per user request
-  // OTP will be sent irrespective of eKYC status or admin approval status
-  /*
-  // Check eKYC status - should be COMPLETED
-  if (eKYCStatus === "PENDING") {
-    const error = new Error(
-      "eKYC verification is pending. Please complete eKYC verification before login."
-    );
-    error.statusCode = 403;
-    error.data = {
-      userId: user._id,
-      outletId: user.outletId || null,
-      eKYCStatus: user.eKYCStatus,
-      registrationStatus: user.registrationStatus,
-      currentRegistrationStep: user.currentRegistrationStep,
-    };
-    throw error;
-  }
-
-  // Check admin approval status - should be approved
-  if (adminApproved === "pending") {
-    const error = new Error(
-      "Your account is pending admin approval. Please wait for approval before login."
-    );
-    error.statusCode = 403;
-    error.data = {
-      userId: user._id,
-      outletId: user.outletId || null,
-      adminApproved: user.adminApproved,
-      eKYCStatus: user.eKYCStatus,
-      registrationStatus: user.registrationStatus,
-    };
-    throw error;
-  }
-
-  if (adminApproved === "rejected") {
-    const error = new Error(
-      "Your account has been rejected by admin."
-    );
-    error.statusCode = 403;
-    // Include rejection details for frontend to show specific rejected documents
-    error.data = {
-      userId: user._id,
-      outletId: user.outletId || null,
-      adminApproved: user.adminApproved,
-      reasonOfRejection: user.reasonOfRejection,
-      rejectedDocuments: [],
-      eKYCStatus: user.eKYCStatus,
-      registrationStatus: user.registrationStatus,
-      currentRegistrationStep: user.currentRegistrationStep,
-      user: {
-        id: user._id,
-        mobile: user.mobile,
-        fullName: user.fullName,
-        email: user.email,
-        registrationStatus: user.registrationStatus,
-        currentRegistrationStep: user.currentRegistrationStep,
-      },
-    };
-
-    // Find rejected documents from documentReviews
-    if (user.documentReviews) {
-      const documentLabels = {
-        panDocument: "PAN Document",
-        aadhaarDocument: "Aadhaar Document", 
-        selfie: "Selfie Photo",
-        shopInsidePhoto: "Shop Inside Photo",
-        shopOutsidePhoto: "Shop Outside Photo",
-        shopLocationPhoto: "Shop Location Photo",
-        businessProofDocument: "Business Proof Document",
-      };
-
-      Object.keys(documentLabels).forEach(docField => {
-        const docReview = user.documentReviews[docField];
-        if (docReview && docReview.status === "REJECTED") {
-          error.data.rejectedDocuments.push({
-            field: docField,
-            label: documentLabels[docField],
-            rejectionReason: docReview.rejectionReason || "No specific reason provided",
-            reviewedAt: docReview.reviewedAt,
-          });
-        }
-      });
-    }
-
-    throw error;
-  }
-  */
-
-  // Only send OTP if all checks pass
+  // Generate and send OTP for any registered user (including in-progress registrations).
+  // Verification and redirection to the current pending step will happen upon successful OTP verification.
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -273,8 +177,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     mobile: normalizedMobile,
     expiresInSeconds: 300,
     userId: user._id,
-    outletId: user.outletId || null,
-    eKYCStatus: user.eKYCStatus || null,
+    outletId: ekycData?.outletId || null,
+    eKYCStatus: ekycData?.eKYCStatus || null,
     // Include registration details for existing users
     user: {
       id: user._id,
@@ -301,15 +205,7 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
    Retailer Login — Verify OTP
 ============================== */
 
-const getEkycReferenceKey = async (userId) => {
-  try {
-    const ekycRecord = await AepsEkyc.findOne({ userId });
-    return ekycRecord?.referenceKey || null;
-  } catch (error) {
-    console.error("Error fetching eKYC reference key:", error);
-    return null;
-  }
-};
+
 
 const verifyRetailerLoginOtp = async ({
   mobile,
@@ -493,25 +389,20 @@ const verifyRetailerLoginOtp = async ({
 
   await updateLastLogin(user._id);
 
-  // Fetch reference key from eKYC model if not present in user record
-  let referenceKey = user.referenceKey || null;
-  if (!referenceKey) {
-    referenceKey = await getEkycReferenceKey(user._id);
-  }
+  const ekycData = await resolveEkycData(user);
 
-  const accessTokenPayload = {
-    ...buildAccessTokenPayload(user, access),
-    outletId: user.outletId || null,
-    outletid: user.outletId || null,
-    referenceKey: referenceKey || null,
-  };
+  const aepsEkycObj = ekycData
+    ? {
+        outletId: ekycData.outletId || null,
+        referenceKey: ekycData.referenceKey || null,
+        pidOptionWadh: ekycData.pidOptionWadh || null,
+        eKYCStatus: ekycData.eKYCStatus || "PENDING",
+        eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
+      }
+    : null;
 
-  const refreshTokenPayload = {
-    ...buildRefreshTokenPayload(user),
-    outletId: user.outletId || null,
-    outletid: user.outletId || null,
-    referenceKey: referenceKey || null,
-  };
+  const accessTokenPayload = buildAccessTokenPayload(user, access, ekycData);
+  const refreshTokenPayload = buildRefreshTokenPayload(user, ekycData);
 
   const accessToken = generateAccessToken(accessTokenPayload);
   const refreshToken = generateRefreshToken(refreshTokenPayload);
@@ -526,14 +417,19 @@ const verifyRetailerLoginOtp = async ({
   return {
     user: {
       id: user._id,
+      _id: user._id,
       email: user.email,
       mobile: user.mobile,
       fullName: user.fullName,
       status: user.status,
       kycStatus: user.kycStatus,
       adminApproved: user.adminApproved,
-      outletId: user.outletId,
-      referenceKey: user.referenceKey || null,
+      registrationStatus: user.registrationStatus,
+      currentRegistrationStep: user.currentRegistrationStep,
+      outletId: ekycData?.outletId || null,
+      referenceKey: ekycData?.referenceKey || null,
+      eKYCStatus: ekycData?.eKYCStatus || null,
+      AepsEkyc: aepsEkycObj,
       roles: access.roles,
       permissions: access.permissions,
     },
@@ -662,7 +558,7 @@ const retailerRegister = async (data) => {
 
   // Check if retailer is already registered
   const existingRetailer = await findRetailerByMobile(mobile);
-  if (existingRetailer && existingRetailer.outletId) {
+  if (existingRetailer && (existingRetailer.AepsEkyc || existingRetailer.registrationStatus === "COMPLETED")) {
     const error = new Error("Retailer is already registered");
     error.statusCode = 409;
     throw error;
@@ -753,12 +649,21 @@ const retailerRegister = async (data) => {
     ],
   };
 
-  // Create new user with all the data including outletId
+  // Create new user with registration details
   const user = await createRetailer(mappedData);
 
+  // Save AepsEkyc document and link to user
+  const ekycDoc = await saveAepsEkyc({
+    userId: user._id,
+    outletId: String(outletId),
+    eKYCStatus: "PENDING",
+  });
+  user.AepsEkyc = ekycDoc._id;
+  await user.save();
+
   const access = resolveUserAccess(user);
-  const accessToken = generateAccessToken(buildAccessTokenPayload(user, access));
-  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user));
+  const accessToken = generateAccessToken(buildAccessTokenPayload(user, access, ekycDoc));
+  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user, ekycDoc));
 
   await addRefreshToken(user._id, {
     token: refreshToken,
@@ -784,7 +689,9 @@ const retailerRegister = async (data) => {
       email: user.email,
       mobile: user.mobile,
       fullName: user.fullName,
-      outletId: user.outletId,
+      outletId: ekycDoc.outletId,
+      eKYCStatus: ekycDoc.eKYCStatus,
+      referenceKey: ekycDoc.referenceKey || null,
       status: user.status,
       kycStatus: user.kycStatus,
       adminApproved: user.adminApproved,
@@ -804,14 +711,15 @@ const generateRetailerTokens = async (userId, customPayload = {}) => {
     throw error;
   }
 
+  const ekycData = await resolveEkycData(user);
   const access = resolveUserAccess(user);
   const payload = {
-    ...buildAccessTokenPayload(user, access),
+    ...buildAccessTokenPayload(user, access, ekycData),
     ...customPayload,
   };
 
   const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user));
+  const refreshToken = generateRefreshToken(buildRefreshTokenPayload(user, ekycData));
 
   await addRefreshToken(user._id, {
     token: refreshToken,
@@ -877,20 +785,10 @@ const refreshAccessToken = async (refreshToken) => {
 
   // Generate new tokens
   const access = resolveUserAccess(user);
+  const ekycData = await resolveEkycData(user);
 
-  const accessTokenPayload = {
-    ...buildAccessTokenPayload(user, access),
-    outletId: user.outletId || null,
-    outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
-  };
-
-  const refreshTokenPayload = {
-    ...buildRefreshTokenPayload(user),
-    outletId: user.outletId || null,
-    outletid: user.outletId || null,
-    referenceKey: user.referenceKey || null,
-  };
+  const accessTokenPayload = buildAccessTokenPayload(user, access, ekycData);
+  const refreshTokenPayload = buildRefreshTokenPayload(user, ekycData);
 
   const newAccessToken = generateAccessToken(accessTokenPayload);
   const newRefreshToken = generateRefreshToken(refreshTokenPayload);
@@ -917,8 +815,9 @@ const refreshAccessToken = async (refreshToken) => {
       status: user.status,
       kycStatus: user.kycStatus,
       adminApproved: user.adminApproved,
-      outletId: user.outletId,
-      referenceKey: user.referenceKey || null,
+      outletId: ekycData?.outletId || null,
+      referenceKey: ekycData?.referenceKey || null,
+      eKYCStatus: ekycData?.eKYCStatus || null,
       roles: access.roles,
       permissions: access.permissions,
     },
@@ -957,6 +856,7 @@ export {
   retailerRegister,
   reapplyForKyc,
   getRetailerDetailsService,
+  getAuthenticatedRetailerService,
   generateRetailerTokens,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
@@ -988,7 +888,8 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     .select("-refreshTokens -devices -__v")
     .populate("shop.category", "name")
     .populate("shop.propertyType", "name")
-    .populate("businessProofType", "name");
+    .populate("businessProofType", "name")
+    .populate("AepsEkyc");
 
   if (!retailer) {
     const error = new Error(
@@ -1007,6 +908,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     email: retailer.email,
     isEmailVerified: retailer.isEmailVerified,
     registrationStatus: retailer.registrationStatus,
+    currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
     fullName: retailer.fullName,
     fatherName: retailer.fatherName,
     gender: retailer.gender,
@@ -1033,7 +935,9 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     businessProofDocument: retailer.businessProofDocument,
     banks: retailer.banks || [],
     primaryBank: retailer.banks?.find((b) => b.isPrimary) || retailer.banks?.[0] || null,
-    outletId: retailer.outletId,
+    outletId: retailer.AepsEkyc?.outletId || null,
+    eKYCStatus: retailer.AepsEkyc?.eKYCStatus || null,
+    referenceKey: retailer.AepsEkyc?.referenceKey || null,
     kycStatus: retailer.kycStatus,
     kycRejectionReason: retailer.kycRejectionReason,
     adminApproved: retailer.adminApproved,
@@ -1044,5 +948,59 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     lastLoginAt: retailer.lastLoginAt,
     createdAt: retailer.createdAt,
     updatedAt: retailer.updatedAt,
+  };
+};
+
+const getAuthenticatedRetailerService = async (retailerId) => {
+  if (!retailerId) {
+    const error = new Error("Retailer ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const retailer = await User.findById(retailerId)
+    .select(
+      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc"
+    );
+
+  if (!retailer) {
+    const error = new Error("Retailer not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const access = resolveUserAccess(retailer);
+  const ekycData = await resolveEkycData(retailer);
+
+  const aepsEkycObj = ekycData
+    ? {
+        outletId: ekycData.outletId || null,
+        referenceKey: ekycData.referenceKey || null,
+        pidOptionWadh: ekycData.pidOptionWadh || null,
+        eKYCStatus: ekycData.eKYCStatus || "PENDING",
+        eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
+      }
+    : null;
+
+  return {
+    id: retailer._id,
+    _id: retailer._id,
+    mobile: retailer.mobile,
+    email: retailer.email || null,
+    fullName: retailer.fullName || null,
+    registrationStatus: retailer.registrationStatus,
+    currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
+    adminApproved: retailer.adminApproved,
+    kycStatus: retailer.kycStatus,
+    outletId: ekycData?.outletId || null,
+    referenceKey: ekycData?.referenceKey || null,
+    eKYCStatus: ekycData?.eKYCStatus || null,
+    AepsEkyc: aepsEkycObj,
+    roles: access.roles,
+    permissions: access.permissions,
+    isMobileVerified: !!retailer.isMobileVerified,
+    isEmailVerified: !!retailer.isEmailVerified,
+    status: retailer.status,
+    isActive: !!retailer.isActive,
   };
 };

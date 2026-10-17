@@ -324,6 +324,14 @@ const withBiometricDefaults = (payload) => {
 };
 
 const doBioEkycController = asyncHandler(async (req, res) => {
+  const userId = req.body.userId || req.user?.userId;
+
+  if (!userId) {
+    return res.status(401).json(
+      ApiResponse.error("User ID is required to perform biometric eKYC")
+    );
+  }
+
   const payload = withBiometricDefaults(
     pickFields(req.body, biometricFields)
   );
@@ -344,24 +352,12 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   }
 
   const saved = await recordEkycOutlet({
-    userId: req.body.userId,
+    userId,
     outletId: payload.outlet_id,
-    referenceKey: referenceKey,
-    pidOptionWadh: pidOptionWadh,
+    referenceKey,
+    pidOptionWadh,
+    eKYCStatus: "COMPLETED",
   });
-
-  // Update the user's eKYC status to COMPLETED
-  await updateEKYCStatus(req.body.userId, "COMPLETED");
-
-  const userId = req.body.userId || req.user?.userId;
-
-  if (userId) {
-    await User.findByIdAndUpdate(userId, {
-      referenceKey: referenceKey,
-      ...(payload.outlet_id ? { outletId: payload.outlet_id } : {}),
-      eKYCStatus: "COMPLETED",
-    });
-  }
 
   return res.status(200).json(
     ApiResponse.success(

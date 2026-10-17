@@ -244,7 +244,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-
+    ditributor:{
+       type:mongoose.Schema.Types.ObjectId,
+       ref:"User"
+    },
     // =========================
     // Bank Details (Array for multiple banks)
     // =========================
@@ -291,27 +294,12 @@ const userSchema = new mongoose.Schema(
     // =========================
     // eKYC (AEPS)
     // =========================
-    eKYCStatus: {
-      type: String,
-
-      default: "PENDING",
-    },
-
-    eKYCRejectionReason: {
-      type: String,
-      trim: true,
-    },
-
-    // =========================
-    // Merchant Onboarding
-    // =========================
-    outletId: {
-      type: String,
-      trim: true,
-    },
-    referenceKey: {
-      type: String,
-      trim: true
+    // eKYCStatus, eKYCRejectionReason, outletId, referenceKey
+    // are stored in the AepsEkyc document and accessed via populate.
+    AepsEkyc: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AepsEkyc",
+      default: null,
     },
 
     adminApproved: {
