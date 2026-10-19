@@ -1077,7 +1077,91 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   }
 
   // Bank details update
-  if (body.accountNumber && body.ifscCode) {
+  if (body.action === "DELETE_BANK" && (body.bankId || body.targetBankId)) {
+    const targetId = String(body.bankId || body.targetBankId);
+    if (user.banks && user.banks.length > 1) {
+      const bankIndex = user.banks.findIndex(
+        (b) => b._id && b._id.toString() === targetId
+      );
+      if (bankIndex >= 0) {
+        const wasPrimary = Boolean(user.banks[bankIndex].isPrimary);
+        user.banks.splice(bankIndex, 1);
+        if (wasPrimary && user.banks.length > 0) {
+          user.banks[0].isPrimary = true;
+        }
+        user.markModified("banks");
+      }
+    } else if (user.banks && user.banks.length === 1) {
+      const error = new Error(
+        "Cannot delete your only settlement bank account. Please link another bank account first."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  } else if (body.action === "SET_PRIMARY_BANK" && (body.bankId || body.setPrimaryBankId)) {
+    const targetId = String(body.bankId || body.setPrimaryBankId);
+    if (user.banks && user.banks.length > 0) {
+      user.banks.forEach((b) => {
+        b.isPrimary = b._id ? b._id.toString() === targetId : false;
+      });
+      user.markModified("banks");
+    }
+  } else if (body.action === "ADD_BANK" || body.isNewBank) {
+    if (body.accountNumber && body.ifscCode) {
+      const shouldBePrimary =
+        Boolean(body.isPrimary) || (!user.banks || user.banks.length === 0);
+
+      if (shouldBePrimary && user.banks && user.banks.length > 0) {
+        user.banks.forEach((b) => {
+          b.isPrimary = false;
+        });
+      }
+
+      const newBank = {
+        name: (body.bankName || "Bank Account").trim(),
+        ifscCode: String(body.ifscCode).trim().toUpperCase(),
+        accountNumber: String(body.accountNumber).trim(),
+        confirmAccountNumber: String(body.accountNumber).trim(),
+        branchName: (body.branchName || "").trim(),
+        isPrimary: shouldBePrimary,
+        isActive: true,
+      };
+
+      if (!user.banks) user.banks = [];
+      user.banks.push(newBank);
+      user.markModified("banks");
+    }
+  } else if (body.action === "EDIT_BANK" || body.bankId) {
+    if (body.accountNumber && body.ifscCode && user.banks && user.banks.length > 0) {
+      const targetId = String(body.bankId);
+      const bankIndex = user.banks.findIndex(
+        (b) => b._id && b._id.toString() === targetId
+      );
+
+      if (bankIndex >= 0) {
+        const shouldBePrimary =
+          body.isPrimary !== undefined
+            ? Boolean(body.isPrimary)
+            : Boolean(user.banks[bankIndex].isPrimary);
+
+        if (shouldBePrimary) {
+          user.banks.forEach((b, idx) => {
+            b.isPrimary = idx === bankIndex;
+          });
+        }
+
+        user.banks[bankIndex].name = (body.bankName || user.banks[bankIndex].name).trim();
+        user.banks[bankIndex].accountNumber = String(body.accountNumber).trim();
+        user.banks[bankIndex].confirmAccountNumber = String(body.accountNumber).trim();
+        user.banks[bankIndex].ifscCode = String(body.ifscCode).trim().toUpperCase();
+        user.banks[bankIndex].branchName = (
+          body.branchName !== undefined ? body.branchName : user.banks[bankIndex].branchName || ""
+        ).trim();
+        user.banks[bankIndex].isPrimary = shouldBePrimary;
+        user.markModified("banks");
+      }
+    }
+  } else if (body.accountNumber && body.ifscCode) {
     const updatedBank = {
       name: (body.bankName || "Primary Bank").trim(),
       ifscCode: String(body.ifscCode).trim().toUpperCase(),
@@ -1101,6 +1185,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
         user.banks.unshift(updatedBank);
       }
     }
+    user.markModified("banks");
   }
 
   // Document file updates
