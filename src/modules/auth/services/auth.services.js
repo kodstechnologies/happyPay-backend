@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import User from "../model/user.model.js";
@@ -857,6 +858,7 @@ export {
   reapplyForKyc,
   getRetailerDetailsService,
   getAuthenticatedRetailerService,
+  updateRetailerProfileService,
   generateRetailerTokens,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
@@ -1004,3 +1006,132 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     isActive: !!retailer.isActive,
   };
 };
+
+const DOC_FIELDS = [
+  "panDocument",
+  "aadhaarDocument",
+  "selfie",
+  "shopInsidePhoto",
+  "shopOutsidePhoto",
+  "shopLocationPhoto",
+  "businessProofDocument",
+];
+
+const updateRetailerProfileService = async (retailerId, body = {}, files = {}) => {
+  if (!retailerId) {
+    const error = new Error("Retailer ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findById(retailerId);
+  if (!user) {
+    const error = new Error("Retailer not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Personal fields update
+  if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
+  if (body.fatherName !== undefined) user.fatherName = String(body.fatherName).trim();
+  if (body.gender !== undefined) user.gender = String(body.gender).trim();
+  if (body.maritalStatus !== undefined) user.maritalStatus = String(body.maritalStatus).trim();
+  if (body.educationalQualification !== undefined) {
+    user.educationalQualification = String(body.educationalQualification).trim();
+  }
+  if (body.dateOfBirth) {
+    const parsedDob = new Date(body.dateOfBirth);
+    if (!Number.isNaN(parsedDob.getTime())) {
+      user.dateOfBirth = parsedDob;
+    }
+  }
+
+  // Shop details update
+  if (!user.shop) user.shop = {};
+  if (body.shopName !== undefined) user.shop.name = String(body.shopName).trim();
+  if (body.shopCategory && mongoose.Types.ObjectId.isValid(body.shopCategory)) {
+    user.shop.category = body.shopCategory;
+  }
+  if (body.propertyType && mongoose.Types.ObjectId.isValid(body.propertyType)) {
+    user.shop.propertyType = body.propertyType;
+  }
+  if (body.businessProofType && mongoose.Types.ObjectId.isValid(body.businessProofType)) {
+    user.businessProofType = body.businessProofType;
+  }
+
+  if (!user.shop.address) user.shop.address = {};
+  if (body.addressLine !== undefined) user.shop.address.addressLine = String(body.addressLine).trim();
+  if (body.city !== undefined) user.shop.address.city = String(body.city).trim();
+  if (body.state !== undefined) user.shop.address.state = String(body.state).trim();
+  if (body.pincode !== undefined) user.shop.address.pincode = String(body.pincode).trim();
+  if (body.completeAddress !== undefined) user.shop.completeAddress = String(body.completeAddress).trim();
+
+  // Location coordinates
+  if (body.latitude !== undefined && body.latitude !== null && body.latitude !== "") {
+    if (!user.shop.location) user.shop.location = {};
+    user.shop.location.latitude = Number(body.latitude);
+  }
+  if (body.longitude !== undefined && body.longitude !== null && body.longitude !== "") {
+    if (!user.shop.location) user.shop.location = {};
+    user.shop.location.longitude = Number(body.longitude);
+  }
+
+  // Bank details update
+  if (body.accountNumber && body.ifscCode) {
+    const updatedBank = {
+      name: (body.bankName || "Primary Bank").trim(),
+      ifscCode: String(body.ifscCode).trim().toUpperCase(),
+      accountNumber: String(body.accountNumber).trim(),
+      confirmAccountNumber: String(body.accountNumber).trim(),
+      branchName: (body.branchName || "").trim(),
+      isPrimary: true,
+      isActive: true,
+    };
+
+    if (!user.banks || user.banks.length === 0) {
+      user.banks = [updatedBank];
+    } else {
+      const primaryIdx = user.banks.findIndex((b) => b.isPrimary);
+      if (primaryIdx >= 0) {
+        user.banks[primaryIdx] = {
+          ...user.banks[primaryIdx],
+          ...updatedBank,
+        };
+      } else {
+        user.banks.unshift(updatedBank);
+      }
+    }
+  }
+
+  // Document file updates
+  let hasDocumentUpdates = false;
+  if (!user.documentReviews) {
+    user.documentReviews = {};
+  }
+
+  for (const field of DOC_FIELDS) {
+    const uploadedFile = files[field]?.[0];
+    if (uploadedFile?.path) {
+      user[field] = uploadedFile.path;
+      user.documentReviews[field] = {
+        status: "PENDING",
+        rejectionReason: null,
+        reviewedBy: null,
+        reviewedAt: null,
+      };
+      hasDocumentUpdates = true;
+    }
+  }
+
+  // If retailer was previously rejected and updated documents, reset adminApproved to pending
+  if (hasDocumentUpdates && user.adminApproved === "rejected") {
+    user.adminApproved = "pending";
+    user.reasonOfRejection = null;
+  }
+
+  await user.save();
+
+  // Return the complete populated profile
+  return await getRetailerDetailsService(retailerId);
+};
+

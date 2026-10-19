@@ -7,6 +7,7 @@ import {
   reapplyForKyc,
   getRetailerDetailsService,
   getAuthenticatedRetailerService,
+  updateRetailerProfileService,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
 } from "../services/auth.services.js";
@@ -437,6 +438,50 @@ const getCurrentRegistrationStepController = asyncHandler(async (req, res) => {
   );
 });
 
+const getRetailerProfileController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  const retailer = await getRetailerDetailsService(retailerId);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      retailer,
+      "Retailer profile retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
+const updateRetailerProfileController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  const updatedRetailer = await updateRetailerProfileService(
+    retailerId,
+    req.body,
+    req.files || {}
+  );
+
+  return res.status(200).json(
+    ApiResponse.success(
+      updatedRetailer,
+      "Retailer profile updated successfully",
+      null,
+      200
+    )
+  );
+});
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -447,9 +492,12 @@ export {
   getBankListController,
   getRetailerDetails,
   getAuthenticatedRetailer,
+  getRetailerProfileController,
+  updateRetailerProfileController,
   updateShopDetailsController,
   updateAboutDetailsController,
   updateAadhaarDetailsController,
   updateBankDetailsController,
   getCurrentRegistrationStepController,
 };
+

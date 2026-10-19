@@ -10,6 +10,8 @@ import {
   getBankListController,
   getRetailerDetails,
   getAuthenticatedRetailer,
+  getRetailerProfileController,
+  updateRetailerProfileController,
   updateShopDetailsController,
   updateAboutDetailsController,
   updateAadhaarDetailsController,
@@ -53,6 +55,8 @@ router.patch("/registration/bank-details", validateBankDetails, updateBankDetail
 
 router.get("/retailer/details/:retailerId", getRetailerDetails);
 router.get("/retailer/auth/me", authMiddleware, getAuthenticatedRetailer);
+router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
+router.patch("/retailer/profile", authMiddleware, uploadRetailerDocuments, updateRetailerProfileController);
 
 router.post(
   "/retailer/login/send-otp",

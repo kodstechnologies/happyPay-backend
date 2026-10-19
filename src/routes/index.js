@@ -20,6 +20,8 @@ import paymentRoutes from "../modules/payments/routes/payment.routes.js";
 import walletRoutes from "../modules/wallet/routes/wallet.routes.js";
 import transactionRoutes from "../modules/transaction/routes/transaction.routes.js";
 
+import dashboardRoutes from "../modules/dashboard/routes/dashboard.routes.js";
+
 router.use("/api/v1/otp", otpRoutes);
 router.use("/api/v1/email-otp", emailOtpRoutes);
 router.use("/api/v1/master-data", masterDataRoutes);
@@ -36,6 +38,7 @@ router.use("/api/v1/cms", cmsRoutes);
 router.use("/api/v1/payments", paymentRoutes);
 router.use("/api/v1/wallet", walletRoutes);
 router.use("/api/v1/transactions", transactionRoutes);
+router.use("/api/v1/dashboard", dashboardRoutes);
 
 
 // router.use("/api/v1/admin/support", adminSupportRoutes);
