@@ -515,10 +515,13 @@ const updateShopDetails = async (body = {}, files = {}) => {
   const panNumber = body.panNumber ? String(body.panNumber).trim().toUpperCase() : user.panNumber;
 
   // Check if PAN number already exists for a different user
-  if (panNumber && panNumber !== user.panNumber) {
-    const existingPanUser = await findByPan(panNumber);
-    if (existingPanUser && existingPanUser._id.toString() !== user._id.toString()) {
-      throw fail(409, "PAN number is already registered with another account");
+  if (panNumber) {
+    const currentPan = String(user.panNumber || "").trim().toUpperCase();
+    if (panNumber !== currentPan) {
+      const existingPanUser = await findByPan(panNumber);
+      if (existingPanUser && existingPanUser._id.toString() !== user._id.toString()) {
+        throw fail(409, "PAN number is already registered with another account");
+      }
     }
   }
 
@@ -627,11 +630,24 @@ const updateAadhaarDetails = async (body = {}, files = {}) => {
     throw fail(404, "User not found");
   }
 
+  const aadhaarNumber = body.aadhaarNumber ? String(body.aadhaarNumber).trim() : user.aadhaarNumber;
+
+  // Check if Aadhaar number already exists for a different user
+  if (aadhaarNumber) {
+    const currentAadhaar = String(user.aadhaarNumber || "").trim();
+    if (aadhaarNumber !== currentAadhaar) {
+      const existingAadhaarUser = await findByAadhaar(aadhaarNumber);
+      if (existingAadhaarUser && existingAadhaarUser._id.toString() !== user._id.toString()) {
+        throw fail(409, "Aadhaar number is already registered with another account");
+      }
+    }
+  }
+
   // Process file upload
   const aadhaarDocument = files.aadhaarDocument?.[0]?.path;
 
   // Update user data (all already validated by Joi and multer middleware)
-  user.aadhaarNumber = body.aadhaarNumber;
+  user.aadhaarNumber = aadhaarNumber;
   user.aadhaarConsent = body.aadhaarConsent;
   user.aadhaarMobileLinked = body.aadhaarMobileLinked;
   if (aadhaarDocument) user.aadhaarDocument = aadhaarDocument;
@@ -646,7 +662,7 @@ const updateAadhaarDetails = async (body = {}, files = {}) => {
 
 const updateBankDetailsAndOnboard = async (body = {}) => {
   // Get user (userId already validated by route middleware)
-  const user = await User.findById(body.userId);
+  const user = await User.findById(body.userId).populate("AepsEkyc");
   if (!user) {
     throw fail(404, "User not found");
   }
@@ -668,102 +684,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     }
   ];
 
-  // Call external merchant onboarding API (Provider API)
-  const parsedDob = user.dateOfBirth ? toDateOnly(user.dateOfBirth) : "";
-  const onboardPayload = {
-    mobile: user.mobile || "",
-    name: user.fullName || "",
-    gender: user.gender || "",
-    pan: user.panNumber || "",
-    email: user.email || "",
-    aadhaar: user.aadhaarNumber || "",
-    fulladdress: user.shop?.completeAddress || user.shop?.address?.addressLine || "",
-    pincode: user.shop?.address?.pincode || "",
-    city: user.shop?.address?.city || "",
-    dob: parsedDob,
-    latitude: user.shop?.location?.latitude || 0,
-    longitude: user.shop?.location?.longitude || 0,
-  };
-  console.log("=================================payload", onboardPayload)
-  let providerResult;
-  try {
-    providerResult = await onboardMerchant(onboardPayload);
-  } catch (error) {
-    const rawStatus =
-      error.statusCode ||
-      error.response?.status ||
-      error.providerData?.code;
-    const numericStatus = Number(rawStatus);
-    const providerStatus =
-      numericStatus >= 400 && numericStatus < 600 ? numericStatus : null;
-
-    const providerData =
-      error.providerData?.details ||
-      error.providerData ||
-      error.response?.data ||
-      null;
-
-    const providerMessage =
-      providerData?.msg ||
-      providerData?.message ||
-      error.providerData?.message ||
-      error.message ||
-      "Merchant onboarding failed at external gateway";
-
-    throw fail(
-      providerStatus || 502,
-      providerMessage,
-      providerData || null
-    );
-  }
-
-  const providerStatus = String(providerResult?.status || "").toUpperCase();
-  const providerData = providerResult?.data || {};
-  const outletId = providerData.outletId || providerResult?.outletId;
-
-  if (providerStatus !== "SUCCESS" || isBlank(outletId)) {
-    // Resolve status code from provider response if provided
-    const rawCode =
-      providerResult?.statusCode ||
-      providerResult?.status_code ||
-      providerResult?.code ||
-      providerResult?.response_code ||
-      providerData?.statusCode ||
-      providerData?.code;
-    const parsedCode = Number(rawCode);
-    const resolvedStatusCode =
-      parsedCode >= 400 && parsedCode < 600 ? parsedCode : 400;
-
-    let errorMessage;
-    if (providerStatus === "SUCCESS" && isBlank(outletId)) {
-      errorMessage =
-        providerData?.msg ||
-        providerData?.message ||
-        "Merchant onboarding completed at gateway but outletId was not returned";
-    } else {
-      errorMessage =
-        providerResult?.msg ||
-        providerResult?.message ||
-        providerData?.msg ||
-        providerData?.message ||
-        providerResult?.error ||
-        "Merchant onboarding failed at external gateway";
-    }
-
-    throw fail(
-      resolvedStatusCode,
-      errorMessage,
-      providerResult || null
-    );
-  }
-
-  const ekycDoc = await saveAepsEkyc({
-    userId: user._id,
-    outletId: String(outletId),
-    eKYCStatus: "PENDING",
-  });
-
-  user.AepsEkyc = ekycDoc._id;
+  // Complete retailer registration at Happy Pay
   user.registrationStatus = "COMPLETED";
   user.currentRegistrationStep = "SUBMITTED";
 
@@ -785,7 +706,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   await user.save();
 
-  // Safely save device info if provided during onboarding
+  // Safely save device info if provided during registration
   if (body.deviceId && body.platform) {
     try {
       await addOrUpdateDevice(user._id, {
@@ -795,16 +716,16 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
         deviceName: body.deviceName,
       });
     } catch (deviceError) {
-      console.warn("Device info save skipped during onboarding:", deviceError?.message);
+      console.warn("Device info save skipped during registration:", deviceError?.message);
     }
   }
 
   return {
     userId: user._id,
-    outletId: ekycDoc.outletId,
-    user: buildRetailerResponse(user, ekycDoc),
-    onboarding: providerResult,
-    eKYCStatus: ekycDoc.eKYCStatus,
+    outletId: user.AepsEkyc?.outletId || null,
+    user: buildRetailerResponse(user),
+    registrationStatus: user.registrationStatus,
+    currentRegistrationStep: user.currentRegistrationStep,
   };
 };
 

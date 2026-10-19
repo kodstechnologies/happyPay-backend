@@ -31,11 +31,17 @@ const findByEmail = async (email) => {
 };
 
 const findByPan = async (panNumber) => {
-  return await User.findOne({ panNumber });
+  if (!panNumber) return null;
+  const trimmed = String(panNumber).trim();
+  return await User.findOne({
+    panNumber: { $regex: new RegExp(`^${trimmed}$`, "i") },
+  });
 };
 
 const findByAadhaar = async (aadhaarNumber) => {
-  return await User.findOne({ aadhaarNumber });
+  if (!aadhaarNumber) return null;
+  const trimmed = String(aadhaarNumber).trim();
+  return await User.findOne({ aadhaarNumber: trimmed });
 };
 
 const setEmailVerified = async (userId, email) => {

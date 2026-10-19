@@ -4,6 +4,7 @@ import {
   recordEkycOutlet,
   checkLoginStatus,
   isKycRequired,
+  onboardMerchantService,
 } from "../services/aeps.service.js";
 import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw, cashDeposite, sendOtp } from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
@@ -947,6 +948,36 @@ const cashDepositController = async (req, res) => {
   }
 };
 
+/* ==============================
+   Onboard Merchant Controller
+============================== */
+const onboardController = asyncHandler(async (req, res) => {
+  const userId =
+    req.user?.userId ||
+    req.user?.id ||
+    req.user?._id ||
+    req.body?.userId;
+
+  if (!userId) {
+    return res.status(401).json(
+      ApiResponse.error("User ID is required for merchant onboarding", null, null, 401)
+    );
+  }
+
+  const result = await onboardMerchantService(userId);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      result?.alreadyOnboarded
+        ? "Retailer is already onboarded"
+        : "Merchant onboarded successfully",
+      null,
+      200
+    )
+  );
+});
+
 export {
   getRetailerKycDetailsController,
   doEkycController,
@@ -958,4 +989,5 @@ export {
   cashWithdrawController,
   cashDepositController,
   sendOtpController,
+  onboardController,
 };

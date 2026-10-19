@@ -10,6 +10,7 @@ import {
   cashWithdrawController,
   cashDepositController,
   sendOtpController,
+  onboardController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
@@ -24,6 +25,9 @@ import {
 } from "../validations/aeps.validation.js";
 
 const router = Router();
+
+// Onboard retailer merchant to AEPS gateway
+router.post("/onboard", authMiddleware, onboardController);
 
 // Get retailer KYC details (Aadhaar and PAN)
 router.get(

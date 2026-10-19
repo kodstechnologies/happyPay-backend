@@ -403,10 +403,16 @@ const getAuthenticatedRetailer = asyncHandler(async (req, res) => {
 });
 
 const updateShopDetailsController = asyncHandler(async (req, res) => {
-  const data = await updateShopDetails(req.body, req.files || {});
-  return res.status(200).json(
-    ApiResponse.success(data, "Shop details updated successfully", null, 200)
-  );
+  const files = uploadedRetailerFiles(req.files);
+  try {
+    const data = await updateShopDetails(req.body, req.files || {});
+    return res.status(200).json(
+      ApiResponse.success(data, "Shop details updated successfully", null, 200)
+    );
+  } catch (error) {
+    await removeUploadedRetailerFiles(files);
+    throw error;
+  }
 });
 
 const updateAboutDetailsController = asyncHandler(async (req, res) => {
@@ -417,16 +423,22 @@ const updateAboutDetailsController = asyncHandler(async (req, res) => {
 });
 
 const updateAadhaarDetailsController = asyncHandler(async (req, res) => {
-  const data = await updateAadhaarDetails(req.body, req.files || {});
-  return res.status(200).json(
-    ApiResponse.success(data, "Aadhaar details updated successfully", null, 200)
-  );
+  const files = uploadedRetailerFiles(req.files);
+  try {
+    const data = await updateAadhaarDetails(req.body, req.files || {});
+    return res.status(200).json(
+      ApiResponse.success(data, "Aadhaar details updated successfully", null, 200)
+    );
+  } catch (error) {
+    await removeUploadedRetailerFiles(files);
+    throw error;
+  }
 });
 
 const updateBankDetailsController = asyncHandler(async (req, res) => {
   const data = await updateBankDetailsAndOnboard(req.body);
   return res.status(200).json(
-    ApiResponse.success(data, "Bank details updated and merchant onboarded successfully", null, 200)
+    ApiResponse.success(data, "Bank details updated and registration completed successfully", null, 200)
   );
 });
 
