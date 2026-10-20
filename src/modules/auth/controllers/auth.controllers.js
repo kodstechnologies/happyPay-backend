@@ -24,6 +24,7 @@ import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
+import { validatePincode } from "../services/pincode.service.js";
 
 const retailerFileFields = [
   "selfie",
@@ -494,6 +495,21 @@ const updateRetailerProfileController = asyncHandler(async (req, res) => {
   );
 });
 
+const validatePincodeController = asyncHandler(async (req, res) => {
+  const { pincode } = req.params;
+  const result = await validatePincode(pincode);
+
+  if (!result.isValid) {
+    return res.status(400).json(
+      ApiResponse.error(result.message || "Invalid pincode", null, null, 400)
+    );
+  }
+
+  return res.status(200).json(
+    ApiResponse.success(result, "Pincode validated successfully", null, 200)
+  );
+});
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -511,5 +527,6 @@ export {
   updateAadhaarDetailsController,
   updateBankDetailsController,
   getCurrentRegistrationStepController,
+  validatePincodeController,
 };
 

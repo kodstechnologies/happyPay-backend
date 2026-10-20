@@ -16,6 +16,7 @@ import {
 import { addOrUpdateDevice } from "../repository/auth.repository.js";
 import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
 import "../../AEPS/model/aepsEkyc.model.js";
+import { validatePincode } from "./pincode.service.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -525,6 +526,18 @@ const updateShopDetails = async (body = {}, files = {}) => {
     }
   }
 
+  // Validate pincode via pincode validator service
+  let detectedState = null;
+  if (pincode) {
+    const pincodeCheck = await validatePincode(pincode);
+    if (!pincodeCheck.isValid) {
+      throw fail(400, pincodeCheck.message || "Invalid postal pincode. Please enter a valid 6-digit Indian pincode.");
+    }
+    if (pincodeCheck.state) {
+      detectedState = pincodeCheck.state;
+    }
+  }
+
   // Resolve master data IDs
   let shopCategoryId = user.shop?.category;
   if (body.shopCategory || body.category) {
@@ -565,6 +578,7 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (!user.shop.address) user.shop.address = {};
   if (city) user.shop.address.city = city.trim();
   if (pincode) user.shop.address.pincode = pincode.trim();
+  if (detectedState) user.shop.address.state = detectedState;
   if (address) user.shop.completeAddress = address.trim();
 
   // Update location

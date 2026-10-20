@@ -17,6 +17,7 @@ import {
   updateAadhaarDetailsController,
   updateBankDetailsController,
   getCurrentRegistrationStepController,
+  validatePincodeController,
 } from "../controllers/auth.controllers.js";
 import { uploadRetailerDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
@@ -48,6 +49,9 @@ router.patch("/registration/shop-details", uploadShopDetailsDocuments, validateS
 router.patch("/registration/about", uploadAboutDetailsDocuments, validateAboutFiles, validateAboutDetails, updateAboutDetailsController);
 router.patch("/registration/adhaar-details", uploadAdharDetailsDocuments, validateAadhaarDetails, updateAadhaarDetailsController);
 router.patch("/registration/bank-details", validateBankDetails, updateBankDetailsController);
+
+// Pincode validation endpoint
+router.get("/pincode/validate/:pincode", validatePincodeController);
 
 //patch the details if rejeceted by admin
 // router.patch("/correct-details/")
