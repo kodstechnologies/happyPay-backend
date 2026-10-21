@@ -389,6 +389,8 @@ const miniStatementSchema = Joi.object({
 const cashWithdrawSchema = Joi.object({
   ...commonOutletFields,
 
+  referenceKey: Joi.string().trim().allow(null, "").optional(),
+
   mobile: Joi.string()
     .trim()
     .pattern(/^\d{10}$/)
