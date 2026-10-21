@@ -5,13 +5,7 @@ import logger from "../../../utils/logger.js";
 const pincodeCache = new Map();
 const MAX_CACHE_SIZE = 5000;
 
-/**
- * Validates a 6-digit Indian postal code using the India Post public API
- * with in-memory caching and resilient fallback.
- *
- * @param {string|number} pincode - 6-digit postal code
- * @returns {Promise<{ isValid: boolean, city?: string, district?: string, state?: string, postOffices?: string[], message?: string, isFallback?: boolean }>}
- */
+
 export const validatePincode = async (pincode) => {
   const trimmed = String(pincode || "").trim();
 

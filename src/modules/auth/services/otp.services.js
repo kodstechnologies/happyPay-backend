@@ -40,7 +40,7 @@ import {
     };
   };
   
-  const verifyOtp = async (mobile, otp) => {
+  const verifyOtp = async (mobile, otp, distributorId = null) => {
     const otpRecord = await findLatestOtp(mobile);
 
     if (!otpRecord) {
@@ -74,9 +74,13 @@ import {
 
     // If retailer doesn't exist, create one
     if (!user) {
-      user = await createUser(mobile);
+      user = await createUser(mobile, distributorId);
     } else {
       // Existing retailer - update mobile verification status
+      if (distributorId && !user.ditributor) {
+        user.ditributor = distributorId;
+        await user.save();
+      }
       user = await verifyMobile(user._id);
     }
 

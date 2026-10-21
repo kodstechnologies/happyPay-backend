@@ -17,6 +17,8 @@ import { addOrUpdateDevice } from "../repository/auth.repository.js";
 import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
 import "../../AEPS/model/aepsEkyc.model.js";
 import { validatePincode } from "./pincode.service.js";
+import DistributorMapping from "../../network/model/distributorMapping.model.js";
+import Role from "../model/role.model.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -598,6 +600,10 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (businessProofId) user.businessProofType = businessProofId;
   if (businessProofDocument) user.businessProofDocument = businessProofDocument;
 
+  if (body.distributorId && !user.ditributor) {
+    user.ditributor = body.distributorId;
+  }
+
   // Update registration progress
   user.registrationStatus = "IN_PROGRESS";
   user.currentRegistrationStep = "SHOP_DETAILS";
@@ -718,7 +724,50 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     user.documentReviews[field].status = "PENDING";
   }
 
+  if (body.distributorId && (!user.ditributor || String(user.ditributor) !== String(body.distributorId))) {
+    user.ditributor = body.distributorId;
+  }
+
   await user.save();
+
+  // Handle distributor mapping and role progression
+  let isUpgradedToDistributor = false;
+  if (user.ditributor) {
+    try {
+      await DistributorMapping.findOneAndUpdate(
+        { retailerId: user._id },
+        { retailerId: user._id, distributorId: user.ditributor, isActive: true },
+        { upsert: true, new: true }
+      );
+
+      // Rule: if a retailer registers one or more retailers, make that role distributor
+      const registeredCount = await User.countDocuments({ ditributor: user.ditributor });
+      if (registeredCount >= 1) {
+        let distributorRole = await Role.findOne({ slug: "distributor" });
+        if (!distributorRole) {
+          distributorRole = await Role.create({
+            name: "Distributor",
+            slug: "distributor",
+            isActive: true,
+          });
+        }
+        const parentUser = await User.findById(user.ditributor);
+        if (parentUser) {
+          const hasDistRole = parentUser.roles?.some(
+            (r) => r.toString() === distributorRole._id.toString()
+          );
+          if (!hasDistRole) {
+            if (!parentUser.roles) parentUser.roles = [];
+            parentUser.roles.push(distributorRole._id);
+            await parentUser.save();
+            isUpgradedToDistributor = true;
+          }
+        }
+      }
+    } catch (mappingErr) {
+      console.warn("Distributor mapping or role upgrade error:", mappingErr?.message);
+    }
+  }
 
   // Safely save device info if provided during registration
   if (body.deviceId && body.platform) {
@@ -740,6 +789,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     user: buildRetailerResponse(user),
     registrationStatus: user.registrationStatus,
     currentRegistrationStep: user.currentRegistrationStep,
+    isUpgradedToDistributor,
   };
 };
 

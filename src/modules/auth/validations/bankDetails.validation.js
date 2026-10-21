@@ -71,6 +71,7 @@ const bankDetailsSchema = Joi.object({
   deviceId: Joi.string().trim().allow("", null).optional(),
   platform: Joi.string().trim().valid("android", "ios", "web").allow("", null).optional(),
   deviceName: Joi.string().trim().allow("", null).optional(),
+  distributorId: Joi.string().trim().allow("", null).optional(),
 });
 
 export const validateBankDetails = validate(bankDetailsSchema);

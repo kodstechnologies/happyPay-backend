@@ -1216,7 +1216,13 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
   await user.save();
 
-  // Return the complete populated profile
-  return await getRetailerDetailsService(retailerId);
+  // Return lightweight targeted payload without heavy populates
+  return {
+    id: user._id,
+    updated: true,
+    banks: user.banks || [],
+    primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
+    documentReviews: user.documentReviews || null,
+  };
 };
 

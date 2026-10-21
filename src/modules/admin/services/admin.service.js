@@ -3,10 +3,28 @@ import env from "../../../config/env.js";
 import transporter from "../../../config/mail.js";
 import ApiError from "../../../utils/ApiError.js";
 import { generateAccessToken, generateRefreshToken } from "../../../utils/jwt.js";
-import { createAdmin, findAdminByEmail, findAdminByMobile, updateAdminLogin, savePasswordResetToken, findAdminByResetToken, updateAdminPassword } from "../repository/admin.repository.js";
+import {
+  createAdmin,
+  findAdminById,
+  findAdminByEmail,
+  findAdminByMobile,
+  updateAdminLogin,
+  removeAdminRefreshToken,
+  savePasswordResetToken,
+  findAdminByResetToken,
+  updateAdminPassword,
+} from "../repository/admin.repository.js";
 import { hashPassword, hashResetToken, verifyPassword } from "../utils/password.js";
 import createAdminAuditLog from "../utils/createAdminAuditLog.js";
-import { findRetailerById, listRetailers, updateRetailerKyc } from "../repository/adminRetailer.repository.js";
+import { findRetailerById, listRetailers, updateRetailerKyc, updateRetailerAccountStatus, findRetailersByDistributor } from "../repository/adminRetailer.repository.js";
+import Wallet from "../../wallet/model/wallet.model.js";
+import Transaction from "../../transaction/model/transaction.model.js";
+import { getRetailerTransactions } from "../../transaction/service/transaction.service.js";
+import {
+  parsePagination,
+  buildPaginationMetadata,
+  buildTransactionFilter,
+} from "../../../utils/queryHelpers.js";
 import User from "../../auth/model/user.model.js";
 import { sendPushNotification } from "../../../utils/notification.js";
 import { sendKycApprovedNotification, sendKycRejectedNotification } from "../../notifications/services/notification.services.js";
@@ -21,7 +39,22 @@ const refreshExpiry = () => {
   return new Date(Date.now() + Number(match[1]) * multipliers[match[2]]);
 };
 
-const publicAdmin = (admin) => ({ id: admin._id, name: admin.name, email: admin.email, mobile: admin.mobile, role: admin.role, status: admin.status });
+const publicAdmin = (admin) => {
+  const name =
+    [admin.firstName, admin.lastName].filter(Boolean).join(" ") ||
+    admin.name ||
+    "Super Admin";
+  return {
+    id: admin._id ? admin._id.toString() : admin.id,
+    name,
+    firstName: admin.firstName,
+    lastName: admin.lastName,
+    email: admin.email,
+    mobile: admin.mobile,
+    role: admin.role || (Array.isArray(admin.roles) && admin.roles.length ? "super-admin" : "Administrator"),
+    status: admin.status || "active",
+  };
+};
 
 const registerAdmin = async ({ name, email, mobile, password, confirmPassword }, req) => {
   if (!name?.trim() || !email?.trim() || !mobile?.trim() || !password || !confirmPassword) throw ApiError.badRequest("Name, email, mobile, password and confirm password are required");
@@ -32,7 +65,20 @@ const registerAdmin = async ({ name, email, mobile, password, confirmPassword },
   if (await findAdminByEmail(email)) throw ApiError.conflict("An admin with this email already exists");
   if (await findAdminByMobile(mobile)) throw ApiError.conflict("An admin with this mobile number already exists");
 
-  const admin = await createAdmin({ name: name.trim(), email: email.trim().toLowerCase(), mobile: mobile.trim(), passwordHash: await hashPassword(password) });
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const nameParts = name.trim().split(" ");
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(" ") || "";
+
+  const admin = await createAdmin({
+    firstName,
+    lastName,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    mobile: mobile.trim(),
+    password: hashedPassword,
+    status: "active",
+  });
   await createAdminAuditLog({ action: "Admin Registered", entity: "Admin", entityId: admin._id, description: `Admin account created for ${admin.email}`, admin, req });
   return publicAdmin(admin);
 };
@@ -40,21 +86,61 @@ const registerAdmin = async ({ name, email, mobile, password, confirmPassword },
 const loginAdmin = async ({ email, password }, req) => {
   if (!email?.trim() || !password) throw ApiError.badRequest("Email and password are required");
   const admin = await findAdminByEmail(email.trim());
-  console.log("Admin found:", !!admin, "Password hash exists:", !!admin?.password);
-  
-  if (!admin) throw ApiError.unauthorized("Invalid admin credentials (not found)");
-  
+
+  if (!admin) throw ApiError.unauthorized("Invalid email or password");
+
   const isPasswordValid = await bcrypt.compare(password, admin.password);
-  console.log("Is password valid:", isPasswordValid);
-  
-  if (!isPasswordValid) throw ApiError.unauthorized("Invalid admin credentials (wrong password)");
+  if (!isPasswordValid) throw ApiError.unauthorized("Invalid email or password");
   if (admin.status !== "active") throw ApiError.forbidden("Admin account is inactive or suspended");
 
-  const accessToken = generateAccessToken({ adminId: admin._id.toString(), email: admin.email, userType: "admin", role: admin.role });
-  const refreshToken = generateRefreshToken({ adminId: admin._id.toString(), userType: "admin" });
-  await updateAdminLogin(admin._id, refreshToken, refreshExpiry());
+  const adminRole = admin.role || (Array.isArray(admin.roles) && admin.roles.length ? "super-admin" : "Administrator");
+
+  // Include userId, adminId, and id for universal middleware/controller compatibility
+  const accessToken = generateAccessToken({
+    userId: admin._id.toString(),
+    adminId: admin._id.toString(),
+    id: admin._id.toString(),
+    email: admin.email,
+    userType: "admin",
+    role: adminRole,
+  });
+
+  const refreshToken = generateRefreshToken({
+    userId: admin._id.toString(),
+    adminId: admin._id.toString(),
+    id: admin._id.toString(),
+    userType: "admin",
+  });
+
+  const deviceId = req?.headers?.["x-device-id"] || "web-admin-portal";
+  await updateAdminLogin(admin._id, refreshToken, refreshExpiry(), deviceId);
   await createAdminAuditLog({ action: "Admin Login", entity: "Admin", entityId: admin._id, description: `Admin ${admin.email} signed in`, admin, req });
   return { admin: publicAdmin(admin), accessToken, refreshToken };
+};
+
+const logoutAdmin = async (adminId, token, req) => {
+  if (adminId && token) {
+    await removeAdminRefreshToken(adminId, token);
+  }
+  const admin = adminId ? await findAdminById(adminId) : null;
+  if (admin) {
+    await createAdminAuditLog({
+      action: "Admin Logout",
+      entity: "Admin",
+      entityId: admin._id,
+      description: `Admin ${admin.email} logged out`,
+      admin,
+      req,
+    });
+  }
+  return { message: "Admin logged out successfully" };
+};
+
+const getAdminProfile = async (adminId) => {
+  if (!adminId) throw ApiError.unauthorized("Admin ID is required");
+  const admin = await findAdminById(adminId);
+  if (!admin) throw ApiError.notFound("Admin not found");
+  return publicAdmin(admin);
 };
 
 const forgotAdminPassword = async ({ email, mobile }) => {
@@ -95,14 +181,44 @@ const resetAdminPassword = async ({ token, newPassword, confirmPassword }) => {
 
   const admin = await findAdminByResetToken(hashResetToken(token));
   if (!admin) throw ApiError.badRequest("Reset token is invalid or expired");
-  await updateAdminPassword(admin._id, await hashPassword(newPassword));
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  await updateAdminPassword(admin._id, hashedPassword);
   return { message: "Admin password reset successfully" };
 };
 
+
 const getRetailers = async (filters = {}) => {
-  const page = Math.max(Number(filters.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 100);
+  const { page, limit } = parsePagination(filters);
   return listRetailers({ ...filters, page, limit });
+};
+
+const setRetailerAccountStatus = async (id, status) => {
+  const validStatuses = ["approved", "blocked", "rejected", "active", "suspended"];
+  if (!validStatuses.includes(status)) {
+    throw ApiError.badRequest("Invalid status provided");
+  }
+
+  const retailer = await findRetailerById(id);
+  if (!retailer) throw ApiError.notFound("Retailer not found");
+
+  const updateData = {};
+  if (["approved", "rejected"].includes(status)) {
+    updateData.adminApproved = status;
+    updateData.kycStatus = status;
+    if (status === "approved") {
+      updateData.status = "active";
+    }
+  } else {
+    updateData.status = status;
+  }
+
+  const updated = await updateRetailerAccountStatus(id, updateData);
+  return {
+    id: updated._id.toString(),
+    status: updated.status,
+    adminApproved: updated.adminApproved,
+    message: `Retailer status updated to ${status} successfully`,
+  };
 };
 
 const getRetailer = async (id) => {
@@ -153,13 +269,215 @@ const listAdminAuditLogs = async (filters = {}) => {
   });
 };
 
+// ---------------------------------------------------------------------------
+// Admin: retailer transaction history
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns paginated, filtered transactions for a specific retailer.
+ *
+ * Delegates entirely to the shared `getRetailerTransactions` service so there
+ * is no logic duplication.  Validates the retailer exists first so admins get
+ * a clear 404 rather than an empty list for an unknown ID.
+ *
+ * Supported query options (all optional):
+ *   service    — AEPS | DMT | UPI | CMS | PAYOUT | BBPS | RAZORPAY | MANUAL | COMMISSION
+ *   status     — pending | success | failed | reversed
+ *   type       — credit | debit
+ *   startDate  — ISO date string (YYYY-MM-DD, inclusive)
+ *   endDate    — ISO date string (YYYY-MM-DD, inclusive)
+ *   search     — free-text (matches transactionId, description, payee fields, etc.)
+ *   page       — 1-based page number (default 1)
+ *   limit      — page size, max 100 (default 10)
+ *
+ * @param {string} retailerId
+ * @param {Object} options - query-string parameters from the controller
+ * @returns {{ transactions: Object[], pagination: Object }}
+ */
+const getAdminRetailerTransactions = async (retailerId, options = {}) => {
+  const retailer = await findRetailerById(retailerId);
+  if (!retailer) throw ApiError.notFound("Retailer not found");
+
+  // Reuse the existing transaction service — single source of truth for all
+  // pagination, filter-building, and wallet-resolution logic.
+  return getRetailerTransactions(retailerId, options);
+};
+
+// ---------------------------------------------------------------------------
+// Admin: distributor sub-retailer list
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a paginated list of retailers under a distributor, enriched with
+ * wallet transaction statistics (total count + volume of successful transactions).
+ *
+ * DB round-trips = 3, regardless of result-set size:
+ *   1. Paginated User query (with optional search + status filters)
+ *   2. Bulk Wallet lookup for all returned user IDs
+ *   3. Single Transaction aggregation across all found wallet IDs
+ *
+ * Supported query options (all optional):
+ *   search       — fullName | email | mobile (case-insensitive, regex-safe)
+ *   status       — active | blocked | suspended
+ *   adminApproved — pending | approved | rejected
+ *   page         — 1-based (default 1)
+ *   limit        — page size, max 100 (default 10)
+ *
+ * @param {string} distributorId
+ * @param {Object} options - query-string parameters from the controller
+ * @returns {{ items: Object[], pagination: Object }}
+ */
+const getAdminDistributorSubRetailers = async (distributorId, options = {}) => {
+  const distributor = await findRetailerById(distributorId);
+  if (!distributor) throw ApiError.notFound("Retailer not found");
+
+  const { page, limit, skip } = parsePagination(options);
+
+  // 1. Paginated sub-retailer rows
+  const { items: users, total } = await findRetailersByDistributor(distributorId, {
+    skip,
+    limit,
+    search: options.search,
+    status: options.status,
+    adminApproved: options.adminApproved,
+  });
+
+  if (!users.length) {
+    return { items: [], pagination: buildPaginationMetadata(0, page, limit) };
+  }
+
+  // 2. Bulk wallet lookup — one query for all returned user IDs
+  const userIds = users.map((u) => u._id);
+  const wallets = await Wallet.find({ user: { $in: userIds } })
+    .select("_id user")
+    .lean();
+
+  /** Map: userId (string) → walletId (ObjectId) */
+  const walletByUser = new Map(wallets.map((w) => [w.user.toString(), w._id]));
+  const walletIds = wallets.map((w) => w._id);
+
+  // 3. Single aggregation — successful-transaction count + volume per wallet
+  const txStats = walletIds.length
+    ? await Transaction.aggregate([
+        { $match: { wallet: { $in: walletIds }, status: "success" } },
+        {
+          $group: {
+            _id: "$wallet",
+            totalTransactions: { $sum: 1 },
+            totalVolume: { $sum: "$amount" },
+          },
+        },
+      ])
+    : [];
+
+  /** Map: walletId (string) → { totalTransactions, totalVolume } */
+  const statsByWallet = new Map(
+    txStats.map((s) => [s._id.toString(), s])
+  );
+
+  // Compose final items — mask account numbers, attach stats
+  const items = users.map((user) => {
+    const walletId = walletByUser.get(user._id.toString());
+    const stats = walletId ? statsByWallet.get(walletId.toString()) : null;
+    const primaryBank =
+      user.banks?.find((b) => b.isPrimary) ?? user.banks?.[0] ?? null;
+
+    return {
+      id: user._id.toString(),
+      fullName: user.fullName ?? null,
+      email: user.email ?? null,
+      mobile: user.mobile ?? null,
+      panNumber: user.panNumber ?? null,
+      status: user.status,
+      adminApproved: user.adminApproved,
+      registrationStatus: user.registrationStatus,
+      shopName: user.shop?.name ?? null,
+      shopAddress:
+        user.shop?.completeAddress ??
+        (user.shop?.address?.addressLine
+          ? `${user.shop.address.addressLine}, ${user.shop.address.city ?? ""}, ${user.shop.address.state ?? ""}`
+          : null),
+      primaryBank: primaryBank
+        ? {
+            name: primaryBank.name ?? null,
+            ifscCode: primaryBank.ifscCode ?? null,
+            // Mask all but last 4 digits for security
+            accountNumber: primaryBank.accountNumber
+              ? `XXXXXXXX${String(primaryBank.accountNumber).slice(-4)}`
+              : null,
+          }
+        : null,
+      createdAt: user.createdAt,
+      totalTransactions: stats?.totalTransactions ?? 0,
+      totalVolume: stats?.totalVolume ?? 0,
+    };
+  });
+
+  return { items, pagination: buildPaginationMetadata(total, page, limit) };
+};
+
+// ---------------------------------------------------------------------------
+// Admin: list all transactions across all retailers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns paginated, filtered transactions across the entire platform for admin.
+ *
+ * Supported query options (all optional):
+ *   service    — AEPS | DMT | UPI | CMS | PAYOUT | BBPS | RAZORPAY | MANUAL | COMMISSION
+ *   status     — pending | success | failed | reversed
+ *   type       — credit | debit
+ *   startDate  — ISO date string (YYYY-MM-DD, inclusive)
+ *   endDate    — ISO date string (YYYY-MM-DD, inclusive)
+ *   search     — free-text (matches transactionId, description, payee fields, etc.)
+ *   page       — 1-based page number (default 1)
+ *   limit      — page size, max 100 (default 10)
+ *
+ * @param {Object} options - query-string parameters from the controller
+ * @returns {{ transactions: Object[], pagination: Object }}
+ */
+const listAllTransactionsAdmin = async (options = {}) => {
+  const { page, limit, skip } = parsePagination(options);
+  const filter = buildTransactionFilter(null, options);
+
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter)
+      .select("-__v")
+      .populate({
+        path: "wallet",
+        select: "user",
+        populate: {
+          path: "user",
+          select: "fullName mobile email",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Transaction.countDocuments(filter),
+  ]);
+
+  return {
+    transactions,
+    pagination: buildPaginationMetadata(total, page, limit),
+  };
+};
+
 export {
   registerAdmin,
   loginAdmin,
+  logoutAdmin,
+  getAdminProfile,
   forgotAdminPassword,
   resetAdminPassword,
   getRetailers,
   getRetailer,
   updateRetailerKycStatus,
   listAdminAuditLogs,
+  getAdminRetailerTransactions,
+  getAdminDistributorSubRetailers,
+  setRetailerAccountStatus,
+  listAllTransactionsAdmin,
 };
+

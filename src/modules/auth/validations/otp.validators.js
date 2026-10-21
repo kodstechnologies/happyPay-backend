@@ -32,6 +32,7 @@ const verifyOtpSchema = Joi.object({
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
     }),
+  distributorId: Joi.string().trim().allow("", null).optional(),
 });
 
 export const validateSendOtp = validate(sendOtpSchema);

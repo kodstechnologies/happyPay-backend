@@ -18,6 +18,8 @@ import {
   updateBankDetailsController,
   getCurrentRegistrationStepController,
   validatePincodeController,
+  getDownlineRetailersController,
+  getDownlineRetailerTransactionsController,
 } from "../controllers/auth.controllers.js";
 import { uploadRetailerDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
@@ -61,6 +63,10 @@ router.get("/retailer/details/:retailerId", getRetailerDetails);
 router.get("/retailer/auth/me", authMiddleware, getAuthenticatedRetailer);
 router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
 router.patch("/retailer/profile", authMiddleware, uploadRetailerDocuments, updateRetailerProfileController);
+
+// Downline retailers routes for distributors
+router.get("/retailer/downline-retailers", authMiddleware, getDownlineRetailersController);
+router.get("/retailer/downline-retailers/:id/transactions", authMiddleware, getDownlineRetailerTransactionsController);
 
 router.post(
   "/retailer/login/send-otp",

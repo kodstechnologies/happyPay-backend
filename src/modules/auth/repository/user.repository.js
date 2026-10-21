@@ -5,12 +5,13 @@ const findByMobile = async (mobile) => {
   return await User.findOne({ mobile });
 };
 
-const createUser = async (mobile) => {
+const createUser = async (mobile, distributorId = null) => {
   const userData = {
     mobile,
     isMobileVerified: true,
     registrationStatus: "IN_PROGRESS",
     currentRegistrationStep: "ACCOUNT",
+    ...(distributorId ? { ditributor: distributorId } : {}),
   };
 
   return await User.create(userData);

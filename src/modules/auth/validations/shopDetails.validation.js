@@ -117,6 +117,7 @@ const shopDetailsSchema = Joi.object({
       "string.max": "Full address must not exceed 500 characters",
     }),
   businessProof: objectId("Business proof type").optional(),
+  distributorId: Joi.string().trim().allow("", null).optional(),
 
   // Note: File fields (shopInsidePhoto, shopOutsidePhoto, shopLocationPhoto, businessProofDocument, panDocument)
   // are handled by multer middleware and available in req.files, not req.body

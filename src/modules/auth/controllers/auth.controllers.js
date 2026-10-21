@@ -25,6 +25,9 @@ import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
 import { validatePincode } from "../services/pincode.service.js";
+import User from "../model/user.model.js";
+import { parsePagination, buildPaginationMetadata, escapeRegex } from "../../../utils/queryHelpers.js";
+import { getRetailerTransactions } from "../../transaction/service/transaction.service.js";
 
 const retailerFileFields = [
   "selfie",
@@ -510,6 +513,107 @@ const validatePincodeController = asyncHandler(async (req, res) => {
   );
 });
 
+const getDownlineRetailersController = asyncHandler(async (req, res) => {
+  const distributorId = req.user?.userId;
+  if (!distributorId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  const { page, limit, skip } = parsePagination(req.query);
+  const query = { ditributor: distributorId };
+
+  if (req.query.status) {
+    query.status = req.query.status;
+  }
+  if (req.query.adminApproved) {
+    query.adminApproved = req.query.adminApproved;
+  }
+
+  if (req.query.search && String(req.query.search).trim()) {
+    const escaped = escapeRegex(String(req.query.search).trim().slice(0, 100));
+    const regex = { $regex: escaped, $options: "i" };
+    query.$or = [
+      { fullName: regex },
+      { email: regex },
+      { mobile: regex },
+      { "shop.name": regex },
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    User.find(query)
+      .select("fullName email mobile panNumber status adminApproved registrationStatus shop createdAt aadhaarVerified")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    User.countDocuments(query),
+  ]);
+
+  const items = users.map((u) => {
+    let statusLabel = "Pending";
+    if (u.status === "blocked") statusLabel = "Blocked";
+    else if (u.status === "suspended") statusLabel = "Suspended";
+    else if (u.adminApproved === "approved") statusLabel = "Approved";
+    else if (u.adminApproved === "rejected") statusLabel = "Rejected";
+    else if (u.status === "active" && u.adminApproved === "pending") statusLabel = "Pending";
+    else if (u.status === "active") statusLabel = "Active";
+
+    return {
+      id: u._id.toString(),
+      name: u.fullName || u.shop?.name || "Retailer",
+      mobile: u.mobile || "",
+      email: u.email || "",
+      shopName: u.shop?.name || "",
+      status: statusLabel,
+      rawStatus: u.status,
+      adminApproved: u.adminApproved,
+      registeredAt: u.createdAt,
+    };
+  });
+
+  return res.status(200).json(
+    ApiResponse.success(
+      items,
+      "Downline retailers retrieved successfully",
+      buildPaginationMetadata(total, page, limit),
+      200
+    )
+  );
+});
+
+const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) => {
+  const distributorId = req.user?.userId;
+  const { id } = req.params;
+
+  if (!distributorId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  // Ensure this retailer was registered by this distributor
+  const retailer = await User.findOne({ _id: id, ditributor: distributorId }).lean();
+  if (!retailer) {
+    return res.status(404).json(
+      ApiResponse.error("Retailer not found or not in your downline network", null, null, 404)
+    );
+  }
+
+  const result = await getRetailerTransactions(id, req.query);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result.transactions,
+      "Retailer transactions retrieved successfully",
+      result.pagination,
+      200
+    )
+  );
+});
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -528,5 +632,7 @@ export {
   updateBankDetailsController,
   getCurrentRegistrationStepController,
   validatePincodeController,
+  getDownlineRetailersController,
+  getDownlineRetailerTransactionsController,
 };
 

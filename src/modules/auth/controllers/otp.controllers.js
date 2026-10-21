@@ -72,7 +72,7 @@ const verifyOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const { mobile, otp } = req.body;
+    const { mobile, otp, distributorId } = req.body;
 
     // Check if required fields are present
     if (!mobile) {
@@ -95,7 +95,7 @@ const verifyOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const result = await otpService.verifyOtp(mobile, otp);
+    const result = await otpService.verifyOtp(mobile, otp, distributorId);
 
     const response = ApiResponse.success(
       result,
