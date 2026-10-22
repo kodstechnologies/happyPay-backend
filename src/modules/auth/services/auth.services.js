@@ -1216,13 +1216,11 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
   await user.save();
 
-  // Return lightweight targeted payload without heavy populates
+  // Return full canonical retailer profile with populated relations
+  const fullProfile = await getRetailerDetailsService(user._id);
   return {
-    id: user._id,
+    ...fullProfile,
     updated: true,
-    banks: user.banks || [],
-    primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
-    documentReviews: user.documentReviews || null,
   };
 };
 
