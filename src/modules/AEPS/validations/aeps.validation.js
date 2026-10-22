@@ -161,13 +161,7 @@ const commonRequiredBiometricFields = {
       "string.empty": "Device Provider ID (dpId) cannot be empty",
     }),
 
-  pidDatatype: Joi.string()
-    .trim()
-    .required()
-    .messages({
-      "any.required": "Biometric pidDatatype is required",
-      "string.empty": "Biometric pidDatatype cannot be empty",
-    }),
+  PidDatatype: Joi.string().trim().optional().allow(""),
 
   Piddata: Joi.string()
     .trim()
