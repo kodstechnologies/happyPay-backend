@@ -2,6 +2,7 @@ import { firebaseMessaging } from "../../../config/firebase.js";
 
 import User from "../../auth/model/user.model.js";
 import Role from "../../auth/model/role.model.js";
+import Admin from "../../auth/model/Admin.model.js";
 
 import {
   createNotification,
@@ -320,21 +321,8 @@ const sendNewRetailerRegistrationNotification = async ({
   retailerName,
   retailerMobile,
 }) => {
-  // 1. Find all admin users
-  const adminRole = await Role.findOne({ slug: "admin" });
-
-  if (!adminRole) {
-    return {
-      success: false,
-      statusCode: 404,
-      message: "Admin role not found",
-    };
-  }
-
-  const admins = await User.find({
-    roles: adminRole._id,
-    isActive: true,
-  }).select("devices name");
+  // 1. Find all active admins from the Admin collection
+  const admins = await Admin.find({ status: "active" }).select("devices email firstName lastName");
 
   if (admins.length === 0) {
     return {
