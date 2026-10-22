@@ -347,9 +347,9 @@ const sendNewRetailerRegistrationNotification = async ({
       data: {
         type: "NEW_RETAILER_REGISTRATION",
         screen: "ADMIN_RETAILERS",
-        retailerId: retailerId,
-        retailerName: retailerName,
-        retailerMobile: retailerMobile,
+        retailerId: String(retailerId || ""),
+        retailerName: String(retailerName || ""),
+        retailerMobile: String(retailerMobile || ""),
       },
     });
     notifications.push(notification);
@@ -399,9 +399,9 @@ const sendNewRetailerRegistrationNotification = async ({
         data: {
           type: "NEW_RETAILER_REGISTRATION",
           screen: "ADMIN_RETAILERS",
-          retailerId: retailerId,
-          retailerName: retailerName,
-          retailerMobile: retailerMobile,
+          retailerId: String(retailerId || ""),
+          retailerName: String(retailerName || ""),
+          retailerMobile: String(retailerMobile || ""),
         },
       });
       console.log("[FCM-DEBUG] ✅ FCM send SUCCESS");
