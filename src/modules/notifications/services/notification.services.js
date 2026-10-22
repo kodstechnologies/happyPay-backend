@@ -323,8 +323,11 @@ const sendNewRetailerRegistrationNotification = async ({
 }) => {
   // 1. Find all active admins from the Admin collection
   const admins = await Admin.find({ status: "active" }).select("devices email firstName lastName");
+  console.log(`[FCM-DEBUG] Admins found: ${admins.length}`);
+  admins.forEach(a => console.log(`[FCM-DEBUG]   Admin: ${a.email}, devices: ${a.devices?.length || 0}`));
 
   if (admins.length === 0) {
+    console.warn("[FCM-DEBUG] No active admins found in Admin collection.");
     return {
       success: false,
       statusCode: 404,
@@ -365,7 +368,11 @@ const sendNewRetailerRegistrationNotification = async ({
     allDevices.push(...devices);
   }
 
+  console.log(`[FCM-DEBUG] Total active FCM devices across all admins: ${allDevices.length}`);
+  console.log(`[FCM-DEBUG] firebaseMessaging initialized: ${!!firebaseMessaging}`);
+
   if (allDevices.length === 0 || !firebaseMessaging) {
+    console.warn(`[FCM-DEBUG] Skipping FCM send — devices: ${allDevices.length}, firebaseMessaging: ${!!firebaseMessaging}`);
     return {
       success: true,
       statusCode: 200,
@@ -382,6 +389,7 @@ const sendNewRetailerRegistrationNotification = async ({
   // 4. Send push notification to all admin devices
   for (const device of allDevices) {
     try {
+      console.log(`[FCM-DEBUG] Sending to device token: ${device.fcmToken?.slice(0, 20)}...`);
       await firebaseMessaging.send({
         token: device.fcmToken,
         notification: {
@@ -396,11 +404,11 @@ const sendNewRetailerRegistrationNotification = async ({
           retailerMobile: retailerMobile,
         },
       });
-
+      console.log("[FCM-DEBUG] ✅ FCM send SUCCESS");
       fcmSent = true;
     } catch (error) {
       console.error(
-        "Admin notification FCM error:",
+        "[FCM-DEBUG] ❌ Admin notification FCM error:",
         error.message
       );
       failureReason = error.message;

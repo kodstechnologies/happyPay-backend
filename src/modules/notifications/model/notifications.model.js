@@ -36,6 +36,9 @@ const notificationSchema = new mongoose.Schema(
         "ANNOUNCEMENT",
         "SERVICE_ALERT",
         "MAINTENANCE",
+
+        "REGISTRATION_SUCCESS",
+        "NEW_RETAILER_REGISTRATION",
       ],
       required: true,
       index: true,
