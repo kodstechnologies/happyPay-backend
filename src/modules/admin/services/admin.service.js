@@ -192,8 +192,8 @@ const getRetailers = async (filters = {}) => {
   return listRetailers({ ...filters, page, limit });
 };
 
-const setRetailerAccountStatus = async (id, status) => {
-  const validStatuses = ["approved", "blocked", "rejected", "active", "suspended"];
+const setRetailerAccountStatus = async (id, status, reason = "") => {
+  const validStatuses = ["approved", "blocked", "rejected", "active", "suspended", "pending"];
   if (!validStatuses.includes(status)) {
     throw ApiError.badRequest("Invalid status provided");
   }
@@ -207,6 +207,11 @@ const setRetailerAccountStatus = async (id, status) => {
     updateData.kycStatus = status;
     if (status === "approved") {
       updateData.status = "active";
+      updateData.reasonOfRejection = null;
+    } else if (status === "rejected") {
+      updateData.status = "rejected";
+      updateData.reasonOfRejection = reason || "Application rejected by admin";
+      updateData.kycRejectionReason = reason || "Application rejected by admin";
     }
   } else {
     updateData.status = status;
@@ -224,7 +229,13 @@ const setRetailerAccountStatus = async (id, status) => {
 const getRetailer = async (id) => {
   const retailer = await findRetailerById(id);
   if (!retailer) throw ApiError.notFound("Retailer not found");
-  return { ...retailer, id: retailer._id.toString() };
+  const roleSlug = retailer.roles?.[0]?.slug || retailer.role || "retailer";
+  return {
+    ...retailer,
+    id: retailer._id.toString(),
+    role: roleSlug,
+    kycStatus: retailer.adminApproved || retailer.kycStatus || "pending",
+  };
 };
 
 const updateRetailerKycStatus = async (id, status, reason = "") => {

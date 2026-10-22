@@ -87,7 +87,13 @@ const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus }
 };
 
 const findRetailerById = (id) =>
-  User.findById(id).select(RETAILER_PROJECTION).lean();
+  User.findById(id)
+    .select(RETAILER_PROJECTION)
+    .populate("roles", "name slug")
+    .populate("shop.category", "name")
+    .populate("shop.propertyType", "name")
+    .populate("businessProofType", "name code")
+    .lean();
 
 const updateRetailerKyc = (id, kycData) =>
   User.findByIdAndUpdate(id, kycData, { new: true });

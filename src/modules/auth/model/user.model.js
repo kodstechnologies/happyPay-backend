@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import deviceSchema from "./device.model.js";
 import refreshTokenSchema from "./token.model.js";
+import Role from "./role.model.js";
 
 const documentReviewSchema = new mongoose.Schema(
   {
@@ -273,7 +274,10 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
-
+        bank_id:{
+          type:String,
+          trim:true
+        },
         branchName: {
           type: String,
           trim: true,
@@ -291,11 +295,6 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // =========================
-    // eKYC (AEPS)
-    // =========================
-    // eKYCStatus, eKYCRejectionReason, outletId, referenceKey
-    // are stored in the AepsEkyc document and accessed via populate.
     AepsEkyc: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AepsEkyc",
@@ -412,6 +411,54 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+
+userSchema.methods.assignRole = async function (roleSlug, roleName = null) {
+  if (!roleSlug) return null;
+
+  const RoleModel = mongoose.models.Role || Role;
+  const slug = String(roleSlug).toLowerCase().trim();
+  const name =
+    roleName || slug.charAt(0).toUpperCase() + slug.slice(1);
+
+  let role = await RoleModel.findOne({ slug });
+  if (!role) {
+    role = await RoleModel.create({
+      name,
+      slug,
+      isActive: true,
+    });
+  }
+
+  if (!Array.isArray(this.roles)) {
+    this.roles = [];
+  }
+
+  const roleIdStr = role._id.toString();
+  const alreadyHasRole = this.roles.some((existing) => {
+    if (!existing) return false;
+    const existingId = existing._id ? existing._id.toString() : existing.toString();
+    return existingId === roleIdStr;
+  });
+
+  if (!alreadyHasRole) {
+    this.roles.push(role._id);
+  }
+
+  return role;
+};
+
+
+userSchema.methods.hasRole = function (roleSlug) {
+  if (!roleSlug || !Array.isArray(this.roles)) return false;
+  const target = String(roleSlug).toLowerCase().trim();
+  return this.roles.some((r) => {
+    if (!r) return false;
+    if (typeof r === "string") return r.toLowerCase() === target;
+    if (r.slug) return r.slug.toLowerCase() === target;
+    return false;
+  });
+};
 
 const User = mongoose.model("User", userSchema);
 

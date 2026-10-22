@@ -105,8 +105,8 @@ export const getDistributorSubRetailersAdmin = asyncHandler(async (req, res) => 
  * Updates a retailer's account/approval status (e.g., approved, blocked, rejected).
  */
 export const updateAccountStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
-  const result = await setRetailerAccountStatus(req.params.id, status);
+  const { status, reason } = req.body;
+  const result = await setRetailerAccountStatus(req.params.id, status, reason);
   return res.status(200).json(ApiResponse.success(result, result.message));
 });
 

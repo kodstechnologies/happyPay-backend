@@ -169,7 +169,10 @@ export const registerRetailerSchema = Joi.object({
       "string.pattern.base": "Please enter a valid account number",
     }),
 
-
+  bank_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .allow("", null)
+    .optional(),
 
   selfie: uploadedFile("selfie"),
   panDocument: uploadedFile("panDocument"),

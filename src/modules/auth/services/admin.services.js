@@ -401,11 +401,24 @@ const rejectRetailerDocumentsService = async (
 };
 
 /**
- * Approve a single specific document for a retailer.
- * The document must currently be in PENDING status.
- * If all documents become APPROVED after this call, adminApproved is synced to "approved".
+ * Unified document review service.
+ * Performs either "approve" or "reject" action based on the document type and action parameter.
+ * Automatically synchronizes the retailer's overall adminApproved status and updates review audits.
+ *
+ * @param {Object} params
+ * @param {string} params.retailerId - MongoDB ObjectId string of the retailer
+ * @param {string} params.documentField - Name of the document field (e.g. "panDocument")
+ * @param {string} params.action - "approve" | "approved" | "reject" | "rejected"
+ * @param {string} [params.reason] - Rejection reason (required if action is reject)
+ * @param {string} [params.adminId] - Admin user performing the review
  */
-const approveRetailerDocumentService = async (retailerId, documentField, adminId) => {
+const reviewRetailerDocumentService = async ({
+  retailerId,
+  documentField,
+  action,
+  reason = "",
+  adminId,
+}) => {
   assertRetailerId(retailerId);
 
   if (!DOC_FIELDS.includes(documentField)) {
@@ -413,6 +426,19 @@ const approveRetailerDocumentService = async (retailerId, documentField, adminId
       400,
       `Invalid document field '${documentField}'. Valid fields: ${DOC_FIELDS.join(", ")}`
     );
+  }
+
+  const normalizedAction = String(action || "").toLowerCase().trim();
+  const isApprove = normalizedAction === "approve" || normalizedAction === "approved";
+  const isReject = normalizedAction === "reject" || normalizedAction === "rejected";
+
+  if (!isApprove && !isReject) {
+    throw fail(400, "Invalid action. Must be 'approve' or 'reject'.");
+  }
+
+  const trimmedReason = String(reason || "").trim();
+  if (isReject && !trimmedReason) {
+    throw fail(400, "Reason of rejection is required when rejecting a document");
   }
 
   const retailer = await findRetailerById(retailerId);
@@ -425,27 +451,36 @@ const approveRetailerDocumentService = async (retailerId, documentField, adminId
     throw fail(400, "Retailer has not completed registration yet");
   }
 
-  const doc = retailer.documentReviews?.[documentField] || {};
-  if (doc.status !== "PENDING") {
-    throw fail(
-      409,
-      `Document '${documentField}' is not in PENDING status (current: ${doc.status || "NOT_SUBMITTED"})`
-    );
+  if (!retailer.documentReviews) {
+    retailer.documentReviews = {};
+  }
+  if (!retailer.documentReviews[documentField]) {
+    retailer.documentReviews[documentField] = { status: "PENDING" };
   }
 
   const now = new Date();
-  retailer.documentReviews[documentField].status = "APPROVED";
   retailer.documentReviews[documentField].reviewedBy = adminId;
   retailer.documentReviews[documentField].reviewedAt = now;
-  retailer.documentReviews[documentField].rejectionReason = null;
 
-  // Sync adminApproved if all documents are now APPROVED
-  const allApproved = DOC_FIELDS.every(
-    (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
-  );
-  if (allApproved) {
-    retailer.adminApproved = "approved";
-    retailer.reasonOfRejection = null;
+  if (isApprove) {
+    retailer.documentReviews[documentField].status = "APPROVED";
+    retailer.documentReviews[documentField].rejectionReason = null;
+
+    // Sync adminApproved if all documents are now APPROVED
+    const allApproved = DOC_FIELDS.every(
+      (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
+    );
+    if (allApproved) {
+      retailer.adminApproved = "approved";
+      retailer.reasonOfRejection = null;
+    }
+  } else {
+    retailer.documentReviews[documentField].status = "REJECTED";
+    retailer.documentReviews[documentField].rejectionReason = trimmedReason;
+
+    // Sync adminApproved whenever any document is rejected
+    retailer.adminApproved = "rejected";
+    retailer.reasonOfRejection = trimmedReason;
   }
 
   await retailer.save();
@@ -453,55 +488,28 @@ const approveRetailerDocumentService = async (retailerId, documentField, adminId
 };
 
 /**
- * Reject a single specific document for a retailer.
- * The document must currently be in PENDING status.
- * Also syncs adminApproved to "rejected".
+ * Approve a single specific document for a retailer (delegates to reviewRetailerDocumentService).
+ */
+const approveRetailerDocumentService = async (retailerId, documentField, adminId) => {
+  return reviewRetailerDocumentService({
+    retailerId,
+    documentField,
+    action: "approve",
+    adminId,
+  });
+};
+
+/**
+ * Reject a single specific document for a retailer (delegates to reviewRetailerDocumentService).
  */
 const rejectRetailerDocumentService = async (retailerId, documentField, adminId, reasonOfRejection) => {
-  assertRetailerId(retailerId);
-
-  if (!DOC_FIELDS.includes(documentField)) {
-    throw fail(
-      400,
-      `Invalid document field '${documentField}'. Valid fields: ${DOC_FIELDS.join(", ")}`
-    );
-  }
-
-  const reason = String(reasonOfRejection || "").trim();
-  if (!reason) {
-    throw fail(400, "Reason of rejection is required");
-  }
-
-  const retailer = await findRetailerById(retailerId);
-
-  if (!retailer) {
-    throw fail(404, "Retailer not found");
-  }
-
-  if (retailer.registrationStatus !== "COMPLETED") {
-    throw fail(400, "Retailer has not completed registration yet");
-  }
-
-  const doc = retailer.documentReviews?.[documentField] || {};
-  if (doc.status !== "PENDING") {
-    throw fail(
-      409,
-      `Document '${documentField}' is not in PENDING status (current: ${doc.status || "NOT_SUBMITTED"})`
-    );
-  }
-
-  const now = new Date();
-  retailer.documentReviews[documentField].status = "REJECTED";
-  retailer.documentReviews[documentField].reviewedBy = adminId;
-  retailer.documentReviews[documentField].reviewedAt = now;
-  retailer.documentReviews[documentField].rejectionReason = reason;
-
-  // Sync adminApproved whenever any document is rejected
-  retailer.adminApproved = "rejected";
-  retailer.reasonOfRejection = reason;
-
-  await retailer.save();
-  return buildRetailerReview(retailer);
+  return reviewRetailerDocumentService({
+    retailerId,
+    documentField,
+    action: "reject",
+    reason: reasonOfRejection,
+    adminId,
+  });
 };
 
 export {
@@ -514,4 +522,5 @@ export {
   rejectRetailerDocumentsService,
   approveRetailerDocumentService,
   rejectRetailerDocumentService,
+  reviewRetailerDocumentService,
 };

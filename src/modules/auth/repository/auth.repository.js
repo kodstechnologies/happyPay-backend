@@ -56,12 +56,14 @@ const createTestRetailer = async (email) => {
 };
 
 const createRetailer = async (data) => {
-  return await User.create({
+  const user = new User({
     ...data,
     status: "active",
     kycStatus: "pending",
     isActive: true,
   });
+  await user.assignRole("retailer", "Retailer");
+  return await user.save();
 };
 
 

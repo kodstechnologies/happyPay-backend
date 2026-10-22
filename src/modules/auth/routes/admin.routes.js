@@ -8,6 +8,7 @@ import {
   rejectRetailerDocuments,
   approveRetailerDocument,
   rejectRetailerDocument,
+  reviewRetailerDocument,
 } from "../controllers/admin.controller.js";
 import authMiddleware, { requireAdmin } from "../../../middlewares/auth.middleware.js";
 
@@ -76,6 +77,21 @@ router.patch(
   rejectRetailerDocument
 );
 
+//=========================================
+// Unified: approve or reject ANY document via action & documentField
+//=========================================
+router.patch(
+  "/retailers/:retailerId/documents/review",
+  authMiddleware,
+  requireAdmin,
+  reviewRetailerDocument
+);
 
+router.patch(
+  "/retailers/:retailerId/documents/:documentField/review",
+  authMiddleware,
+  requireAdmin,
+  reviewRetailerDocument
+);
 
 export default router;

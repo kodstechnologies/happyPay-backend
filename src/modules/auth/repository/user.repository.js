@@ -14,17 +14,20 @@ const createUser = async (mobile, distributorId = null) => {
     ...(distributorId ? { ditributor: distributorId } : {}),
   };
 
-  return await User.create(userData);
+  const user = new User(userData);
+  await user.assignRole("retailer", "Retailer");
+  return await user.save();
 };
 
 const verifyMobile = async (userId) => {
-  const updateData = {
-    isMobileVerified: true,
-    registrationStatus: "IN_PROGRESS",
-    currentRegistrationStep: "ACCOUNT",
-  };
+  const user = await User.findById(userId);
+  if (!user) return null;
 
-  return await User.findByIdAndUpdate(userId, updateData, { new: true });
+  user.isMobileVerified = true;
+  user.registrationStatus = "IN_PROGRESS";
+  user.currentRegistrationStep = "ACCOUNT";
+  await user.assignRole("retailer", "Retailer");
+  return await user.save();
 };
 
 const findByEmail = async (email) => {

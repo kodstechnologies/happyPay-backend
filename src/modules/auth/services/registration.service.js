@@ -438,6 +438,7 @@ const registerRetailer = async (body = {}) => {
     banks: [
       {
         name: bankName,
+        bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
         ifscCode: ifscCode,
         isPrimary: true,
         isActive: true,
@@ -476,6 +477,7 @@ const registerRetailer = async (body = {}) => {
     outletId: String(outletId),
     eKYCStatus: "PENDING",
   });
+  await savedUser.assignRole("retailer", "Retailer");
   savedUser.AepsEkyc = ekycDoc._id;
   await savedUser.save();
 
@@ -697,6 +699,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   user.banks = [
     {
       name: bankName.trim(),
+      bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
       ifscCode: body.ifscCode.trim().toUpperCase(),
       accountNumber: body.accountNumber.trim(),
       isPrimary: true,
@@ -728,6 +731,9 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     user.ditributor = body.distributorId;
   }
 
+  // Ensure retailer role is assigned to the user upon completing registration
+  await user.assignRole("retailer", "Retailer");
+
   await user.save();
 
   // Handle distributor mapping and role progression
@@ -743,23 +749,12 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
       // Rule: if a retailer registers one or more retailers, make that role distributor
       const registeredCount = await User.countDocuments({ ditributor: user.ditributor });
       if (registeredCount >= 1) {
-        let distributorRole = await Role.findOne({ slug: "distributor" });
-        if (!distributorRole) {
-          distributorRole = await Role.create({
-            name: "Distributor",
-            slug: "distributor",
-            isActive: true,
-          });
-        }
         const parentUser = await User.findById(user.ditributor);
         if (parentUser) {
-          const hasDistRole = parentUser.roles?.some(
-            (r) => r.toString() === distributorRole._id.toString()
-          );
-          if (!hasDistRole) {
-            if (!parentUser.roles) parentUser.roles = [];
-            parentUser.roles.push(distributorRole._id);
-            await parentUser.save();
+          const hadRole = parentUser.hasRole("distributor");
+          await parentUser.assignRole("distributor", "Distributor");
+          await parentUser.save();
+          if (!hadRole) {
             isUpgradedToDistributor = true;
           }
         }

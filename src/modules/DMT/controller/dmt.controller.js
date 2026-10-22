@@ -126,9 +126,9 @@ export const fetchBeneficiariesController = asyncHandler(async (req, res) => {
     ...req.body,
     ...getAuthFields(req.user)
   };
-  // fetchBeneficiaries call for get data from db
+  // fetchBeneficiaries call for get data from provider
   const result = await fetchBeneficiariesService(payload);
-  // call this t get data from provider
+  // call this t get data from db
   // const result = await fetchBeneficiaries(payload);
 
   return res.status(200).json(

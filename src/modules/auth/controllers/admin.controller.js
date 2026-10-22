@@ -9,6 +9,7 @@ import {
   rejectRetailerDocumentsService,
   approveRetailerDocumentService,
   rejectRetailerDocumentService,
+  reviewRetailerDocumentService,
 } from "../services/admin.services.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 
@@ -145,10 +146,42 @@ export const rejectRetailerDocument = asyncHandler(async (req, res) => {
     retailerId,
     documentField,
     adminId,
-    req.body.reasonOfRejection
+    req.body.reasonOfRejection || req.body.reason
   );
 
   return res
     .status(200)
     .json(ApiResponse.success(data, `Document '${documentField}' rejected successfully`));
 });
+
+/**
+ * Unified document review controller.
+ * Handles approve and reject for any document field.
+ * Accepts: documentField (or in params), action ("approve" | "reject"), reason (optional for approve, required for reject).
+ */
+export const reviewRetailerDocument = asyncHandler(async (req, res) => {
+  const adminId = req.user?.userId;
+  const { retailerId } = req.params;
+  const documentField = req.params.documentField || req.body.documentField || req.body.documentType;
+  const action = req.body.action || req.body.status;
+  const reason = req.body.reason || req.body.reasonOfRejection;
+
+  const data = await reviewRetailerDocumentService({
+    retailerId,
+    documentField,
+    action,
+    reason,
+    adminId,
+  });
+
+  const isApprove = String(action || "").toLowerCase().startsWith("app");
+  return res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        data,
+        `Document '${documentField}' ${isApprove ? "approved" : "rejected"} successfully`
+      )
+    );
+});
+

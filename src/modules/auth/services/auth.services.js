@@ -376,6 +376,19 @@ const verifyRetailerLoginOtp = async ({
 
 
 
+  if (!user.roles || user.roles.length === 0) {
+    await user.assignRole("retailer", "Retailer");
+    await user.save();
+    await user.populate([
+      {
+        path: "roles",
+        populate: {
+          path: "permissions",
+        },
+      },
+    ]);
+  }
+
   const access = resolveUserAccess(user);
 
   // Save Device Info if provided
@@ -641,6 +654,7 @@ const retailerRegister = async (data) => {
     banks: [
       {
         name: data.bankName,
+        bank_id: data.bank_id ? String(data.bank_id).trim() : undefined,
         ifscCode: data.ifscCode,
         accountNumber: data.accountNumber,
         confirmAccountNumber: data.confirmAccountNumber,
@@ -705,11 +719,17 @@ const retailerRegister = async (data) => {
 };
 
 const generateRetailerTokens = async (userId, customPayload = {}) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).populate("roles");
   if (!user) {
     const error = new Error("User not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  if (!user.roles || user.roles.length === 0) {
+    await user.assignRole("retailer", "Retailer");
+    await user.save();
+    await user.populate("roles");
   }
 
   const ekycData = await resolveEkycData(user);
@@ -785,6 +805,13 @@ const refreshAccessToken = async (refreshToken) => {
   }
 
   // Generate new tokens
+  await user.populate("roles");
+  if (!user.roles || user.roles.length === 0) {
+    await user.assignRole("retailer", "Retailer");
+    await user.save();
+    await user.populate("roles");
+  }
+
   const access = resolveUserAccess(user);
   const ekycData = await resolveEkycData(user);
 
@@ -963,12 +990,33 @@ const getAuthenticatedRetailerService = async (retailerId) => {
   const retailer = await User.findById(retailerId)
     .select(
       "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc"
-    );
+    )
+    .populate([
+      {
+        path: "roles",
+        populate: {
+          path: "permissions",
+        },
+      },
+    ]);
 
   if (!retailer) {
     const error = new Error("Retailer not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  if (!retailer.roles || retailer.roles.length === 0) {
+    await retailer.assignRole("retailer", "Retailer");
+    await retailer.save();
+    await retailer.populate([
+      {
+        path: "roles",
+        populate: {
+          path: "permissions",
+        },
+      },
+    ]);
   }
 
   const access = resolveUserAccess(retailer);
@@ -1119,6 +1167,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
       const newBank = {
         name: (body.bankName || "Bank Account").trim(),
+        bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
         ifscCode: String(body.ifscCode).trim().toUpperCase(),
         accountNumber: String(body.accountNumber).trim(),
         confirmAccountNumber: String(body.accountNumber).trim(),
@@ -1151,6 +1200,9 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
         }
 
         user.banks[bankIndex].name = (body.bankName || user.banks[bankIndex].name).trim();
+        if (body.bank_id !== undefined) {
+          user.banks[bankIndex].bank_id = body.bank_id ? String(body.bank_id).trim() : undefined;
+        }
         user.banks[bankIndex].accountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].confirmAccountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].ifscCode = String(body.ifscCode).trim().toUpperCase();
@@ -1164,6 +1216,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   } else if (body.accountNumber && body.ifscCode) {
     const updatedBank = {
       name: (body.bankName || "Primary Bank").trim(),
+      bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
       ifscCode: String(body.ifscCode).trim().toUpperCase(),
       accountNumber: String(body.accountNumber).trim(),
       confirmAccountNumber: String(body.accountNumber).trim(),

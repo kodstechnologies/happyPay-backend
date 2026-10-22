@@ -194,7 +194,7 @@ export const performRemitterEkycService = async (payload = {}) => {
 // Beneficiary Services
 // =============================================================
 
-// Fetch all registered beneficiaries for a remitter
+// Fetch all registered beneficiaries for a remitter from provider
 
 export const fetchBeneficiariesService = async (payload = {}) => {
   const cleanPayload = sanitizePayload(payload);
@@ -205,7 +205,7 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 export const fetchBeneficiaries = async (payload = {}) => {
    const cleanpayload={
     remitterMobile:payload.mobile,
-    outletid:payload.outletid,
+    // outletid:payload.outletid,
     verified:true
    }
   return await getBenificiary(cleanpayload);

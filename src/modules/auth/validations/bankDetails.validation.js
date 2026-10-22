@@ -57,6 +57,11 @@ const bankDetailsSchema = Joi.object({
 
 
 
+  bank_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .allow("", null)
+    .optional(),
+
   branchName: Joi.string()
     .trim()
     .min(2)
