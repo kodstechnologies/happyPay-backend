@@ -408,8 +408,6 @@ const cashWithdrawSchema = Joi.object({
       "number.min": "Amount must be greater than or equal to 0",
     }),
 
-  otp: Joi.string().trim().optional().allow(""),
-
   ...commonOptionalBiometricFields,
 }).unknown(true);
 

@@ -678,7 +678,6 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
-      otp,
       // Biometric fields
       dc,
       ci,
@@ -719,7 +718,6 @@ const cashWithdrawController = async (req, res) => {
       bankiin,
       amount,
       ts,
-      ...(otp && { otp }),
       // Include biometric fields if provided
       ...(dc && { dc }),
       ...(ci && { ci }),
