@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed:admin": "node src/scripts/seedAdmin.js"
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "update:admin:password": "node src/scripts/updateAdminPassword.js",
+    "check:admin:status": "node src/scripts/checkAdminStatus.js",
+    "verify:admin:password": "node src/scripts/verifyAdminPassword.js"
   },
   "keywords": [],
   "author": "",

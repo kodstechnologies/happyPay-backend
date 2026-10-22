@@ -9,6 +9,7 @@ const removeAdminRefreshToken = (adminId, token) => Admin.findByIdAndUpdate(admi
 const savePasswordResetToken = (adminId, tokenHash, expiresAt) => Admin.findByIdAndUpdate(adminId, { resetPasswordTokenHash: tokenHash, resetPasswordExpiresAt: expiresAt }, { new: true });
 const findAdminByResetToken = (tokenHash) => Admin.findOne({ resetPasswordTokenHash: tokenHash, resetPasswordExpiresAt: { $gt: new Date() } }).select("+password +resetPasswordTokenHash +resetPasswordExpiresAt");
 const updateAdminPassword = (adminId, password) => Admin.findByIdAndUpdate(adminId, { password, $unset: { resetPasswordTokenHash: 1, resetPasswordExpiresAt: 1 }, $set: { updatedAt: new Date() } }, { new: true });
+const findAdminByEmailWithDevices = (email) => Admin.findOne({ email: email.toLowerCase().trim() }).select("+password email firstName lastName mobile status role roles devices");
 
-export { findAdminById, findAdminByEmail, findAdminByMobile, createAdmin, updateAdminLogin, removeAdminRefreshToken, savePasswordResetToken, findAdminByResetToken, updateAdminPassword };
+export { findAdminById, findAdminByEmail, findAdminByEmailWithDevices, findAdminByMobile, createAdmin, updateAdminLogin, removeAdminRefreshToken, savePasswordResetToken, findAdminByResetToken, updateAdminPassword };
 

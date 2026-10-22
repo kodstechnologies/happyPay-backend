@@ -783,6 +783,18 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     }
   }
 
+  // Send notification to admin about new registration (non-blocking)
+  if (user._id) {
+    const { sendNewRetailerRegistrationNotification } = await import("../../notifications/services/notification.services.js");
+    sendNewRetailerRegistrationNotification({
+      retailerId: user._id,
+      retailerName: user.name || user.fullName,
+      retailerMobile: user.mobile,
+    }).catch((notifError) => {
+      console.warn("Admin notification send failed:", notifError?.message);
+    });
+  }
+
   return {
     userId: user._id,
     outletId: user.AepsEkyc?.outletId || null,

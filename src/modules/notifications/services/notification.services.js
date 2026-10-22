@@ -1,6 +1,7 @@
 import { firebaseMessaging } from "../../../config/firebase.js";
 
 import User from "../../auth/model/user.model.js";
+import Role from "../../auth/model/role.model.js";
 
 import {
   createNotification,
@@ -219,4 +220,222 @@ const sendKycRejectedNotification = async ({
     data: notification,
   };
 };
-export { sendKycApprovedNotification, sendKycRejectedNotification };
+
+const sendRegistrationSuccessNotification = async ({
+  retailerId,
+  retailerName,
+}) => {
+  // 1. Find retailer
+  const retailer = await User.findById(retailerId)
+    .select("devices name");
+
+  if (!retailer) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Retailer not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "REGISTRATION_SUCCESS",
+    title: "Registration Successful",
+    body: `Congratulations ${retailerName || retailer.name}! Your registration with Happy Pay is complete.`,
+    data: {
+      type: "REGISTRATION_SUCCESS",
+      screen: "DASHBOARD",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    retailer.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Registration saved, but Firebase messaging is not configured."
+        : "Registration saved but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification
+  for (const device of devices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Registration Successful",
+          body: `Congratulations ${retailerName || retailer.name}! Your registration with Happy Pay is complete.`,
+        },
+        data: {
+          type: "REGISTRATION_SUCCESS",
+          screen: "DASHBOARD",
+        },
+      });
+
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Registration success FCM error:",
+        error.message
+      );
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Registration success notification sent successfully."
+      : "Registration saved but notification delivery failed.",
+    data: notification,
+  };
+};
+
+const sendNewRetailerRegistrationNotification = async ({
+  retailerId,
+  retailerName,
+  retailerMobile,
+}) => {
+  // 1. Find all admin users
+  const adminRole = await Role.findOne({ slug: "admin" });
+
+  if (!adminRole) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Admin role not found",
+    };
+  }
+
+  const admins = await User.find({
+    roles: adminRole._id,
+    isActive: true,
+  }).select("devices name");
+
+  if (admins.length === 0) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "No active admin users found",
+    };
+  }
+
+  // 2. Create notification in DB for each admin
+  const notifications = [];
+  for (const admin of admins) {
+    const notification = await createNotification({
+      recipientId: admin._id,
+      recipientType: "admin",
+      type: "NEW_RETAILER_REGISTRATION",
+      title: "New Retailer Registration",
+      body: `${retailerName} (${retailerMobile}) has completed registration. KYC review pending.`,
+      data: {
+        type: "NEW_RETAILER_REGISTRATION",
+        screen: "ADMIN_RETAILERS",
+        retailerId: retailerId,
+        retailerName: retailerName,
+        retailerMobile: retailerMobile,
+      },
+    });
+    notifications.push(notification);
+  }
+
+  // 3. Collect all active FCM devices from all admins
+  const allDevices = [];
+  for (const admin of admins) {
+    const devices =
+      admin.devices?.filter(
+        (device) =>
+          device.isActive &&
+          device.fcmToken &&
+          device.fcmToken !== "dummy"
+      ) || [];
+    allDevices.push(...devices);
+  }
+
+  if (allDevices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Registration saved, but Firebase messaging is not configured."
+        : "Registration saved but no active admin FCM device found.",
+      data: notifications,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification to all admin devices
+  for (const device of allDevices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "New Retailer Registration",
+          body: `${retailerName} (${retailerMobile}) has completed registration. KYC review pending.`,
+        },
+        data: {
+          type: "NEW_RETAILER_REGISTRATION",
+          screen: "ADMIN_RETAILERS",
+          retailerId: retailerId,
+          retailerName: retailerName,
+          retailerMobile: retailerMobile,
+        },
+      });
+
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Admin notification FCM error:",
+        error.message
+      );
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update delivery status for all notifications
+  for (const notification of notifications) {
+    await updateFcmStatus({
+      notificationId: notification._id,
+      fcmSent,
+      fcmFailureReason: failureReason,
+    });
+  }
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Admin notification sent successfully."
+      : "Registration saved but notification delivery failed.",
+    data: notifications,
+  };
+};
+
+export { sendKycApprovedNotification, sendKycRejectedNotification, sendRegistrationSuccessNotification, sendNewRetailerRegistrationNotification };

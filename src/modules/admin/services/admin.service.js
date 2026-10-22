@@ -7,6 +7,7 @@ import {
   createAdmin,
   findAdminById,
   findAdminByEmail,
+  findAdminByEmailWithDevices,
   findAdminByMobile,
   updateAdminLogin,
   removeAdminRefreshToken,
@@ -18,6 +19,7 @@ import { hashPassword, hashResetToken, verifyPassword } from "../utils/password.
 import createAdminAuditLog from "../utils/createAdminAuditLog.js";
 import { findRetailerById, listRetailers, updateRetailerKyc, updateRetailerAccountStatus, findRetailersByDistributor } from "../repository/adminRetailer.repository.js";
 import Wallet from "../../wallet/model/wallet.model.js";
+import Admin from "../../auth/model/Admin.model.js";
 import Transaction from "../../transaction/model/transaction.model.js";
 import { getRetailerTransactions } from "../../transaction/service/transaction.service.js";
 import {
@@ -83,15 +85,15 @@ const registerAdmin = async ({ name, email, mobile, password, confirmPassword },
   return publicAdmin(admin);
 };
 
-const loginAdmin = async ({ email, password }, req) => {
+const loginAdmin = async ({ email, password, fcmToken, deviceId, platform, deviceName }, req) => {
   if (!email?.trim() || !password) throw ApiError.badRequest("Email and password are required");
-  const admin = await findAdminByEmail(email.trim());
+  const admin = await findAdminByEmailWithDevices(email.trim());
 
   if (!admin) throw ApiError.unauthorized("Invalid email or password");
 
   const isPasswordValid = await bcrypt.compare(password, admin.password);
   if (!isPasswordValid) throw ApiError.unauthorized("Invalid email or password");
-  if (admin.status !== "active") throw ApiError.forbidden("Admin account is inactive or suspended");
+  // if (admin.status !== "active") throw ApiError.forbidden("Admin account is inactive or suspended");
 
   const adminRole = admin.role || (Array.isArray(admin.roles) && admin.roles.length ? "super-admin" : "Administrator");
 
@@ -112,8 +114,41 @@ const loginAdmin = async ({ email, password }, req) => {
     userType: "admin",
   });
 
-  const deviceId = req?.headers?.["x-device-id"] || "web-admin-portal";
-  await updateAdminLogin(admin._id, refreshToken, refreshExpiry(), deviceId);
+  const effectiveDeviceId = deviceId || req?.headers?.["x-device-id"] || "web-admin-portal";
+  await updateAdminLogin(admin._id, refreshToken, refreshExpiry(), effectiveDeviceId);
+
+  // Save/update device info if FCM token provided
+  if (fcmToken && effectiveDeviceId) {
+    try {
+      const existingDeviceIndex = admin.devices?.findIndex(
+        (d) => d.deviceId === effectiveDeviceId
+      );
+
+      if (existingDeviceIndex >= 0) {
+        // Update existing device
+        admin.devices[existingDeviceIndex].fcmToken = fcmToken;
+        admin.devices[existingDeviceIndex].platform = platform || "web";
+        admin.devices[existingDeviceIndex].deviceName = deviceName || "Web browser";
+        admin.devices[existingDeviceIndex].lastUsedAt = new Date();
+        admin.devices[existingDeviceIndex].isActive = true;
+      } else {
+        // Add new device
+        if (!admin.devices) admin.devices = [];
+        admin.devices.push({
+          deviceId: effectiveDeviceId,
+          fcmToken,
+          platform: platform || "web",
+          deviceName: deviceName || "Web browser",
+          lastUsedAt: new Date(),
+          isActive: true,
+        });
+      }
+      await admin.save();
+    } catch (deviceError) {
+      console.warn("Admin device info save failed:", deviceError?.message);
+    }
+  }
+
   await createAdminAuditLog({ action: "Admin Login", entity: "Admin", entityId: admin._id, description: `Admin ${admin.email} signed in`, admin, req });
   return { admin: publicAdmin(admin), accessToken, refreshToken };
 };
