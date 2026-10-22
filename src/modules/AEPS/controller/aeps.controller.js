@@ -717,7 +717,7 @@ const cashWithdrawController = async (req, res) => {
       aadhaar,
       mobile,
       bankiin,
-      amount:amount>5000?null:amount,
+      amount,
       ts,
       ...(otp && { otp }),
       // Include biometric fields if provided
@@ -747,7 +747,7 @@ const cashWithdrawController = async (req, res) => {
     };
 
     console.log("Cash Withdraw Payload:", payload);
-  const cleanpayload=sanitizePayload(payload)
+
     // Call provider API
     const result = await cashWithdraw(payload);
 
