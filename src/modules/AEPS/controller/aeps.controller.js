@@ -11,6 +11,7 @@ import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
 import generate15CharTxnId from "../../../utils/generateTxnId.js";
+import sanitizePayload from "../../../utils/sanitizePayload.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -716,7 +717,7 @@ const cashWithdrawController = async (req, res) => {
       aadhaar,
       mobile,
       bankiin,
-      amount,
+      amount:amount>5000?null:amount,
       ts,
       ...(otp && { otp }),
       // Include biometric fields if provided
@@ -746,7 +747,7 @@ const cashWithdrawController = async (req, res) => {
     };
 
     console.log("Cash Withdraw Payload:", payload);
-
+  const cleanpayload=sanitizePayload(payload)
     // Call provider API
     const result = await cashWithdraw(payload);
 
