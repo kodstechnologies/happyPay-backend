@@ -32,4 +32,4 @@ try {
   logger?.error?.({ error }, "Failed to initialize Firebase Admin SDK");
 }
 
-export { firebaseApp, firebaseMessaging };
+export { firebaseApp, firebaseMessaging };

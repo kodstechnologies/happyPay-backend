@@ -8,12 +8,14 @@ const findNotificationsByRecipient = async ({
   recipientId,
   page = 1,
   limit = 20,
+  filter = {},
 }) => {
   const skip = (page - 1) * limit;
 
   const [notifications, total] = await Promise.all([
     Notification.find({
       recipientId,
+      ...filter,
     })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -22,6 +24,7 @@ const findNotificationsByRecipient = async ({
 
     Notification.countDocuments({
       recipientId,
+      ...filter,
     }),
   ]);
 
