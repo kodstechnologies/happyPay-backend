@@ -10,6 +10,11 @@ import {
   rejectRetailerDocument,
   reviewRetailerDocument,
 } from "../controllers/admin.controller.js";
+import {
+  getNotificationsController,
+  markNotificationAsReadController,
+  markAllNotificationsAsReadController,
+} from "../../notifications/controller/notifications.controller.js";
 import authMiddleware, { requireAdmin } from "../../../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -92,6 +97,31 @@ router.patch(
   authMiddleware,
   requireAdmin,
   reviewRetailerDocument
+);
+
+// =========================================
+// Notifications
+// =========================================
+
+router.get(
+  "/notifications",
+  authMiddleware,
+  requireAdmin,
+  getNotificationsController
+);
+
+router.patch(
+  "/notifications/:notificationId/read",
+  authMiddleware,
+  requireAdmin,
+  markNotificationAsReadController
+);
+
+router.patch(
+  "/notifications/read-all",
+  authMiddleware,
+  requireAdmin,
+  markAllNotificationsAsReadController
 );
 
 export default router;
