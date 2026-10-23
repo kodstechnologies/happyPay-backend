@@ -21,18 +21,32 @@ const SUB_RETAILER_PROJECTION =
 // Retailer queries
 // ---------------------------------------------------------------------------
 
-const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus }) => {
+const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus, role }) => {
   const query = {};
 
-  if (status) {
-    if (status === "distributor") {
-      const distributorRole = await Role.findOne({ slug: "distributor" }).select("_id").lean();
-      if (distributorRole) {
-        query.roles = distributorRole._id;
-      } else {
-        query.$or = [{ role: "distributor" }, { roles: { $exists: true, $ne: [] } }];
-      }
-    } else if (["approved", "pending", "rejected"].includes(status)) {
+  // Role filtering ("distributor" | "retailer")
+  const distributorRole = await Role.findOne({ slug: "distributor" }).select("_id").lean();
+  const distributorRoleId = distributorRole?._id;
+
+  const targetRole = role || (status === "distributor" ? "distributor" : null);
+
+  if (targetRole === "distributor") {
+    if (distributorRoleId) {
+      query.roles = distributorRoleId;
+    } else {
+      query.$or = [{ role: "distributor" }, { roles: { $exists: true, $ne: [] } }];
+    }
+  } else if (targetRole === "retailer") {
+    if (distributorRoleId) {
+      query.roles = { $ne: distributorRoleId };
+      query.role = { $ne: "distributor" };
+    } else {
+      query.role = { $ne: "distributor" };
+    }
+  }
+
+  if (status && status !== "distributor") {
+    if (["approved", "pending", "rejected"].includes(status)) {
       query.$or = [{ adminApproved: status }, { kycStatus: status }];
     } else if (["active", "suspended", "blocked"].includes(status)) {
       query.status = status;
@@ -59,7 +73,7 @@ const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus }
   const [items, total] = await Promise.all([
     User.find(query)
       .select(RETAILER_PROJECTION)
-      .populate("roles", "name slug")
+      .populate("roles", "name slug code")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -69,7 +83,17 @@ const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus }
 
   return {
     items: items.map((item) => {
-      const roleSlug = item.roles?.[0]?.slug || item.role || "retailer";
+      const hasDistributorRole =
+        item.roles?.some(
+          (r) =>
+            r?.slug === "distributor" ||
+            r?.code === "distributor" ||
+            r?.name?.toLowerCase() === "distributor"
+        ) || item.role === "distributor";
+      const roleSlug = hasDistributorRole
+        ? "distributor"
+        : item.roles?.[0]?.slug || item.role || "retailer";
+
       return {
         ...item,
         id: item._id.toString(),
@@ -112,8 +136,8 @@ const updateRetailerAccountStatus = (id, updateData) =>
  * given `distributorId`. Supports optional search (fullName, email, mobile)
  * and scalar filters (status, adminApproved).
  *
- * NOTE: The field is intentionally spelled `ditributor` to match the existing
- * User schema (see user.model.js line ~248).
+ * NOTE: Supports both `ditributor` and `distributor` spellings to guarantee
+ * full data matching.
  *
  * @param {string} distributorId - MongoDB ObjectId string
  * @param {{
@@ -129,7 +153,9 @@ const findRetailersByDistributor = async (
   distributorId,
   { skip = 0, limit = 10, search, status, adminApproved } = {}
 ) => {
-  const query = { ditributor: distributorId };
+  const query = {
+    $or: [{ ditributor: distributorId }, { distributor: distributorId }],
+  };
 
   if (status) query.status = status;
   if (adminApproved) query.adminApproved = adminApproved;

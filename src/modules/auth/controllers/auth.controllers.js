@@ -567,6 +567,7 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
       mobile: u.mobile || "",
       email: u.email || "",
       shopName: u.shop?.name || "",
+      panNumber: u.panNumber || "",
       status: statusLabel,
       rawStatus: u.status,
       adminApproved: u.adminApproved,
@@ -614,6 +615,36 @@ const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) 
   );
 });
 
+const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
+  const distributorId = req.user?.userId;
+  const { id } = req.params;
+
+  if (!distributorId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  // Ensure this retailer was registered by this distributor
+  const retailer = await User.findOne({ _id: id, ditributor: distributorId }).lean();
+  if (!retailer) {
+    return res.status(404).json(
+      ApiResponse.error("Retailer not found or not in your downline network", null, null, 404)
+    );
+  }
+
+  const fullProfile = await getRetailerDetailsService(id);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      fullProfile,
+      "Downline retailer details retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
 export {
   sendRetailerLoginOtp,
   verifyRetailerLoginOtp,
@@ -634,5 +665,6 @@ export {
   validatePincodeController,
   getDownlineRetailersController,
   getDownlineRetailerTransactionsController,
+  getDownlineRetailerDetailsController,
 };
 

@@ -264,7 +264,16 @@ const setRetailerAccountStatus = async (id, status, reason = "") => {
 const getRetailer = async (id) => {
   const retailer = await findRetailerById(id);
   if (!retailer) throw ApiError.notFound("Retailer not found");
-  const roleSlug = retailer.roles?.[0]?.slug || retailer.role || "retailer";
+  const hasDistributorRole =
+    retailer.roles?.some(
+      (r) =>
+        r?.slug === "distributor" ||
+        r?.code === "distributor" ||
+        r?.name?.toLowerCase() === "distributor"
+    ) || retailer.role === "distributor";
+  const roleSlug = hasDistributorRole
+    ? "distributor"
+    : retailer.roles?.[0]?.slug || retailer.role || "retailer";
   return {
     ...retailer,
     id: retailer._id.toString(),
