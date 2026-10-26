@@ -236,18 +236,72 @@ const setRetailerAccountStatus = async (id, status, reason = "") => {
   const retailer = await findRetailerById(id);
   if (!retailer) throw ApiError.notFound("Retailer not found");
 
+  const DOC_FIELDS = [
+    "panDocument",
+    "aadhaarDocument",
+    "selfie",
+    "shopInsidePhoto",
+    "shopOutsidePhoto",
+    "shopLocationPhoto",
+    "businessProofDocument",
+  ];
+
   const updateData = {};
   if (["approved", "rejected"].includes(status)) {
     updateData.adminApproved = status;
     updateData.kycStatus = status;
+    const now = new Date();
+    const docReviews = retailer.documentReviews ? { ...retailer.documentReviews } : {};
+
     if (status === "approved") {
+      const missingDocs = DOC_FIELDS.filter((field) => !retailer[field]);
+      if (missingDocs.length > 0) {
+        throw ApiError.badRequest(
+          `Cannot approve retailer: Missing ${missingDocs.length} required document(s) (${missingDocs.join(", ")})`
+        );
+      }
+      const unapprovedDocs = DOC_FIELDS.filter(
+        (field) => (retailer.documentReviews?.[field]?.status || "").toUpperCase() !== "APPROVED"
+      );
+      if (unapprovedDocs.length > 0) {
+        throw ApiError.badRequest(
+          `Cannot approve retailer: All 7 documents must be approved first (${unapprovedDocs.join(", ")} pending/rejected)`
+        );
+      }
+
       updateData.status = "active";
       updateData.reasonOfRejection = null;
+      for (const field of DOC_FIELDS) {
+        if (retailer[field]) {
+          docReviews[field] = {
+            ...(docReviews[field] || {}),
+            status: "APPROVED",
+            rejectionReason: null,
+            reviewedAt: now,
+          };
+        }
+      }
+      updateData.documentReviews = docReviews;
     } else if (status === "rejected") {
       updateData.status = "rejected";
       updateData.reasonOfRejection = reason || "Application rejected by admin";
       updateData.kycRejectionReason = reason || "Application rejected by admin";
+      for (const field of DOC_FIELDS) {
+        if (retailer[field] && (docReviews[field]?.status === "PENDING" || !docReviews[field]?.status || docReviews[field]?.status === "NOT_SUBMITTED")) {
+          docReviews[field] = {
+            ...(docReviews[field] || {}),
+            status: "REJECTED",
+            rejectionReason: reason || "Application rejected by admin",
+            reviewedAt: now,
+          };
+        }
+      }
+      updateData.documentReviews = docReviews;
     }
+  } else if (status === "pending") {
+    updateData.adminApproved = "pending";
+    updateData.kycStatus = "pending";
+    updateData.status = "pending";
   } else {
     updateData.status = status;
   }
@@ -293,9 +347,64 @@ const updateRetailerKycStatus = async (id, status, reason = "") => {
   const retailer = await User.findById(id);
   if (!retailer) throw ApiError.notFound("Retailer not found");
 
+  const DOC_FIELDS = [
+    "panDocument",
+    "aadhaarDocument",
+    "selfie",
+    "shopInsidePhoto",
+    "shopOutsidePhoto",
+    "shopLocationPhoto",
+    "businessProofDocument",
+  ];
+
+  const now = new Date();
+  const docReviews = retailer.documentReviews ? { ...retailer.documentReviews } : {};
+
+  if (status === "approved") {
+    const missingDocs = DOC_FIELDS.filter((field) => !retailer[field]);
+    if (missingDocs.length > 0) {
+      throw ApiError.badRequest(
+        `Cannot approve retailer KYC: Missing ${missingDocs.length} required document(s) (${missingDocs.join(", ")})`
+      );
+    }
+    const unapprovedDocs = DOC_FIELDS.filter(
+      (field) => (retailer.documentReviews?.[field]?.status || "").toUpperCase() !== "APPROVED"
+    );
+    if (unapprovedDocs.length > 0) {
+      throw ApiError.badRequest(
+        `Cannot approve retailer KYC: All 7 documents must be approved first (${unapprovedDocs.join(", ")} pending/rejected)`
+      );
+    }
+
+    for (const field of DOC_FIELDS) {
+      if (retailer[field]) {
+        docReviews[field] = {
+          ...(docReviews[field] || {}),
+          status: "APPROVED",
+          rejectionReason: null,
+          reviewedAt: now,
+        };
+      }
+    }
+  } else if (status === "rejected") {
+    for (const field of DOC_FIELDS) {
+      if (retailer[field] && (docReviews[field]?.status === "PENDING" || !docReviews[field]?.status || docReviews[field]?.status === "NOT_SUBMITTED")) {
+        docReviews[field] = {
+          ...(docReviews[field] || {}),
+          status: "REJECTED",
+          rejectionReason: reason,
+          reviewedAt: now,
+        };
+      }
+    }
+  }
+
   const kycData = {
     kycStatus: status,
+    adminApproved: status,
     kycRejectionReason: status === "rejected" ? reason : "",
+    reasonOfRejection: status === "rejected" ? reason : null,
+    documentReviews: docReviews,
   };
 
   const updatedRetailer = await updateRetailerKyc(id, kycData);
