@@ -1,4 +1,5 @@
 import transporter from "../../../config/mail.js";
+import env from "../../../config/env.js";
 import User from "../model/user.model.js";
 
 import {
@@ -42,12 +43,13 @@ const sendEmailOtp = async (email) => {
     expiresAt,
   });
 
-  await transporter.sendMail({
-    from: `"HappyPay" <${process.env.SMTP_FROM}>`,
-    to: email,
-    subject: "HappyPay Email Verification OTP",
+  try {
+    await transporter.sendMail({
+      from: env.SMTP_FROM || `"HappyPay" <${env.SMTP_USER}>`,
+      to: email,
+      subject: "HappyPay Email Verification OTP",
 
-    html: `
+      html: `
       <div style="font-family: Arial, sans-serif;">
         <h2>HappyPay Email Verification</h2>
 
@@ -68,7 +70,26 @@ const sendEmailOtp = async (email) => {
         </p>
       </div>
     `,
-  });
+    });
+  } catch (mailError) {
+    console.error("Failed to send OTP email via SMTP:", mailError.message);
+
+    if (env.NODE_ENV !== "production") {
+      console.log(`\n======================================================`);
+      console.log(`[DEV-MODE] Email OTP for ${email}: ${otp}`);
+      console.log(`======================================================\n`);
+      return {
+        email,
+        expiresAt,
+        devOtp: otp,
+        message: "Development mode: Email delivery failed, OTP logged to console",
+      };
+    }
+
+    const error = new Error("Failed to send verification email. Please check your SMTP configuration.");
+    error.statusCode = 500;
+    throw error;
+  }
 
   return {
     email,
