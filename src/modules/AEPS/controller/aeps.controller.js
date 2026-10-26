@@ -491,7 +491,7 @@ const balanceEnquiryController = async (req, res) => {
       nmPoints,
       srno,
       sysid,
-      
+
     } = req.body;
 
     // Prepare payload for provider API
@@ -596,7 +596,7 @@ const miniStatementController = async (req, res) => {
       nmPoints,
       srno,
       sysid,
-      
+
     } = req.body;
 
     // Prepare payload for provider API
@@ -702,17 +702,17 @@ const cashWithdrawController = async (req, res) => {
       nmPoints,
       srno,
       sysid,
-      
+
     } = req.body;
 
-    const txnid=generate15CharTxnId("TXN")
+    const txnid = generate15CharTxnId("TXN")
     // Prepare payload for provider API
     const payload = {
       outlet_id,
       referenceKey,
       txnid,
-      latitude,
-      longitude,
+      latitude: "12.9200",
+      longitude: "77.6100",
       aadhaar,
       mobile,
       bankiin,
