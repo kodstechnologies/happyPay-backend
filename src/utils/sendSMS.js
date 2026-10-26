@@ -12,7 +12,7 @@ const sendSMS = async (mobileNumber, message, templateId = "1707175101642561256"
 
         const payload = {
             message,
-            senderId: SMS_SENDERID, 
+            senderId: SMS_SENDERID,
             number: mobileNumber,
             templateId,
         };

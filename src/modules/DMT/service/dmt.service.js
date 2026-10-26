@@ -62,7 +62,7 @@ export const getRemitterDetailsService = async (payload = {}) => {
       } catch (dbErr) {
         console.error("[DMT Backend] Auto-registration DB persist failed:", dbErr?.message || dbErr);
       }
-     
+
       return {
         ...registerResult,
         isNewRegistration: true,
@@ -203,11 +203,11 @@ export const fetchBeneficiariesService = async (payload = {}) => {
 
 // fetch benificiaries from our databse
 export const fetchBeneficiaries = async (payload = {}) => {
-   const cleanpayload={
-    remitterMobile:payload.mobile,
+  const cleanpayload = {
+    remitterMobile: payload.mobile,
     // outletid:payload.outletid,
-    verified:true
-   }
+    verified: true
+  }
   return await getBenificiary(cleanpayload);
 };
 /**
@@ -267,21 +267,21 @@ export const addBeneficiaryService = async (payload = {}) => {
 
   // Persist beneficiary in DB if provider call succeeded
   const isSuccess =
-    providerResult?.status === "SUCCESS" 
-  
+    providerResult?.status === "SUCCESS"
+
   if (isSuccess) {
 
-       await upsertBeneficiary({
-        name: cleanPayload.name,
-        ifsc: cleanPayload.ifsc,
-        accountNumber: cleanPayload.accountNumber,
-        bankId: cleanPayload.bankId,
-        beneficiaryMobile: cleanPayload.beneficiaryMobile,
-        beneficiaryId: String( providerResult?.beneficiaryId)?.trim(),
-        remitterMobile: cleanPayload.remitterMobile,
-        outletid: cleanPayload.outletid,
-        referenceKey:providerResult?.referenceKey
-      });
+    await upsertBeneficiary({
+      name: cleanPayload.name,
+      ifsc: cleanPayload.ifsc,
+      accountNumber: cleanPayload.accountNumber,
+      bankId: cleanPayload.bankId,
+      beneficiaryMobile: cleanPayload.beneficiaryMobile,
+      beneficiaryId: String(providerResult?.beneficiaryId)?.trim(),
+      remitterMobile: cleanPayload.remitterMobile,
+      outletid: cleanPayload.outletid,
+      referenceKey: providerResult?.referenceKey
+    });
   }
 
   return providerResult;
