@@ -77,8 +77,9 @@ import {
       user = await createUser(mobile, distributorId);
     } else {
       // Existing retailer - update mobile verification status
-      if (distributorId && !user.ditributor) {
+      if (distributorId && (!user.ditributor || !user.distributor)) {
         user.ditributor = distributorId;
+        user.distributor = distributorId;
         await user.save();
       }
       user = await verifyMobile(user._id);

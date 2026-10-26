@@ -568,12 +568,13 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
   const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
     ? new mongoose.Types.ObjectId(retailerId)
     : retailerId;
+  const retailerIdStr = String(retailerId);
 
   // Find any retailer IDs linked to this distributor/retailer in DistributorMapping
   let mappedRetailerIds = [];
   try {
     mappedRetailerIds = await DistributorMapping.find({
-      distributorId: retailerObjectId,
+      distributorId: { $in: [retailerObjectId, retailerIdStr] },
       isActive: true,
     }).distinct("retailerId");
   } catch (err) {
@@ -583,7 +584,9 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
   // Conditions guaranteeing that only retailers created by or mapped to this user are returned
   const creatorConditions = [
     { ditributor: retailerObjectId },
+    { ditributor: retailerIdStr },
     { distributor: retailerObjectId },
+    { distributor: retailerIdStr },
   ];
 
   if (Array.isArray(mappedRetailerIds) && mappedRetailerIds.length > 0) {
@@ -670,16 +673,18 @@ const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) 
   const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
     ? new mongoose.Types.ObjectId(retailerId)
     : retailerId;
+  const retailerIdStr = String(retailerId);
 
   const targetRetailerId = mongoose.Types.ObjectId.isValid(id)
     ? new mongoose.Types.ObjectId(id)
     : id;
+  const targetRetailerIdStr = String(id);
 
   let isMapped = false;
   try {
     isMapped = await DistributorMapping.exists({
-      retailerId: targetRetailerId,
-      distributorId: retailerObjectId,
+      retailerId: { $in: [targetRetailerId, targetRetailerIdStr] },
+      distributorId: { $in: [retailerObjectId, retailerIdStr] },
       isActive: true,
     });
   } catch (err) {
@@ -691,7 +696,12 @@ const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) 
     ? { _id: targetRetailerId }
     : {
         _id: targetRetailerId,
-        $or: [{ ditributor: retailerObjectId }, { distributor: retailerObjectId }],
+        $or: [
+          { ditributor: retailerObjectId },
+          { ditributor: retailerIdStr },
+          { distributor: retailerObjectId },
+          { distributor: retailerIdStr },
+        ],
       };
 
   const retailer = await User.findOne(ownershipCondition).lean();
@@ -726,16 +736,18 @@ const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
   const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
     ? new mongoose.Types.ObjectId(retailerId)
     : retailerId;
+  const retailerIdStr = String(retailerId);
 
   const targetRetailerId = mongoose.Types.ObjectId.isValid(id)
     ? new mongoose.Types.ObjectId(id)
     : id;
+  const targetRetailerIdStr = String(id);
 
   let isMapped = false;
   try {
     isMapped = await DistributorMapping.exists({
-      retailerId: targetRetailerId,
-      distributorId: retailerObjectId,
+      retailerId: { $in: [targetRetailerId, targetRetailerIdStr] },
+      distributorId: { $in: [retailerObjectId, retailerIdStr] },
       isActive: true,
     });
   } catch (err) {
@@ -747,7 +759,12 @@ const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
     ? { _id: targetRetailerId }
     : {
         _id: targetRetailerId,
-        $or: [{ ditributor: retailerObjectId }, { distributor: retailerObjectId }],
+        $or: [
+          { ditributor: retailerObjectId },
+          { ditributor: retailerIdStr },
+          { distributor: retailerObjectId },
+          { distributor: retailerIdStr },
+        ],
       };
 
   const retailer = await User.findOne(ownershipCondition).lean();

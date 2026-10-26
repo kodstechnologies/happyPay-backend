@@ -11,7 +11,7 @@ const createUser = async (mobile, distributorId = null) => {
     isMobileVerified: true,
     registrationStatus: "IN_PROGRESS",
     currentRegistrationStep: "ACCOUNT",
-    ...(distributorId ? { ditributor: distributorId } : {}),
+    ...(distributorId ? { ditributor: distributorId, distributor: distributorId } : {}),
   };
 
   const user = new User(userData);
