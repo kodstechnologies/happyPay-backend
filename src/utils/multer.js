@@ -278,9 +278,11 @@ export const validateShopFiles = (req, res, next) => {
   const uploadedFiles = req.files || {};
   const missingFiles = [];
 
-  // Check each mandatory file
+  // Check each mandatory file (either freshly uploaded in req.files or previously uploaded URL in req.body)
   mandatoryFiles.forEach(fieldName => {
-    if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) {
+    const hasUploadedFile = uploadedFiles[fieldName] && uploadedFiles[fieldName].length > 0;
+    const hasExistingFile = typeof req.body?.[fieldName] === "string" && req.body[fieldName].trim().length > 0;
+    if (!hasUploadedFile && !hasExistingFile) {
       missingFiles.push(fieldName);
     }
   });
@@ -335,9 +337,11 @@ export const uploadAdharDetailsDocuments = multer({
 // Middleware to validate mandatory about details files are uploaded
 export const validateAboutFiles = (req, res, next) => {
   const uploadedFiles = req.files || {};
+  const hasUploadedSelfie = uploadedFiles.selfie && uploadedFiles.selfie.length > 0;
+  const hasExistingSelfie = typeof req.body?.selfie === "string" && req.body.selfie.trim().length > 0;
 
-  // Check if selfie is uploaded
-  if (!uploadedFiles.selfie || uploadedFiles.selfie.length === 0) {
+  // Check if selfie is uploaded or existing
+  if (!hasUploadedSelfie && !hasExistingSelfie) {
     return res.status(400).json({
       success: false,
       message: "Selfie is required for about details",
