@@ -390,6 +390,7 @@ const userSchema = new mongoose.Schema(
       enum: [
         "active",
         "pending",
+        "approved",
         "rejected",
         "suspended",
         "blocked",
