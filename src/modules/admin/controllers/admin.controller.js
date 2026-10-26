@@ -15,6 +15,7 @@ import {
   getAdminDistributorSubRetailers,
   setRetailerAccountStatus,
   listAllTransactionsAdmin,
+  updateAdminDeviceToken,
 } from "../services/admin.service.js";
 
 export const register = asyncHandler(async (req, res) => {
@@ -33,6 +34,12 @@ export const logout = asyncHandler(async (req, res) => {
   const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
   const result = await logoutAdmin(adminId, token, req);
   return res.status(200).json(ApiResponse.success(result, "Admin logged out successfully"));
+});
+
+export const updateDeviceToken = asyncHandler(async (req, res) => {
+  const adminId = req.user?.adminId || req.user?.userId || req.user?.id;
+  const result = await updateAdminDeviceToken(adminId, req.body);
+  return res.status(200).json(ApiResponse.success(result, "Device token updated successfully"));
 });
 
 export const getProfile = asyncHandler(async (req, res) => {

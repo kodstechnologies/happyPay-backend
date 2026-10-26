@@ -16,6 +16,7 @@ import {
   getDistributorSubRetailersAdmin,
   updateAccountStatus,
   getAllTransactionsAdmin,
+  updateDeviceToken,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -26,6 +27,9 @@ router.post("/auth/login", login);
 router.post("/auth/logout", authMiddleware, requireAdmin, logout);
 router.post("/auth/forgot-password", forgotPassword);
 router.post("/auth/reset-password", resetPassword);
+
+// Device token update for FCM push notifications (protected)
+router.patch("/device-token", authMiddleware, requireAdmin, updateDeviceToken);
 
 // Profile route (protected)
 router.get("/profile", authMiddleware, requireAdmin, getProfile);
