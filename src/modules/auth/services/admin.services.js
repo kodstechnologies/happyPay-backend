@@ -290,41 +290,36 @@ const approveRetailerDocumentsService = async (retailerId, adminId, selectedFiel
     throw fail(404, "Retailer not found");
   }
 
-  if (retailer.registrationStatus !== "COMPLETED") {
-    throw fail(400, "Retailer has not completed registration yet");
+  if (!retailer.documentReviews) {
+    retailer.documentReviews = {};
   }
 
-  const reviews = retailer.documentReviews || {};
   const now = new Date();
-
-  // Validate all selected fields are currently PENDING
-  for (const field of fieldsToApprove) {
-    const doc = reviews[field] || {};
-    if (doc.status !== "PENDING") {
-      throw fail(
-        409,
-        `Document '${field}' is not in PENDING status (current: ${doc.status || "NOT_SUBMITTED"})`
-      );
-    }
-  }
+  const validAdminId = (adminId && mongoose.Types.ObjectId.isValid(adminId)) ? adminId : null;
 
   // Mark selected documents as APPROVED
   for (const field of fieldsToApprove) {
+    if (!retailer.documentReviews[field]) retailer.documentReviews[field] = {};
     retailer.documentReviews[field].status = "APPROVED";
-    retailer.documentReviews[field].reviewedBy = adminId;
+    retailer.documentReviews[field].reviewedBy = validAdminId;
     retailer.documentReviews[field].reviewedAt = now;
     retailer.documentReviews[field].rejectionReason = null;
   }
 
-  // Sync adminApproved only when every document is now APPROVED
-  const allApproved = DOC_FIELDS.every(
-    (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
-  );
+  // Sync adminApproved only when all actually uploaded documents are now APPROVED
+  const uploadedFields = DOC_FIELDS.filter((f) => Boolean(retailer[f]));
+  const allApproved =
+    uploadedFields.length > 0 &&
+    uploadedFields.every(
+      (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
+    );
   if (allApproved) {
     retailer.adminApproved = "approved";
+    retailer.kycStatus = "approved";
     retailer.reasonOfRejection = null;
   }
 
+  retailer.markModified("documentReviews");
   await retailer.save();
   return buildRetailerReview(retailer);
 };
@@ -367,35 +362,27 @@ const rejectRetailerDocumentsService = async (
     throw fail(404, "Retailer not found");
   }
 
-  if (retailer.registrationStatus !== "COMPLETED") {
-    throw fail(400, "Retailer has not completed registration yet");
+  if (!retailer.documentReviews) {
+    retailer.documentReviews = {};
   }
 
-  const reviews = retailer.documentReviews || {};
   const now = new Date();
-
-  // Validate all selected fields are currently PENDING
-  for (const field of fieldsToReject) {
-    const doc = reviews[field] || {};
-    if (doc.status !== "PENDING") {
-      throw fail(
-        409,
-        `Document '${field}' is not in PENDING status (current: ${doc.status || "NOT_SUBMITTED"})`
-      );
-    }
-  }
+  const validAdminId = (adminId && mongoose.Types.ObjectId.isValid(adminId)) ? adminId : null;
 
   // Mark selected documents as REJECTED
   for (const field of fieldsToReject) {
+    if (!retailer.documentReviews[field]) retailer.documentReviews[field] = {};
     retailer.documentReviews[field].status = "REJECTED";
-    retailer.documentReviews[field].reviewedBy = adminId;
+    retailer.documentReviews[field].reviewedBy = validAdminId;
     retailer.documentReviews[field].reviewedAt = now;
     retailer.documentReviews[field].rejectionReason = reason;
   }
 
   retailer.adminApproved = "rejected";
+  retailer.kycStatus = "rejected";
   retailer.reasonOfRejection = reason;
 
+  retailer.markModified("documentReviews");
   await retailer.save();
   return buildRetailerReview(retailer);
 };
@@ -447,10 +434,6 @@ const reviewRetailerDocumentService = async ({
     throw fail(404, "Retailer not found");
   }
 
-  if (retailer.registrationStatus !== "COMPLETED") {
-    throw fail(400, "Retailer has not completed registration yet");
-  }
-
   if (!retailer.documentReviews) {
     retailer.documentReviews = {};
   }
@@ -459,19 +442,25 @@ const reviewRetailerDocumentService = async ({
   }
 
   const now = new Date();
-  retailer.documentReviews[documentField].reviewedBy = adminId;
+  const validAdminId = (adminId && mongoose.Types.ObjectId.isValid(adminId)) ? adminId : null;
+  retailer.documentReviews[documentField].reviewedBy = validAdminId;
   retailer.documentReviews[documentField].reviewedAt = now;
 
   if (isApprove) {
     retailer.documentReviews[documentField].status = "APPROVED";
     retailer.documentReviews[documentField].rejectionReason = null;
 
-    // Sync adminApproved if all documents are now APPROVED
-    const allApproved = DOC_FIELDS.every(
-      (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
-    );
+    // Sync adminApproved if all actually uploaded documents are now APPROVED
+    const uploadedFields = DOC_FIELDS.filter((f) => Boolean(retailer[f]));
+    const allApproved =
+      uploadedFields.length > 0 &&
+      uploadedFields.every(
+        (f) => (retailer.documentReviews[f]?.status || "NOT_SUBMITTED") === "APPROVED"
+      );
+
     if (allApproved) {
       retailer.adminApproved = "approved";
+      retailer.kycStatus = "approved";
       retailer.reasonOfRejection = null;
     }
   } else {
@@ -480,9 +469,11 @@ const reviewRetailerDocumentService = async ({
 
     // Sync adminApproved whenever any document is rejected
     retailer.adminApproved = "rejected";
+    retailer.kycStatus = "rejected";
     retailer.reasonOfRejection = trimmedReason;
   }
 
+  retailer.markModified("documentReviews");
   await retailer.save();
   return buildRetailerReview(retailer);
 };

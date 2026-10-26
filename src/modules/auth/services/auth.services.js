@@ -889,6 +889,8 @@ export {
   generateRetailerTokens,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
+  getRetailerKycDetailsService,
+  reuploadRetailerKycDocumentsService,
 };
 
 
@@ -1276,4 +1278,225 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     updated: true,
   };
 };
+
+const getRetailerKycDetailsService = async (retailerId) => {
+  if (!retailerId) {
+    const error = new Error("Retailer ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const retailer = await User.findById(retailerId)
+    .select("-refreshTokens -devices -__v")
+    .populate("shop.category", "name")
+    .populate("shop.propertyType", "name")
+    .populate("businessProofType", "name")
+    .populate("AepsEkyc");
+
+  if (!retailer) {
+    const error = new Error("Retailer not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const reviews = retailer.documentReviews || {};
+  const overallAdminApproved = retailer.adminApproved || "pending";
+  const overallReason = retailer.reasonOfRejection || null;
+
+  // Normalized document definitions
+  const docDefinitions = [
+    {
+      field: "panDocument",
+      title: "PAN Card",
+      documentNumber: retailer.panNumber || null,
+      documentType: "Identity & Tax Proof",
+    },
+    {
+      field: "aadhaarDocument",
+      title: "Aadhaar Card",
+      documentNumber: retailer.aadhaarNumber
+        ? retailer.aadhaarNumber.length >= 4
+          ? `XXXX-XXXX-${retailer.aadhaarNumber.slice(-4)}`
+          : retailer.aadhaarNumber
+        : null,
+      documentType: "National Identity Proof",
+    },
+    {
+      field: "selfie",
+      title: "Retailer Photo / Selfie",
+      documentNumber: null,
+      documentType: "Live Identity Verification",
+    },
+    {
+      field: "shopInsidePhoto",
+      title: "Shop Inside View",
+      documentNumber: null,
+      documentType: "Store Interior Verification",
+    },
+    {
+      field: "shopOutsidePhoto",
+      title: "Shop Outside View",
+      documentNumber: null,
+      documentType: "Store Front & Signboard",
+    },
+    {
+      field: "shopLocationPhoto",
+      title: "Shop Location / Street View",
+      documentNumber: null,
+      documentType: "Store Surroundings & Landmark",
+    },
+    {
+      field: "businessProofDocument",
+      title: "Business Proof Document",
+      documentNumber: null,
+      documentType:
+        typeof retailer.businessProofType === "object" && retailer.businessProofType?.name
+          ? retailer.businessProofType.name
+          : "Business Registration / Utility Bill",
+    },
+  ];
+
+  let approvedCount = 0;
+  let pendingCount = 0;
+  let rejectedCount = 0;
+  let notSubmittedCount = 0;
+
+  const documents = docDefinitions.map((def) => {
+    const fileUrl = retailer[def.field] || null;
+    const docReview = reviews[def.field] || {};
+    const reviewStatus = (docReview.status || "").toUpperCase();
+
+    let status = "NOT_SUBMITTED";
+    if (reviewStatus === "REJECTED") {
+      status = "REJECTED";
+    } else if (overallAdminApproved === "approved" && fileUrl) {
+      status = "APPROVED";
+    } else if (reviewStatus === "APPROVED" || reviewStatus === "PENDING") {
+      status = reviewStatus;
+    } else if (fileUrl) {
+      status = "PENDING";
+    }
+
+    if (status === "APPROVED") approvedCount++;
+    else if (status === "REJECTED") rejectedCount++;
+    else if (status === "PENDING") pendingCount++;
+    else notSubmittedCount++;
+
+    const rejectionReason =
+      docReview.rejectionReason ||
+      (status === "REJECTED" ? overallReason : null) ||
+      null;
+
+    return {
+      field: def.field,
+      title: def.title,
+      documentNumber: def.documentNumber,
+      documentType: def.documentType,
+      url: fileUrl,
+      status, // "APPROVED" | "PENDING" | "REJECTED" | "NOT_SUBMITTED"
+      rejectionReason,
+      reviewedAt: docReview.reviewedAt || null,
+      canReupload: status === "REJECTED" || status === "NOT_SUBMITTED" || !fileUrl,
+    };
+  });
+
+  const summary = {
+    overallStatus: overallAdminApproved, // "pending" | "approved" | "rejected"
+    totalDocuments: docDefinitions.length,
+    approvedCount,
+    pendingCount,
+    rejectedCount,
+    notSubmittedCount,
+    hasRejected: rejectedCount > 0 || overallAdminApproved === "rejected",
+    reasonOfRejection: overallReason,
+  };
+
+  const personalDetails = {
+    id: retailer._id,
+    fullName: retailer.fullName || null,
+    fatherName: retailer.fatherName || null,
+    gender: retailer.gender || null,
+    maritalStatus: retailer.maritalStatus || null,
+    educationalQualification: retailer.educationalQualification || null,
+    dateOfBirth: retailer.dateOfBirth || null,
+    mobile: retailer.mobile || null,
+    isMobileVerified: Boolean(retailer.isMobileVerified),
+    email: retailer.email || null,
+    isEmailVerified: Boolean(retailer.isEmailVerified),
+    selfie: retailer.selfie || null,
+    registrationStatus: retailer.registrationStatus,
+    currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
+  };
+
+  const shopDetails = {
+    name: retailer.shop?.name || null,
+    category: retailer.shop?.category || null,
+    propertyType: retailer.shop?.propertyType || null,
+    address: retailer.shop?.address || null,
+    completeAddress: retailer.shop?.completeAddress || null,
+    location: retailer.shop?.location || null,
+  };
+
+  const primaryBank =
+    retailer.banks?.find((b) => b.isPrimary) || retailer.banks?.[0] || null;
+
+  return {
+    retailer: personalDetails,
+    shop: shopDetails,
+    bank: primaryBank,
+    documents,
+    summary,
+  };
+};
+
+const reuploadRetailerKycDocumentsService = async (retailerId, files = {}) => {
+  if (!retailerId) {
+    const error = new Error("Retailer ID is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findById(retailerId);
+  if (!user) {
+    const error = new Error("Retailer not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!user.documentReviews) {
+    user.documentReviews = {};
+  }
+
+  let hasUpdates = false;
+  for (const field of DOC_FIELDS) {
+    const uploadedFile = files[field]?.[0];
+    if (uploadedFile?.path) {
+      user[field] = uploadedFile.path;
+      user.documentReviews[field] = {
+        status: "PENDING",
+        rejectionReason: null,
+        reviewedBy: null,
+        reviewedAt: null,
+      };
+      hasUpdates = true;
+    }
+  }
+
+  if (!hasUpdates) {
+    const error = new Error("No valid document files uploaded");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // If retailer was previously rejected, reset overall status to pending
+  if (user.adminApproved === "rejected") {
+    user.adminApproved = "pending";
+    user.reasonOfRejection = null;
+  }
+
+  await user.save();
+
+  return await getRetailerKycDetailsService(user._id);
+};
+
 

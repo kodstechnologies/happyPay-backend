@@ -59,6 +59,61 @@ const sendOtp = async (req, res, next) => {
   }
 };
 
+const resendOtp = async (req, res, next) => {
+  try {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      const response = ApiResponse.error(
+        "Request body is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    const { mobile } = req.body;
+
+    if (!mobile) {
+      const response = ApiResponse.error(
+        "Mobile number is required",
+        null,
+        null,
+        400
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    // Check if mobile number is already registered
+    const existingUser = await findByMobile(mobile);
+    if (existingUser) {
+      const response = ApiResponse.error(
+        "Account already exists. Please login.",
+        {
+          userId: existingUser._id,
+          registrationStatus: existingUser.registrationStatus,
+          currentRegistrationStep: existingUser.currentRegistrationStep,
+          adminApproved: existingUser.adminApproved,
+        },
+        null,
+        409
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    const result = await otpService.sendOtp(mobile);
+
+    const response = ApiResponse.success(
+      result,
+      "OTP resent successfully",
+      null,
+      200
+    );
+    return res.status(response.statusCode).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const verifyOtp = async (req, res, next) => {
   try {
     // Check if request body is provided
@@ -153,5 +208,6 @@ const verifyOtp = async (req, res, next) => {
 
 export {
   sendOtp,
+  resendOtp,
   verifyOtp,
 };

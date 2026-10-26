@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   sendRetailerLoginOtp,
+  resendRetailerLoginOtp,
   verifyRetailerLoginOtp,
   logoutRetailer,
   registerRetailer,
@@ -21,6 +22,8 @@ import {
   getDownlineRetailersController,
   getDownlineRetailerTransactionsController,
   getDownlineRetailerDetailsController,
+  getRetailerKycDetailsController,
+  reuploadRetailerKycDocumentsController,
 } from "../controllers/auth.controllers.js";
 import { uploadRetailerDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
@@ -64,6 +67,8 @@ router.get("/retailer/details/:retailerId", getRetailerDetails);
 router.get("/retailer/auth/me", authMiddleware, getAuthenticatedRetailer);
 router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
 router.patch("/retailer/profile", authMiddleware, uploadRetailerDocuments, updateRetailerProfileController);
+router.get("/retailer/kyc-details", authMiddleware, getRetailerKycDetailsController);
+router.post("/retailer/kyc/reupload", authMiddleware, uploadRetailerDocuments, reuploadRetailerKycDocumentsController);
 
 // Downline retailers routes for distributors
 router.get("/retailer/downline-retailers", authMiddleware, getDownlineRetailersController);
@@ -73,6 +78,11 @@ router.get("/retailer/downline-retailers/:id/transactions", authMiddleware, getD
 router.post(
   "/retailer/login/send-otp",
   sendRetailerLoginOtp
+);
+
+router.post(
+  "/retailer/login/resend-otp",
+  resendRetailerLoginOtp
 );
 
 router.post(

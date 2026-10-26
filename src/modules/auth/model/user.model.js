@@ -249,6 +249,10 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
     },
+    distributor: {
+       type: mongoose.Schema.Types.ObjectId,
+       ref: "User",
+    },
     // =========================
     // Bank Details (Array for multiple banks)
     // =========================
@@ -384,9 +388,9 @@ const userSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-
         "active",
-
+        "pending",
+        "rejected",
         "suspended",
         "blocked",
       ],

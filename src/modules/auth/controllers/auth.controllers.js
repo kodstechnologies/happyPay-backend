@@ -10,6 +10,8 @@ import {
   updateRetailerProfileService,
   refreshAccessToken,
   getRetailerAadhaarAndMobile,
+  getRetailerKycDetailsService,
+  reuploadRetailerKycDocumentsService,
 } from "../services/auth.services.js";
 
 import {
@@ -25,7 +27,9 @@ import cloudinary from "../../../config/cloudinary.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
 import { validatePincode } from "../services/pincode.service.js";
+import mongoose from "mongoose";
 import User from "../model/user.model.js";
+import DistributorMapping from "../../network/model/distributorMapping.model.js";
 import { parsePagination, buildPaginationMetadata, escapeRegex } from "../../../utils/queryHelpers.js";
 import { getRetailerTransactions } from "../../transaction/service/transaction.service.js";
 
@@ -102,6 +106,44 @@ const sendRetailerLoginOtp = async (req, res) => {
       .json(
         ApiResponse.error(
           error.message || "Failed to send OTP"
+        )
+      );
+  }
+};
+
+const resendRetailerLoginOtp = async (req, res) => {
+  try {
+    const { mobile } = req.body;
+
+    const data = await sendRetailerLoginOtpService({
+      mobile,
+    });
+
+    return res.status(200).json(
+      ApiResponse.success(
+        data,
+        "OTP resent successfully"
+      )
+    );
+  } catch (error) {
+    if (error.statusCode === 403 && error.data) {
+      return res
+        .status(error.statusCode)
+        .json(
+          ApiResponse.error(
+            error.message || "Failed to resend OTP",
+            error.data,
+            null,
+            error.statusCode
+          )
+        );
+    }
+
+    return res
+      .status(error.statusCode || 500)
+      .json(
+        ApiResponse.error(
+          error.message || "Failed to resend OTP"
         )
       );
   }
@@ -514,33 +556,63 @@ const validatePincodeController = asyncHandler(async (req, res) => {
 });
 
 const getDownlineRetailersController = asyncHandler(async (req, res) => {
-  const distributorId = req.user?.userId;
-  if (!distributorId) {
+  const retailerId = req.user?.userId || req.user?.id || req.user?._id;
+  if (!retailerId) {
     return res.status(401).json(
       ApiResponse.error("User not authenticated", null, null, 401)
     );
   }
 
   const { page, limit, skip } = parsePagination(req.query);
-  const query = { ditributor: distributorId };
+
+  const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
+    ? new mongoose.Types.ObjectId(retailerId)
+    : retailerId;
+
+  // Find any retailer IDs linked to this distributor/retailer in DistributorMapping
+  let mappedRetailerIds = [];
+  try {
+    mappedRetailerIds = await DistributorMapping.find({
+      distributorId: retailerObjectId,
+      isActive: true,
+    }).distinct("retailerId");
+  } catch (err) {
+    logger.warn("Failed to fetch distributor mappings: " + err?.message);
+  }
+
+  // Conditions guaranteeing that only retailers created by or mapped to this user are returned
+  const creatorConditions = [
+    { ditributor: retailerObjectId },
+    { distributor: retailerObjectId },
+  ];
+
+  if (Array.isArray(mappedRetailerIds) && mappedRetailerIds.length > 0) {
+    creatorConditions.push({ _id: { $in: mappedRetailerIds } });
+  }
+
+  const andConditions = [{ $or: creatorConditions }];
 
   if (req.query.status) {
-    query.status = req.query.status;
+    andConditions.push({ status: req.query.status });
   }
   if (req.query.adminApproved) {
-    query.adminApproved = req.query.adminApproved;
+    andConditions.push({ adminApproved: req.query.adminApproved });
   }
 
   if (req.query.search && String(req.query.search).trim()) {
     const escaped = escapeRegex(String(req.query.search).trim().slice(0, 100));
     const regex = { $regex: escaped, $options: "i" };
-    query.$or = [
-      { fullName: regex },
-      { email: regex },
-      { mobile: regex },
-      { "shop.name": regex },
-    ];
+    andConditions.push({
+      $or: [
+        { fullName: regex },
+        { email: regex },
+        { mobile: regex },
+        { "shop.name": regex },
+      ],
+    });
   }
+
+  const query = andConditions.length > 1 ? { $and: andConditions } : andConditions[0];
 
   const [users, total] = await Promise.all([
     User.find(query)
@@ -586,17 +658,43 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
 });
 
 const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) => {
-  const distributorId = req.user?.userId;
+  const retailerId = req.user?.userId || req.user?.id || req.user?._id;
   const { id } = req.params;
 
-  if (!distributorId) {
+  if (!retailerId) {
     return res.status(401).json(
       ApiResponse.error("User not authenticated", null, null, 401)
     );
   }
 
-  // Ensure this retailer was registered by this distributor
-  const retailer = await User.findOne({ _id: id, ditributor: distributorId }).lean();
+  const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
+    ? new mongoose.Types.ObjectId(retailerId)
+    : retailerId;
+
+  const targetRetailerId = mongoose.Types.ObjectId.isValid(id)
+    ? new mongoose.Types.ObjectId(id)
+    : id;
+
+  let isMapped = false;
+  try {
+    isMapped = await DistributorMapping.exists({
+      retailerId: targetRetailerId,
+      distributorId: retailerObjectId,
+      isActive: true,
+    });
+  } catch (err) {
+    logger.warn("Failed to check distributor mapping: " + err?.message);
+  }
+
+  // Ensure this retailer was registered by or mapped to this distributor/retailer
+  const ownershipCondition = isMapped
+    ? { _id: targetRetailerId }
+    : {
+        _id: targetRetailerId,
+        $or: [{ ditributor: retailerObjectId }, { distributor: retailerObjectId }],
+      };
+
+  const retailer = await User.findOne(ownershipCondition).lean();
   if (!retailer) {
     return res.status(404).json(
       ApiResponse.error("Retailer not found or not in your downline network", null, null, 404)
@@ -616,17 +714,43 @@ const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) 
 });
 
 const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
-  const distributorId = req.user?.userId;
+  const retailerId = req.user?.userId || req.user?.id || req.user?._id;
   const { id } = req.params;
 
-  if (!distributorId) {
+  if (!retailerId) {
     return res.status(401).json(
       ApiResponse.error("User not authenticated", null, null, 401)
     );
   }
 
-  // Ensure this retailer was registered by this distributor
-  const retailer = await User.findOne({ _id: id, ditributor: distributorId }).lean();
+  const retailerObjectId = mongoose.Types.ObjectId.isValid(retailerId)
+    ? new mongoose.Types.ObjectId(retailerId)
+    : retailerId;
+
+  const targetRetailerId = mongoose.Types.ObjectId.isValid(id)
+    ? new mongoose.Types.ObjectId(id)
+    : id;
+
+  let isMapped = false;
+  try {
+    isMapped = await DistributorMapping.exists({
+      retailerId: targetRetailerId,
+      distributorId: retailerObjectId,
+      isActive: true,
+    });
+  } catch (err) {
+    logger.warn("Failed to check distributor mapping: " + err?.message);
+  }
+
+  // Ensure this retailer was registered by or mapped to this distributor/retailer
+  const ownershipCondition = isMapped
+    ? { _id: targetRetailerId }
+    : {
+        _id: targetRetailerId,
+        $or: [{ ditributor: retailerObjectId }, { distributor: retailerObjectId }],
+      };
+
+  const retailer = await User.findOne(ownershipCondition).lean();
   if (!retailer) {
     return res.status(404).json(
       ApiResponse.error("Retailer not found or not in your downline network", null, null, 404)
@@ -645,8 +769,47 @@ const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
   );
 });
 
+const getRetailerKycDetailsController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  const data = await getRetailerKycDetailsService(retailerId);
+  return res.status(200).json(
+    ApiResponse.success(
+      data,
+      "Retailer KYC details retrieved successfully",
+      null,
+      200
+    )
+  );
+});
+
+const reuploadRetailerKycDocumentsController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  const data = await reuploadRetailerKycDocumentsService(retailerId, req.files || {});
+  return res.status(200).json(
+    ApiResponse.success(
+      data,
+      "KYC documents re-uploaded successfully",
+      null,
+      200
+    )
+  );
+});
+
 export {
   sendRetailerLoginOtp,
+  resendRetailerLoginOtp,
   verifyRetailerLoginOtp,
   logoutRetailer,
   registerRetailer,
@@ -666,5 +829,8 @@ export {
   getDownlineRetailersController,
   getDownlineRetailerTransactionsController,
   getDownlineRetailerDetailsController,
+  getRetailerKycDetailsController,
+  reuploadRetailerKycDocumentsController,
 };
+
 
