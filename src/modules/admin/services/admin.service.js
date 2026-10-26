@@ -414,15 +414,15 @@ const getAdminDistributorSubRetailers = async (distributorId, options = {}) => {
   // 3. Single aggregation — successful-transaction count + volume per wallet
   const txStats = walletIds.length
     ? await Transaction.aggregate([
-        { $match: { wallet: { $in: walletIds }, status: "success" } },
-        {
-          $group: {
-            _id: "$wallet",
-            totalTransactions: { $sum: 1 },
-            totalVolume: { $sum: "$amount" },
-          },
+      { $match: { wallet: { $in: walletIds }, status: "success" } },
+      {
+        $group: {
+          _id: "$wallet",
+          totalTransactions: { $sum: 1 },
+          totalVolume: { $sum: "$amount" },
         },
-      ])
+      },
+    ])
     : [];
 
   /** Map: walletId (string) → { totalTransactions, totalVolume } */
@@ -454,13 +454,13 @@ const getAdminDistributorSubRetailers = async (distributorId, options = {}) => {
           : null),
       primaryBank: primaryBank
         ? {
-            name: primaryBank.name ?? null,
-            ifscCode: primaryBank.ifscCode ?? null,
-            // Mask all but last 4 digits for security
-            accountNumber: primaryBank.accountNumber
-              ? `XXXXXXXX${String(primaryBank.accountNumber).slice(-4)}`
-              : null,
-          }
+          name: primaryBank.name ?? null,
+          ifscCode: primaryBank.ifscCode ?? null,
+          // Mask all but last 4 digits for security
+          accountNumber: primaryBank.accountNumber
+            ? `XXXXXXXX${String(primaryBank.accountNumber).slice(-4)}`
+            : null,
+        }
         : null,
       createdAt: user.createdAt,
       totalTransactions: stats?.totalTransactions ?? 0,

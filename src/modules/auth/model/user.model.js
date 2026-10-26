@@ -245,9 +245,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    ditributor:{
-       type:mongoose.Schema.Types.ObjectId,
-       ref:"User"
+    ditributor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
     },
     // =========================
     // Bank Details (Array for multiple banks)
@@ -274,9 +274,9 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
-        bank_id:{
-          type:String,
-          trim:true
+        bank_id: {
+          type: String,
+          trim: true
         },
         branchName: {
           type: String,
