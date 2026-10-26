@@ -8,7 +8,7 @@ export const generate15CharTxnId = (prefix = "TXN") => {
     .slice(0, remainingLen)
     .toUpperCase();
 
-  return `${cleanPrefix}_${randomStr}`;
+  return `${cleanPrefix}${randomStr}`;
 };
 
 
