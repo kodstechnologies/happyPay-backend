@@ -126,13 +126,6 @@ const doEkycController = async (req, res) => {
         );
       }
 
-      const saved = await recordEkycOutlet({
-        userId: userId,
-        outletId: outlet_id,
-        referenceKey: referenceKey,
-        pidOptionWadh: pidOptionWadh,
-      });
-
       if (userId) {
         await updateEKYCStatus(userId, "ACTION_REQUIRED");
       }
@@ -146,7 +139,7 @@ const doEkycController = async (req, res) => {
             message: "ACTION-REQUIRED",
             referenceKey: referenceKey,
             pidOptionWadh: pidOptionWadh,
-            ekyc: saved,
+            ekyc: null,
             kycRequired: true,
             eKYCStatus: "ACTION_REQUIRED",
           },
@@ -205,16 +198,6 @@ const doEkycController = async (req, res) => {
     // Default fallback
     const referenceKey = result?.data?.referenceKey || result?.referenceKey;
     const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
-    let saved = null;
-
-    if (referenceKey && userId) {
-      saved = await recordEkycOutlet({
-        userId: userId,
-        outletId: outlet_id,
-        referenceKey: referenceKey,
-        pidOptionWadh: pidOptionWadh,
-      });
-    }
 
     return res.status(200).json(
       ApiResponse.success(
@@ -225,7 +208,7 @@ const doEkycController = async (req, res) => {
           message: "eKYC status checked successfully",
           referenceKey,
           pidOptionWadh,
-          ekyc: saved,
+          ekyc: null,
           kycRequired: false,
           eKYCStatus: "PENDING",
         },
