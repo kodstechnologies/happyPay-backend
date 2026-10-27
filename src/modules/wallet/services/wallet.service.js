@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Wallet from "../model/wallet.model.js";
 import Transaction from "../../transaction/model/transaction.model.js";
+import User from "../../auth/model/user.model.js";
 
 import { ApiError } from "../../../utils/ApiError.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
@@ -158,10 +159,87 @@ export const recordFailedWalletPayment = async (
   return await transaction.save();
 };
 
+/**
+ * Service to get settlement bank info, active registered banks,
+ * retailer identity data, live wallet balance, and settlement limits.
+ */
+export const getSettlementBankInfoService = async (userId) => {
+  if (!userId) {
+    throw ApiError.badRequest("User ID is required");
+  }
+
+  const [user, walletData] = await Promise.all([
+    User.findById(userId)
+      .select("fullName mobile email status adminApproved kycStatus banks shop.name")
+      .lean(),
+    getUserWalletBalance(userId),
+  ]);
+
+  if (!user) {
+    throw ApiError.notFound("Retailer not found");
+  }
+
+  const rawBanks = Array.isArray(user.banks) ? user.banks : [];
+
+  const activeBanks = rawBanks
+    .filter((b) => b && b.isActive !== false)
+    .map((b) => {
+      const acc = String(b.accountNumber || "").trim();
+      const masked = acc.length > 4 ? `•••• •••• ${acc.slice(-4)}` : acc;
+      return {
+        _id: b._id ? b._id.toString() : "",
+        id: b._id ? b._id.toString() : String(b.bank_id || ""),
+        name: b.name || "Bank Account",
+        bank_id: b.bank_id || "",
+        accountNumber: acc,
+        maskedAccountNumber: masked,
+        ifscCode: String(b.ifscCode || "").trim().toUpperCase(),
+        branchName: b.branchName || "",
+        isPrimary: Boolean(b.isPrimary),
+        isActive: b.isActive !== false,
+        isVerified: true,
+      };
+    });
+
+  const primaryBank =
+    activeBanks.find((b) => b.isPrimary) || activeBanks[0] || null;
+
+  return {
+    retailer: {
+      id: user._id ? user._id.toString() : "",
+      fullName: user.fullName || "",
+      mobile: user.mobile || "",
+      email: user.email || "",
+      shopName: user.shop?.name || "",
+      status: user.status || "active",
+      adminApproved: user.adminApproved || "pending",
+      isKycApproved: user.adminApproved === "approved",
+    },
+    wallet: {
+      walletId: walletData.walletId,
+      totalBalance: walletData.balance,
+      holdBalance: walletData.holdBalance,
+      availableBalance: walletData.availableBalance,
+      currency: walletData.currency || "INR",
+      status: walletData.status || "active",
+    },
+    banks: activeBanks,
+    primaryBank,
+    limits: {
+      minSettlementAmount: 100,
+      maxSettlementPerTxn: 50000,
+      dailySettlementLimit: 200000,
+      supportedModes: ["IMPS", "NEFT"],
+    },
+  };
+};
+
 export default {
   addAmountToWallet,
   recordFailedWalletPayment,
   getUserWalletBalance,
   createWallet,
+  getSettlementBankInfoService,
 };
+
 

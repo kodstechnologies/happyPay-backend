@@ -79,8 +79,20 @@ const doEkycController = async (req, res) => {
 
     if (isNoActionRequired) {
       // Extract referenceKey and pidOptionWadh from the provider response
-      const referenceKey = result?.data?.referenceKey || result?.referenceKey;
-      const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+      const referenceKey =
+        result?.data?.referenceKey ||
+        result?.referenceKey ||
+        result?.data?.referencekey ||
+        result?.referencekey ||
+        result?.data?.reference_key ||
+        result?.reference_key;
+      const pidOptionWadh =
+        result?.data?.pidOptionWadh ||
+        result?.pidOptionWadh ||
+        result?.data?.pidoptionwadh ||
+        result?.pidoptionwadh ||
+        result?.data?.wadh ||
+        result?.wadh;
       let saved = null;
 
       if (referenceKey && userId) {
@@ -117,12 +129,30 @@ const doEkycController = async (req, res) => {
 
     if (isActionRequired) {
       // Extract referenceKey and pidOptionWadh from the provider response
-      const referenceKey = result?.data?.referenceKey || result?.referenceKey;
-      const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+      const referenceKey =
+        result?.data?.referenceKey ||
+        result?.referenceKey ||
+        result?.data?.referencekey ||
+        result?.referencekey ||
+        result?.data?.reference_key ||
+        result?.reference_key;
+      const pidOptionWadh =
+        result?.data?.pidOptionWadh ||
+        result?.pidOptionWadh ||
+        result?.data?.pidoptionwadh ||
+        result?.pidoptionwadh ||
+        result?.data?.wadh ||
+        result?.wadh;
 
       if (!referenceKey) {
+        const gatewayMsg =
+          result?.msg ||
+          result?.message ||
+          result?.data?.msg ||
+          result?.data?.message ||
+          "referenceKey not found in provider response";
         return res.status(400).json(
-          ApiResponse.error("referenceKey not found in provider response", null, null, 400)
+          ApiResponse.error(gatewayMsg, result || null, null, 400)
         );
       }
 
@@ -150,8 +180,13 @@ const doEkycController = async (req, res) => {
       );
     }
 
-    if (providerStatus === "FAILED" || providerStatus === "REJECTED") {
-      const rejectionReason = result?.msg || result?.message || "eKYC verification failed";
+    if (providerStatus === "FAILED" || providerStatus === "REJECTED" || providerStatus === "ERROR") {
+      const rejectionReason =
+        result?.msg ||
+        result?.message ||
+        result?.data?.msg ||
+        result?.data?.message ||
+        "eKYC verification failed";
       if (userId) {
         await updateEKYCStatus(userId, "FAILED", rejectionReason);
       }
@@ -196,8 +231,20 @@ const doEkycController = async (req, res) => {
     }
 
     // Default fallback
-    const referenceKey = result?.data?.referenceKey || result?.referenceKey;
-    const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+    const referenceKey =
+      result?.data?.referenceKey ||
+      result?.referenceKey ||
+      result?.data?.referencekey ||
+      result?.referencekey ||
+      result?.data?.reference_key ||
+      result?.reference_key;
+    const pidOptionWadh =
+      result?.data?.pidOptionWadh ||
+      result?.pidOptionWadh ||
+      result?.data?.pidoptionwadh ||
+      result?.pidoptionwadh ||
+      result?.data?.wadh ||
+      result?.wadh;
 
     return res.status(200).json(
       ApiResponse.success(
@@ -218,30 +265,43 @@ const doEkycController = async (req, res) => {
       )
     );
   } catch (error) {
-    console.log("Error checking eKYC status:", error.message);
+    console.log("Error checking eKYC status:", error?.message);
 
-    // Handle provider errors
-    if (error.providerError) {
-      return res.status(error.statusCode || 400).json(
-        ApiResponse.error(
-          error.message,
-          error.providerData,
-          null,
-          error.statusCode || 400
-        )
-      );
+    const providerData = error?.providerData || error?.response?.data;
+    let actualMessage =
+      error?.message ||
+      providerData?.msg ||
+      providerData?.message ||
+      providerData?.details?.msg ||
+      providerData?.details?.message;
+
+    if (typeof actualMessage === "object" && actualMessage !== null) {
+      try {
+        actualMessage = Object.values(actualMessage).flat().filter(Boolean).join(", ");
+      } catch {
+        actualMessage = JSON.stringify(actualMessage);
+      }
     }
 
-    return res
-      .status(error.statusCode || 500)
-      .json(
-        ApiResponse.error(
-          error.message || "Failed to check eKYC status",
-          null,
-          null,
-          error.statusCode || 500
-        )
-      );
+    if (!actualMessage || String(actualMessage).toLowerCase().startsWith("request failed with status code")) {
+      actualMessage =
+        providerData?.msg ||
+        providerData?.message ||
+        providerData?.error ||
+        "Failed to check eKYC status at bank gateway";
+    }
+
+    const rawStatus = Number(error?.statusCode || error?.response?.status || providerData?.statusCode || providerData?.code);
+    const resolvedStatus = rawStatus >= 400 && rawStatus < 600 ? rawStatus : 400;
+
+    return res.status(resolvedStatus).json(
+      ApiResponse.error(
+        String(actualMessage),
+        providerData || null,
+        null,
+        resolvedStatus
+      )
+    );
   }
 };
 
@@ -317,9 +377,24 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     );
   }
 
-  const payload = withBiometricDefaults(
-    pickFields(req.body, biometricFields)
-  );
+  const inputRefKey =
+    req.body.referenceKey ||
+    req.body.referencekey ||
+    req.body.ReferenceKey ||
+    req.body.reference_key ||
+    req.body.refKey;
+
+  const rawBiometric = pickFields(req.body, biometricFields);
+  if (inputRefKey && !rawBiometric.referenceKey) {
+    rawBiometric.referenceKey = inputRefKey;
+  }
+
+  const payload = withBiometricDefaults(rawBiometric);
+  if (inputRefKey) {
+    payload.referenceKey = inputRefKey;
+    payload.referencekey = inputRefKey;
+  }
+
   console.log("========== DO BIO EKYC PAYLOAD ==========");
   console.log("payload:", payload);
   console.log("=======================================");
@@ -327,8 +402,19 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   console.log("====================================result", result);
 
   // Extract referenceKey and pidOptionWadh from the provider response
-  const referenceKey = result?.data?.referenceKey || result?.referenceKey || payload.referenceKey;
-  const pidOptionWadh = result?.data?.pidOptionWadh || result?.pidOptionWadh;
+  const referenceKey =
+    result?.data?.referenceKey ||
+    result?.referenceKey ||
+    result?.data?.referencekey ||
+    result?.referencekey ||
+    payload.referenceKey ||
+    inputRefKey;
+  const pidOptionWadh =
+    result?.data?.pidOptionWadh ||
+    result?.pidOptionWadh ||
+    result?.data?.pidoptionwadh ||
+    result?.pidoptionwadh ||
+    payload.pidOptionWadh;
 
   if (!referenceKey) {
     return res.status(400).json(
@@ -343,6 +429,10 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     pidOptionWadh,
     eKYCStatus: "COMPLETED",
   });
+
+  if (userId) {
+    await updateEKYCStatus(userId, "COMPLETED");
+  }
 
   return res.status(200).json(
     ApiResponse.success(
