@@ -3,6 +3,7 @@ import {
   createSupportTicketService,
   getAllSupportTicketsService,
   getRetailerSupportTicketsService,
+  updateTicketStatusService,
 } from "../service/support.service.js";
 
 const createSupportTicket = async (req, res, next) => {
@@ -42,13 +43,6 @@ const createSupportTicket = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Description is required",
-      });
-    }
-
-    if (category === "OTHER" && !otherCategory?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Other category is required",
       });
     }
 
@@ -193,9 +187,46 @@ const assignSupportTicket = async (req, res, next) => {
   }
 };
 
+const updateTicketStatus = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required",
+      });
+    }
+
+    const validStatuses = ["open", "in_progress", "resolved", "closed"];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    const ticket = await updateTicketStatusService({
+      ticketId,
+      status,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Ticket status updated successfully",
+      data: ticket,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   createSupportTicket,
   getAllSupportTickets,
   getRetailerSupportTickets,
   assignSupportTicket,
+  updateTicketStatus,
 };

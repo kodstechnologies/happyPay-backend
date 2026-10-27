@@ -5,6 +5,7 @@ import {
   getAllSupportTickets,
   getRetailerSupportTickets,
   assignSupportTicket,
+  updateTicketStatus,
 } from "../controller/support.controller.js";
 
 import authMiddleware from "../../../middlewares/auth.middleware.js";
@@ -25,7 +26,7 @@ router.get(
   getRetailerSupportTickets
 );
 router.get(
-  "/admin/tickets",
+  "/tickets",
   authMiddleware,
   getAllSupportTickets
 );
@@ -36,5 +37,6 @@ router.patch(
   assignSupportTicket
 );
 
+router.patch("/tickets/:ticketId/status", authMiddleware, updateTicketStatus);
 
 export default router;

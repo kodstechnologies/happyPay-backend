@@ -3,6 +3,7 @@ import {
   assignTicket,
   createTicket,
   findAllTickets,
+  updateTicketStatus,
 } from "../repository/support.repository.js";
 
 const generateTicketNumber = () => {
@@ -25,13 +26,6 @@ const createSupportTicketService = async ({
   attachments,
   relatedTransactionId,
 }) => {
-  // Validate OTHER category
-  if (category === "OTHER" && !otherCategory?.trim()) {
-    throw new Error(
-      "Other category is required when category is OTHER"
-    );
-  }
-
   // Don't store otherCategory for normal categories
   const ticketData = {
     ticketNumber: generateTicketNumber(),
@@ -40,7 +34,7 @@ const createSupportTicketService = async ({
     category,
     otherCategory:
       category === "OTHER"
-        ? otherCategory.trim()
+        ? otherCategory?.trim() || null
         : null,
     priority: priority || "medium",
     description: description.trim(),
@@ -131,10 +125,25 @@ const assignSupportTicketService = async ({
   return ticket;
 };
 
+const updateTicketStatusService = async ({
+  ticketId,
+  status,
+}) => {
+  const ticket = await updateTicketStatus(ticketId, status);
+
+  if (!ticket) {
+    const error = new Error("Support ticket not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return ticket;
+};
 
 export {
   createSupportTicketService,
   getAllSupportTicketsService,
   getRetailerSupportTicketsService,
   assignSupportTicketService,
+  updateTicketStatusService,
 };
