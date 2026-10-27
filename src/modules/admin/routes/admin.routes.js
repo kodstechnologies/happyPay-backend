@@ -16,6 +16,8 @@ import {
   getDistributorSubRetailersAdmin,
   updateAccountStatus,
   getAllTransactionsAdmin,
+  updateDeviceToken,
+  getAdminDashboard,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -27,8 +29,12 @@ router.post("/auth/logout", authMiddleware, requireAdmin, logout);
 router.post("/auth/forgot-password", forgotPassword);
 router.post("/auth/reset-password", resetPassword);
 
-// Profile route (protected)
+// Device token update for FCM push notifications (protected)
+router.patch("/device-token", authMiddleware, requireAdmin, updateDeviceToken);
+
+// Profile / Auth verification routes (protected)
 router.get("/profile", authMiddleware, requireAdmin, getProfile);
+router.get("/auth/me", authMiddleware, requireAdmin, getProfile);
 
 
 // Retailer routes (protected)
@@ -54,5 +60,9 @@ router.get("/retailers/:id/sub-retailers", authMiddleware, requireAdmin, getDist
 // GET /api/admin/transactions
 // Query: service, status, type, startDate, endDate, search, page, limit
 router.get("/transactions", authMiddleware, requireAdmin, getAllTransactionsAdmin);
+
+// Admin dashboard live unified metrics (protected)
+// GET /api/admin/dashboard
+router.get("/dashboard", authMiddleware, requireAdmin, getAdminDashboard);
 
 export default router;

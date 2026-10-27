@@ -159,6 +159,15 @@ const logoutAdmin = async (adminId, token, req) => {
   }
   const admin = adminId ? await findAdminById(adminId) : null;
   if (admin) {
+    const effectiveDeviceId = req?.body?.deviceId || req?.headers?.["x-device-id"];
+    if (effectiveDeviceId && admin.devices) {
+      const dev = admin.devices.find((d) => d.deviceId === effectiveDeviceId);
+      if (dev) {
+        dev.isActive = false;
+        dev.lastUsedAt = new Date();
+      }
+      await admin.save();
+    }
     await createAdminAuditLog({
       action: "Admin Logout",
       entity: "Admin",
@@ -169,6 +178,34 @@ const logoutAdmin = async (adminId, token, req) => {
     });
   }
   return { message: "Admin logged out successfully" };
+};
+
+const updateAdminDeviceToken = async (adminId, { fcmToken, deviceId, platform, deviceName }) => {
+  if (!adminId) throw ApiError.unauthorized("Admin ID is required");
+  const admin = await findAdminById(adminId);
+  if (!admin) throw ApiError.notFound("Admin not found");
+
+  const effectiveDeviceId = deviceId || "web-admin-portal";
+  if (fcmToken && effectiveDeviceId) {
+    if (!admin.devices) admin.devices = [];
+    const idx = admin.devices.findIndex((d) => d.deviceId === effectiveDeviceId);
+    if (idx >= 0) {
+      admin.devices[idx].fcmToken = fcmToken;
+      admin.devices[idx].isActive = true;
+      admin.devices[idx].lastUsedAt = new Date();
+    } else {
+      admin.devices.push({
+        deviceId: effectiveDeviceId,
+        fcmToken,
+        platform: platform || "web",
+        deviceName: deviceName || "Web browser",
+        lastUsedAt: new Date(),
+        isActive: true,
+      });
+    }
+    await admin.save();
+  }
+  return { success: true };
 };
 
 const getAdminProfile = async (adminId) => {
@@ -643,5 +680,6 @@ export {
   getAdminDistributorSubRetailers,
   setRetailerAccountStatus,
   listAllTransactionsAdmin,
+  updateAdminDeviceToken,
 };
 

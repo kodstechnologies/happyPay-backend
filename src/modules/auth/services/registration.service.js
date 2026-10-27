@@ -602,8 +602,9 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (businessProofId) user.businessProofType = businessProofId;
   if (businessProofDocument) user.businessProofDocument = businessProofDocument;
 
-  if (body.distributorId && !user.ditributor) {
-    user.ditributor = body.distributorId;
+  if (body.distributorId) {
+    if (!user.ditributor) user.ditributor = body.distributorId;
+    if (!user.distributor) user.distributor = body.distributorId;
   }
 
   // Update registration progress
@@ -727,8 +728,13 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     user.documentReviews[field].status = "PENDING";
   }
 
-  if (body.distributorId && (!user.ditributor || String(user.ditributor) !== String(body.distributorId))) {
-    user.ditributor = body.distributorId;
+  if (body.distributorId) {
+    if (!user.ditributor || String(user.ditributor) !== String(body.distributorId)) {
+      user.ditributor = body.distributorId;
+    }
+    if (!user.distributor || String(user.distributor) !== String(body.distributorId)) {
+      user.distributor = body.distributorId;
+    }
   }
 
   // Ensure retailer role is assigned to the user upon completing registration
@@ -738,19 +744,34 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   // Handle distributor mapping and role progression
   let isUpgradedToDistributor = false;
-  if (user.ditributor) {
+  const parentDistId = user.ditributor || user.distributor;
+  if (parentDistId) {
     try {
       await DistributorMapping.findOneAndUpdate(
         { retailerId: user._id },
-        { retailerId: user._id, distributorId: user.ditributor, isActive: true },
+        { retailerId: user._id, distributorId: parentDistId, isActive: true },
         { upsert: true, new: true }
       );
 
       // Rule: if a retailer registers one or more retailers, make that role distributor
-      const registeredCount = await User.countDocuments({ ditributor: user.ditributor });
+      const parentObjectId = mongoose.Types.ObjectId.isValid(parentDistId)
+        ? new mongoose.Types.ObjectId(parentDistId)
+        : parentDistId;
+      const parentIdStr = String(parentDistId);
+
+      const registeredCount = await User.countDocuments({
+        $or: [
+          { ditributor: parentObjectId },
+          { ditributor: parentIdStr },
+          { distributor: parentObjectId },
+          { distributor: parentIdStr },
+        ],
+      });
+
       if (registeredCount >= 1) {
-        const parentUser = await User.findById(user.ditributor);
+        const parentUser = await User.findById(parentObjectId);
         if (parentUser) {
+          await parentUser.populate("roles");
           const hadRole = parentUser.hasRole("distributor");
           await parentUser.assignRole("distributor", "Distributor");
           await parentUser.save();

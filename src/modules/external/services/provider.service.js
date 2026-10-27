@@ -192,6 +192,8 @@ const initiateUpiCashpointPayment = (payload) =>
 const initiateCmsPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.cmsPayment.initiatePayment, payload);
 
+  const payoutSettlement=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.settlement,payload)
+  const checkSettlement_status=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.checkSettlement_status,payload)
 export {
   verifyAadhar,
   verifyPan,
@@ -231,7 +233,10 @@ export {
   getbankList,
 
   initiateUpiCashpointPayment,
-  initiateCmsPayment
+  initiateCmsPayment,
+
+  payoutSettlement,
+  checkSettlement_status
 };
 
 export default onboardMerchant;

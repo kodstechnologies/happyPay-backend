@@ -81,20 +81,61 @@ const postProviderForm = async (path, payload = {}) => {
     return response.data;
   } catch (error) {
     console.error(`[PROVIDER API ERROR] Path: ${path} | Error:`, error?.response?.data || error?.message || error);
+    if (error?.response?.data) {
+      const errData = error.response.data;
+      let rawMsg = errData.msg || errData.message || errData.error;
+      if (typeof rawMsg === "object" && rawMsg !== null) {
+        try {
+          rawMsg = Object.values(rawMsg).flat().filter(Boolean).join(", ");
+        } catch {
+          rawMsg = JSON.stringify(rawMsg);
+        }
+      }
+      if (rawMsg && typeof rawMsg === "string" && rawMsg.trim()) {
+        error.message = rawMsg.trim();
+      }
+      error.providerError = true;
+      error.providerData = errData;
+      const rawCode = Number(errData.code || errData.errorCode || errData.statusCode || error.response.status);
+      error.statusCode = rawCode >= 400 && rawCode < 600 ? rawCode : (error.response.status || 400);
+    }
     throw error;
   }
 };
 
 const getProvider = async (path, config = {}) => {
-  const response = await providerClient.get(path, config);
+  try {
+    const response = await providerClient.get(path, config);
 
-  // Check for provider-level errors in response
-  const providerError = checkProviderError(response.data);
-  if (providerError) {
-    throw providerError;
+    // Check for provider-level errors in response
+    const providerError = checkProviderError(response.data);
+    if (providerError) {
+      throw providerError;
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error(`[PROVIDER GET ERROR] Path: ${path} | Error:`, error?.response?.data || error?.message || error);
+    if (error?.response?.data) {
+      const errData = error.response.data;
+      let rawMsg = errData.msg || errData.message || errData.error;
+      if (typeof rawMsg === "object" && rawMsg !== null) {
+        try {
+          rawMsg = Object.values(rawMsg).flat().filter(Boolean).join(", ");
+        } catch {
+          rawMsg = JSON.stringify(rawMsg);
+        }
+      }
+      if (rawMsg && typeof rawMsg === "string" && rawMsg.trim()) {
+        error.message = rawMsg.trim();
+      }
+      error.providerError = true;
+      error.providerData = errData;
+      const rawCode = Number(errData.code || errData.errorCode || errData.statusCode || error.response.status);
+      error.statusCode = rawCode >= 400 && rawCode < 600 ? rawCode : (error.response.status || 400);
+    }
+    throw error;
   }
-
-  return response.data;
 };
 
 export { postProviderForm, getProvider };

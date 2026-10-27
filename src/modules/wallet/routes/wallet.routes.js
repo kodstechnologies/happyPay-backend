@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { getWalletBalanceController } from "../controllers/wallet.controller.js";
+import {
+  getWalletBalanceController,
+  getSettlementBankInfoController,
+  initiateSettlementPayoutController,
+} from "../controllers/wallet.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -10,4 +14,12 @@ router.use(authMiddleware);
 // GET /api/v1/wallet/balance
 router.get("/balance", getWalletBalanceController);
 
+// GET /api/v1/wallet/settlement/bank-info
+router.get("/settlement/bank-info", getSettlementBankInfoController);
+
+// POST /api/v1/wallet/settlement/payout
+router.post("/settlement/payout", initiateSettlementPayoutController);
+
 export default router;
+
+

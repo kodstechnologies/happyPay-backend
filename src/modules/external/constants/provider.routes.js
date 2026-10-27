@@ -64,6 +64,10 @@ const PROVIDER_ROUTES = {
 
   cmsPayment: {
     initiatePayment: `${PROVIDER_API_PREFIX}/cms/docms`,
+  },
+  payoutSettlement:{
+       settlement:`${PROVIDER_API_PREFIX}/settlement-payout/dopayout`,
+       checkSettlement_status:`${PROVIDER_API_PREFIX}/settlement-payout/status-check`
   }
 
 
