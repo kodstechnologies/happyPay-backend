@@ -196,6 +196,7 @@ export const getSettlementBankInfoService = async (userId) => {
         maskedAccountNumber: masked,
         ifscCode: String(b.ifscCode || "").trim().toUpperCase(),
         branchName: b.branchName || "",
+        accountType: b.accountType || "Savings Account",
         isPrimary: Boolean(b.isPrimary),
         isActive: b.isActive !== false,
         isVerified: true,
