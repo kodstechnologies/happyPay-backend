@@ -289,23 +289,31 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   // 3. Generate unique transaction ID from backend
   const txnid = generate15CharTxnId("TXN");
 
+  // In place of bank_name send bank_code (passing bank_id)
+  const bankCode = String(payload.bank_code || payload.bank_id || "").trim();
+  const lat = String(payload.lat || user.shop?.location?.latitude || "28.7041").trim();
+  const long = String(payload.long || user.shop?.location?.longitude || "77.1025").trim();
+  const recordedBankName = String(payload.bank_name || bankCode).trim();
+
   // 4. Exact payload mapping for external payoutSettlement
   // STRICT RULE: Only exact field names, no alternatives or extra fields
   const providerPayload = {
     accountType: String(payload.accountType || "Savings Account").trim(),
     branchName: String(payload.branchName || "").trim(),
     benMobile: String(payload.benMobile || user.mobile || "").trim(),
-    bank_name: String(payload.bank_name || "").trim(),
+    bank_code: bankCode,
     beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number || "").trim(),
     amount: numAmount,
     mode: String(payload.mode || "IMPS").trim().toUpperCase(),
+    lat,
+    long,
     txnid: txnid,
   };
 
-  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_name) {
-    throw ApiError.badRequest("Destination bank account details are required");
+  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_code) {
+    throw ApiError.badRequest("Destination bank account details (account number, IFSC, and bank code) are required");
   }
 
   // 5. Call external payoutSettlement from external service
@@ -342,7 +350,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
         balanceBefore,
         balanceAfter,
         payee: {
-          bankName: providerPayload.bank_name,
+          bankName: recordedBankName,
           accountNumber: providerPayload.account_number,
           ifscCode: providerPayload.ifsc,
           accountHolderName: providerPayload.beneficiary_name,
@@ -350,7 +358,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
         service: "PAYOUT",
         transactionId: txnid,
         status: "success",
-        description: `Settlement payout via ${providerPayload.mode} to ${providerPayload.bank_name} (${providerPayload.account_number.slice(-4)})`,
+        description: `Settlement payout via ${providerPayload.mode} to ${recordedBankName} (${providerPayload.account_number.slice(-4)})`,
       });
 
       await transaction.save({ session });
@@ -373,7 +381,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     amount: numAmount,
     balanceBefore: currentBalance,
     balanceAfter,
-    bankName: providerPayload.bank_name,
+    bankName: recordedBankName,
     accountNumber: providerPayload.account_number,
     mode: providerPayload.mode,
     status: "success",
