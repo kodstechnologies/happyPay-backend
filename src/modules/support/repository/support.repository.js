@@ -126,8 +126,8 @@ const findAllTickets = async ({
 };
 
 const assignTicket = async (ticketId, adminId) => {
-  return await SupportTicket.findByIdAndUpdate(
-    ticketId,
+  return await SupportTicket.findOneAndUpdate(
+    { ticketNumber: ticketId },
     {
       assignedTo: adminId,
       status: "in_progress",
@@ -141,10 +141,34 @@ const assignTicket = async (ticketId, adminId) => {
     .populate("assignedTo", "firstName lastName email mobile");
 };
 
+const updateTicketStatus = async (ticketId, status) => {
+  const updateData = { status };
+
+  if (status === "resolved") {
+    updateData.resolvedAt = new Date();
+  }
+
+  if (status === "closed") {
+    updateData.closedAt = new Date();
+  }
+
+  return await SupportTicket.findOneAndUpdate(
+    { ticketNumber: ticketId },
+    updateData,
+    {
+      new: true,
+      runValidators: true,
+    }
+  )
+    .populate("retailerId", "firstName lastName email mobile")
+    .populate("assignedTo", "firstName lastName email mobile");
+};
+
 export {
   createTicket,
   findTicketById,
-  findTicketsByRetailer,  
+  findTicketsByRetailer,
   findAllTickets,
   assignTicket,
+  updateTicketStatus,
 };

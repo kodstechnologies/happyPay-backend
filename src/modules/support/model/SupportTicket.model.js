@@ -42,9 +42,6 @@ const supportTicketSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: null,
-      required: function () {
-        return this.category === "OTHER";
-      },
     },
 
     priority: {
@@ -88,7 +85,6 @@ const supportTicketSchema = new mongoose.Schema(
       enum: [
         "open",
         "in_progress",
-        "waiting_for_retailer",
         "resolved",
         "closed",
       ],
@@ -103,8 +99,7 @@ const supportTicketSchema = new mongoose.Schema(
     },
 
     relatedTransactionId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Transaction",
+      type: String,
       default: null,
     },
 
