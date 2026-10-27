@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler.js";
 import {
   getUserWalletBalance,
   getSettlementBankInfoService,
+  initiateSettlementPayoutService,
 } from "../services/wallet.service.js";
 
 /**
@@ -37,8 +38,26 @@ export const getSettlementBankInfoController = asyncHandler(async (req, res) => 
   );
 });
 
+/**
+ * Controller to initiate settlement payout to retailer's bank account
+ * POST /api/v1/wallet/settlement/payout
+ */
+export const initiateSettlementPayoutController = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId || req.user?.id || req.body?.userId;
+  const result = await initiateSettlementPayoutService(userId, req.body);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      "Settlement payout initiated successfully"
+    )
+  );
+});
+
 export default {
   getWalletBalanceController,
   getSettlementBankInfoController,
+  initiateSettlementPayoutController,
 };
+
 

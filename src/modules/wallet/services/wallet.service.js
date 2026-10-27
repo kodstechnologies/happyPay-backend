@@ -5,6 +5,7 @@ import User from "../../auth/model/user.model.js";
 
 import { ApiError } from "../../../utils/ApiError.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
+import { payoutSettlement } from "../../external/services/provider.service.js";
 
 
 export const addAmountToWallet = async (
@@ -234,12 +235,159 @@ export const getSettlementBankInfoService = async (userId) => {
   };
 };
 
+/**
+ * Initiate settlement payout to retailer's bank account
+ * Calls external provider payoutSettlement with exact required fields:
+ * accountType, branchName, benMobile, bank_name, beneficiary_name, ifsc, account_number, amount, mode, txnid
+ */
+export const initiateSettlementPayoutService = async (userId, payload = {}) => {
+  if (!userId) {
+    throw ApiError.unauthorized("User not authenticated");
+  }
+
+  const numAmount = Number(payload.amount);
+  if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+    throw ApiError.badRequest("Please enter a valid settlement amount");
+  }
+
+  if (numAmount < 100) {
+    throw ApiError.badRequest("Minimum settlement amount is ₹100");
+  }
+
+  // 1. Fetch user to check KYC & identity details
+  const user = await User.findById(userId)
+    .select("fullName mobile status adminApproved banks")
+    .lean();
+
+  if (!user) {
+    throw ApiError.notFound("Retailer not found");
+  }
+
+  if (user.status !== "active") {
+    throw ApiError.forbidden("Retailer account is currently inactive or suspended");
+  }
+
+  if (user.adminApproved !== "approved") {
+    throw ApiError.forbidden("Retailer KYC is not approved for settlement payouts");
+  }
+
+  // 2. Pre-verify wallet balance before calling provider
+  const wallet = await Wallet.findOne({ user: userId });
+  if (!wallet) {
+    throw ApiError.notFound("Wallet not found for retailer");
+  }
+
+  const currentBalance = Number(wallet.balance || 0);
+  const holdBalance = Number(wallet.holdBalance || 0);
+  const availableBalance = Math.max(0, currentBalance - holdBalance);
+
+  if (numAmount > availableBalance) {
+    throw ApiError.badRequest("Insufficient wallet balance for settlement");
+  }
+
+  // 3. Generate unique transaction ID from backend
+  const txnid = generate15CharTxnId("TXN");
+
+  // 4. Exact payload mapping for external payoutSettlement
+  // STRICT RULE: Only exact field names, no alternatives or extra fields
+  const providerPayload = {
+    accountType: String(payload.accountType || "Savings Account").trim(),
+    branchName: String(payload.branchName || "").trim(),
+    benMobile: String(payload.benMobile || user.mobile || "").trim(),
+    bank_name: String(payload.bank_name || "").trim(),
+    beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
+    ifsc: String(payload.ifsc || "").trim().toUpperCase(),
+    account_number: String(payload.account_number || "").trim(),
+    amount: numAmount,
+    mode: String(payload.mode || "IMPS").trim().toUpperCase(),
+    txnid: txnid,
+  };
+
+  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_name) {
+    throw ApiError.badRequest("Destination bank account details are required");
+  }
+
+  // 5. Call external payoutSettlement from external service
+  const providerResponse = await payoutSettlement(providerPayload);
+
+  // 6. Debit wallet balance and record Transaction atomically
+  const session = await mongoose.startSession();
+  let balanceAfter = currentBalance - numAmount;
+
+  try {
+    await session.withTransaction(async () => {
+      const activeWallet = await Wallet.findOne({ user: userId }).session(session);
+      if (!activeWallet) {
+        throw ApiError.notFound("Wallet record not found during deduction");
+      }
+
+      const balanceBefore = Number(activeWallet.balance || 0);
+      balanceAfter = balanceBefore - numAmount;
+      activeWallet.balance = balanceAfter;
+      await activeWallet.save({ session });
+
+      const finalUtr =
+        providerResponse?.utr ||
+        providerResponse?.rrn ||
+        providerResponse?.data?.utr ||
+        providerResponse?.data?.rrn ||
+        providerResponse?.bank_ref_num ||
+        txnid;
+
+      const transaction = new Transaction({
+        wallet: activeWallet._id,
+        type: "debit",
+        amount: numAmount,
+        balanceBefore,
+        balanceAfter,
+        payee: {
+          bankName: providerPayload.bank_name,
+          accountNumber: providerPayload.account_number,
+          ifscCode: providerPayload.ifsc,
+          accountHolderName: providerPayload.beneficiary_name,
+        },
+        service: "PAYOUT",
+        transactionId: txnid,
+        status: "success",
+        description: `Settlement payout via ${providerPayload.mode} to ${providerPayload.bank_name} (${providerPayload.account_number.slice(-4)})`,
+      });
+
+      await transaction.save({ session });
+    });
+  } finally {
+    session.endSession();
+  }
+
+  const finalUtr =
+    providerResponse?.utr ||
+    providerResponse?.rrn ||
+    providerResponse?.data?.utr ||
+    providerResponse?.data?.rrn ||
+    providerResponse?.bank_ref_num ||
+    txnid;
+
+  return {
+    txnid,
+    utr: finalUtr,
+    amount: numAmount,
+    balanceBefore: currentBalance,
+    balanceAfter,
+    bankName: providerPayload.bank_name,
+    accountNumber: providerPayload.account_number,
+    mode: providerPayload.mode,
+    status: "success",
+    providerResponse,
+  };
+};
+
 export default {
   addAmountToWallet,
   recordFailedWalletPayment,
   getUserWalletBalance,
   createWallet,
   getSettlementBankInfoService,
+  initiateSettlementPayoutService,
 };
+
 
 
