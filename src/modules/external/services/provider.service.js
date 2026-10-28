@@ -50,7 +50,7 @@ const outletRegister = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.outletRegister, payload);
 
 const outletRegisterVerify = (payload) =>
-  postProviderForm(PROVIDER_ROUTES.aeps.outletRegisterverify, payload);
+  postProviderForm(PROVIDER_ROUTES.aeps.outletRegisterVerify, payload);
 
 const balanceEnquiry = async (payload) => {
   try {
