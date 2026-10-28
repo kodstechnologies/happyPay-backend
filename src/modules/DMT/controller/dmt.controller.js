@@ -17,6 +17,10 @@ import {
   checkTransactionStatusService,
   fetchBeneficiaries,
 } from "../service/dmt.service.js";
+import {
+  verifyWalletBalance,
+  processServiceWalletTransaction,
+} from "../../wallet/services/wallet.service.js";
 
 const getAuthFields = (user) => {
   const outletid = user?.outletid || user?.outletId ;
@@ -293,6 +297,14 @@ export const generateTransactionOtpController = asyncHandler(async (req, res) =>
 });
 
 export const executeTransactionController = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId || req.user?._id || req.body?.userId;
+  const transferAmount = Math.round(Number(req.body.amount || 0) * 100) / 100;
+
+  // 1. Pre-flight guard: Ensure retailer has sufficient wallet balance before hitting provider
+  if (userId && transferAmount > 0) {
+    await verifyWalletBalance(userId, transferAmount);
+  }
+
   const { outletid, referenceKey } = getAuthFields(req.user);
   const targetMobile = req.body.remitterMobile || req.body.mobile;
   const targetBeneId = req.body.bene_id || req.body.beneficiaryId;
@@ -316,10 +328,56 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
     ...(targetBeneId ? { bene_id: targetBeneId } : {}),
     latlong: targetLatlong,
     client_ref_id: targetTxnId,
-    otp:req.body?.otp||""
-    // ...(req.body.otp ? { otp: String(req.body.otp).trim() } : {}),
+    otp: req.body?.otp || "",
   };
   const result = await executeTransactionService(payload);
+
+  // 2. Determine provider success based on live gateway response structure
+  // Live response: { status: "SUCCESS", msg: "Transaction Successful", data: { externalRef: "...", txnReferenceId: "...", txnValue: "100.00", beneficiaryName: "...", ... } }
+  const isSuccess =
+    result?.status === "SUCCESS" ||
+    result?.msg === "Transaction Successful" ||
+    result?.data?.status === "SUCCESS" ||
+    Boolean(result?.data?.txnReferenceId);
+
+  // 3. Atomically debit wallet and record ledger entry upon success
+  if (isSuccess && userId && transferAmount > 0) {
+    const dmtTxnId = String(
+      result?.data?.externalRef ||
+      result?.data?.txnReferenceId ||
+      targetTxnId
+    );
+
+    const beneName = String(result?.data?.beneficiaryName || "").trim();
+    const beneAccount = String(result?.data?.beneficiaryAccount || req.body.account || "").trim();
+    const beneIfsc = String(result?.data?.beneficiaryIfsc || req.body.ifsc || "").trim().toUpperCase();
+    const bankName = beneIfsc ? beneIfsc.slice(0, 4) : "Bank";
+    const mode = String(req.body.mode || "IMPS").toUpperCase();
+    const effectiveAmount = Number(result?.data?.txnValue || transferAmount);
+
+    try {
+      await processServiceWalletTransaction({
+        userId,
+        type: "debit",
+        amount: effectiveAmount,
+        service: "DMT",
+        transactionId: dmtTxnId,
+        payee: {
+          bankName,
+          accountNumber: beneAccount,
+          ifscCode: beneIfsc,
+          accountHolderName: beneName || undefined,
+        },
+        description: `DMT transfer of ₹${effectiveAmount.toFixed(2)} to ${beneName || 'Beneficiary'}${beneAccount ? ` (A/C: ••••${beneAccount.slice(-4)})` : ""} via ${mode}`,
+        status: "success",
+      });
+    } catch (walletErr) {
+      console.error("[DMT] Wallet ledger debit error:", walletErr?.message || walletErr);
+      if (!walletErr?.message?.includes("duplicate")) {
+        throw walletErr;
+      }
+    }
+  }
 
   return res.status(200).json(
     ApiResponse.success(

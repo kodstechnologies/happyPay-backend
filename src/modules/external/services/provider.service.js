@@ -46,6 +46,12 @@ const getBankList = async ({ page = 1, limit = 10 } = {}) => {
 const doEkyc = (payload) =>
   postProviderForm(PROVIDER_ROUTES.aeps.doEkyc, payload);
 
+const outletRegister = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.outletRegister, payload);
+
+const outletRegisterVerify = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.aeps.outletRegisterverify, payload);
+
 const balanceEnquiry = async (payload) => {
   try {
     const response = await postProviderForm(PROVIDER_ROUTES.aeps.balanceEnquiry, payload);
@@ -200,6 +206,8 @@ export {
   verifyAccount,
   getBankList,
   doEkyc,
+  outletRegister,
+  outletRegisterVerify,
   balanceEnquiry,
   miniStatement,
   cashWithdraw,

@@ -518,6 +518,50 @@ const cashDepositSchema = Joi.object({
   ...commonRequiredBiometricFields,
 }).unknown(true);
 
+const outletRegisterSchema = Joi.object({
+  outlet_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outlet_id) is required",
+      "string.empty": "Outlet ID (outlet_id) is required",
+    }),
+
+  referenceKey: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "Reference key is required",
+      "string.empty": "Reference key is required",
+    }),
+}).unknown(true);
+
+const outletRegisterVerifySchema = Joi.object({
+  outlet_id: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .required()
+    .messages({
+      "any.required": "Outlet ID (outlet_id) is required",
+      "string.empty": "Outlet ID (outlet_id) is required",
+    }),
+
+  referenceKey: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "Reference key is required",
+      "string.empty": "Reference key is required",
+    }),
+
+  otp: Joi.alternatives()
+    .try(Joi.string().trim(), Joi.number())
+    .required()
+    .messages({
+      "any.required": "OTP is required",
+      "string.empty": "OTP cannot be empty",
+    }),
+}).unknown(true);
+
 export {
   getRetailerKycParamsSchema,
   doEkycSchema,
@@ -527,4 +571,7 @@ export {
   cashWithdrawSchema,
   cashDepositSchema,
   sendOtpSchema,
+  outletRegisterSchema,
+  outletRegisterVerifySchema,
 };
+

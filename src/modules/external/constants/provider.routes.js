@@ -4,6 +4,8 @@ const PROVIDER_ROUTES = {
   onboarding: {
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
     doEkyc: `${PROVIDER_API_PREFIX}/aeps5/bank5/doekyc`,
+    outletRegister:`${PROVIDER_API_PREFIX}/aeps/banks5/outletRegister`,
+    outletRegisterverify:`${PROVIDER_API_PREFIX}/aeps/banks5/outletRegister`,
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
   },
@@ -19,6 +21,8 @@ const PROVIDER_ROUTES = {
     verifyTfa: `${PROVIDER_API_PREFIX}/aeps5/bank5/verify_tfa`,
     loginStatus: `${PROVIDER_API_PREFIX}/aeps5/bank5/LoginStatus`,
     onboard: `${PROVIDER_API_PREFIX}/aeps5/bank5/onboard`,
+      outletRegister:`${PROVIDER_API_PREFIX}/aeps/banks5/outletRegister`,
+    outletRegisterverify:`${PROVIDER_API_PREFIX}/aeps/banks5/outletRegister`,
 
     balanceEnquiry: `${PROVIDER_API_PREFIX}/aeps5/bank5/be`,
     miniStatement: `${PROVIDER_API_PREFIX}/aeps5/bank5/ms`,

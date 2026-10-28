@@ -6,12 +6,27 @@ import {
   isKycRequired,
   onboardMerchantService,
 } from "../services/aeps.service.js";
-import { doEkyc, doBioEkyc, verifyTfa, balanceEnquiry, miniStatement, cashWithdraw, cashDeposite, sendOtp } from "../../external/services/provider.service.js";
+import {
+  doEkyc,
+  doBioEkyc,
+  verifyTfa,
+  balanceEnquiry,
+  miniStatement,
+  cashWithdraw,
+  cashDeposite,
+  sendOtp,
+  outletRegister,
+  outletRegisterVerify,
+} from "../../external/services/provider.service.js";
 import { updateEKYCStatus } from "../../auth/repository/user.repository.js";
 import User from "../../auth/model/user.model.js";
 import asyncHandler from "../../../utils/asyncHandler.js";
 import generate15CharTxnId from "../../../utils/generateTxnId.js";
 import sanitizePayload from "../../../utils/sanitizePayload.js";
+import {
+  verifyWalletBalance,
+  processServiceWalletTransaction,
+} from "../../wallet/services/wallet.service.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -824,6 +839,45 @@ const cashWithdrawController = async (req, res) => {
 
     console.log("Cash Withdraw Response:", result);
 
+    // Determine provider success based on live gateway response structure
+    // Live response: { status: "SUCCESS", msg: "Transaction Successful", txnid: "...", rrn: "...", ... }
+    const isSuccess =
+      result?.status === "SUCCESS" ||
+      result?.msg === "Transaction Successful" ||
+      Boolean(result?.txnid);
+
+    const userId = req.user?.userId || req.user?._id || req.body?.userId;
+    const withdrawAmount = Math.round(Number(amount || result?.amount || 0) * 100) / 100;
+
+    // Atomically credit retailer wallet & log AEPS transaction history
+    if (isSuccess && userId && withdrawAmount > 0) {
+      const aepsTxnId = String(result?.txnid || txnid || generate15CharTxnId("TXN"));
+      const bankName = String(result?.name || bankiin || "Bank").trim();
+      const aadharMasked = aadhaar ? `•••• •••• ${String(aadhaar).slice(-4)}` : "";
+
+      try {
+        await processServiceWalletTransaction({
+          userId,
+          type: "credit",
+          amount: withdrawAmount,
+          service: "AEPS",
+          transactionId: aepsTxnId,
+          payee: {
+            bankName,
+            aadharNumber: aadharMasked || undefined,
+            accountHolderName: result?.name || undefined,
+          },
+          description: `AEPS Cash Withdrawal of ₹${withdrawAmount.toFixed(2)} from ${bankName}${aadharMasked ? ` (${aadharMasked})` : ""}`,
+          status: "success",
+        });
+      } catch (walletErr) {
+        console.error("[AEPS] Wallet ledger credit error:", walletErr?.message || walletErr);
+        if (!walletErr?.message?.includes("duplicate")) {
+          throw walletErr;
+        }
+      }
+    }
+
     return res.status(200).json(
       ApiResponse.success(
         {
@@ -988,10 +1042,54 @@ const cashDepositController = async (req, res) => {
 
     console.log("Cash Deposit Payload:", payload);
 
+    const userId = req.user?.userId || req.user?._id || req.body?.userId;
+    const depositAmount = Math.round(Number(amount || 0) * 100) / 100;
+
+    // 1. Pre-flight guard: Ensure retailer has sufficient wallet balance before hitting provider
+    if (userId && depositAmount > 0) {
+      await verifyWalletBalance(userId, depositAmount);
+    }
+
     // Call external provider API
     const result = await cashDeposite(payload);
 
     console.log("Cash Deposit Response:", result);
+
+    // 2. Determine provider success based on live gateway response structure
+    // Live response: {"status":"SUCCESS","msg":"Transaction Successful","txnid":"AEPS1793101821315268","rrn":"1261027172023TVUJQ","name":"BANK OF MAHARASHTRA","mobile":"9981298922","amount":100}
+    const isSuccess =
+      result?.status === "SUCCESS" ||
+      result?.msg === "Transaction Successful" ||
+      Boolean(result?.txnid);
+
+    // 3. Atomically debit retailer wallet & log AEPS transaction history
+    if (isSuccess && userId && depositAmount > 0) {
+      const aepsTxnId = String(result?.txnid || txnid || generate15CharTxnId("TXN"));
+      const bankName = String(result?.name || bankiin || "Bank").trim();
+      const aadharMasked = aadhaar ? `•••• •••• ${String(aadhaar).slice(-4)}` : "";
+
+      try {
+        await processServiceWalletTransaction({
+          userId,
+          type: "debit",
+          amount: Number(result?.amount || depositAmount),
+          service: "AEPS",
+          transactionId: aepsTxnId,
+          payee: {
+            bankName,
+            aadharNumber: aadharMasked || undefined,
+            accountHolderName: result?.name || undefined,
+          },
+          description: `AEPS Cash Deposit of ₹${depositAmount.toFixed(2)} to ${bankName}${aadharMasked ? ` (${aadharMasked})` : ""}`,
+          status: "success",
+        });
+      } catch (walletErr) {
+        console.error("[AEPS] Wallet ledger debit error:", walletErr?.message || walletErr);
+        if (!walletErr?.message?.includes("duplicate")) {
+          throw walletErr;
+        }
+      }
+    }
 
     return res.status(200).json(
       ApiResponse.success(
@@ -1049,6 +1147,81 @@ const onboardController = asyncHandler(async (req, res) => {
   );
 });
 
+const outletRegisterController = asyncHandler(async (req, res) => {
+  const { outlet_id, referenceKey } = req.body;
+
+  if (!outlet_id) {
+    return res.status(400).json(
+      ApiResponse.error("outlet_id is required", null, null, 400)
+    );
+  }
+
+  if (!referenceKey) {
+    return res.status(400).json(
+      ApiResponse.error("referenceKey is required", null, null, 400)
+    );
+  }
+
+  const payload = {
+    outlet_id: String(outlet_id),
+    referenceKey: String(referenceKey),
+  };
+
+  console.log("========== [outletRegister Payload] ==========", payload);
+  const result = await outletRegister(payload);
+  console.log("========== [outletRegister Result] ==========", result);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      result?.msg || result?.message || "OTP Successfully sent",
+      null,
+      200
+    )
+  );
+});
+
+const outletRegisterVerifyController = asyncHandler(async (req, res) => {
+  const { outlet_id, referenceKey, otp } = req.body;
+
+  if (!outlet_id) {
+    return res.status(400).json(
+      ApiResponse.error("outlet_id is required", null, null, 400)
+    );
+  }
+
+  if (!referenceKey) {
+    return res.status(400).json(
+      ApiResponse.error("referenceKey is required", null, null, 400)
+    );
+  }
+
+  if (!otp) {
+    return res.status(400).json(
+      ApiResponse.error("otp is required", null, null, 400)
+    );
+  }
+
+  const payload = {
+    outlet_id: String(outlet_id),
+    referenceKey: String(referenceKey),
+    otp: String(otp),
+  };
+
+  console.log("========== [outletRegisterVerify Payload] ==========", payload);
+  const result = await outletRegisterVerify(payload);
+  console.log("========== [outletRegisterVerify Result] ==========", result);
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result,
+      result?.msg || result?.message || "Outlet registration verified successfully",
+      null,
+      200
+    )
+  );
+});
+
 export {
   getRetailerKycDetailsController,
   doEkycController,
@@ -1061,4 +1234,7 @@ export {
   cashDepositController,
   sendOtpController,
   onboardController,
+  outletRegisterController,
+  outletRegisterVerifyController,
 };
+

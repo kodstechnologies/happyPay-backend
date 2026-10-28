@@ -160,10 +160,7 @@ export const recordFailedWalletPayment = async (
   return await transaction.save();
 };
 
-/**
- * Service to get settlement bank info, active registered banks,
- * retailer identity data, live wallet balance, and settlement limits.
- */
+
 export const getSettlementBankInfoService = async (userId) => {
   if (!userId) {
     throw ApiError.badRequest("User ID is required");
@@ -187,10 +184,12 @@ export const getSettlementBankInfoService = async (userId) => {
     .map((b) => {
       const acc = String(b.accountNumber || "").trim();
       const masked = acc.length > 4 ? `•••• •••• ${acc.slice(-4)}` : acc;
+      const bankName = String(b.name || b.bank_name || b.bankName || "Bank Account").trim();
       return {
         _id: b._id ? b._id.toString() : "",
         id: b._id ? b._id.toString() : String(b.bank_id || ""),
-        name: b.name || "Bank Account",
+        name: bankName,
+        bank_name: bankName,
         bank_id: b.bank_id || "",
         accountNumber: acc,
         maskedAccountNumber: masked,
@@ -236,11 +235,7 @@ export const getSettlementBankInfoService = async (userId) => {
   };
 };
 
-/**
- * Initiate settlement payout to retailer's bank account
- * Calls external provider payoutSettlement with exact required fields:
- * accountType, branchName, benMobile, bank_name, beneficiary_name, ifsc, account_number, amount, mode, txnid
- */
+
 export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   if (!userId) {
     throw ApiError.unauthorized("User not authenticated");
@@ -289,11 +284,24 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   // 3. Generate unique transaction ID from backend
   const txnid = generate15CharTxnId("TXN");
 
-  // In place of bank_name send bank_code (passing bank_id)
-  const bankCode = String(payload.bank_code || payload.bank_id || "").trim();
+  // Resolve bank details from payload or match registered user banks
+  const matchedBank = Array.isArray(user.banks)
+    ? user.banks.find(
+        (b) =>
+          (b.accountNumber && String(b.accountNumber).trim() === String(payload.account_number).trim()) ||
+          (b.bank_id && String(b.bank_id).trim() === String(payload.bank_code || payload.bank_id).trim()) ||
+          (b._id && String(b._id).trim() === String(payload.bank_code || payload.bank_id).trim())
+      )
+    : null;
+
+  const bankCode = String(
+    payload.bank_code || payload.bank_id || matchedBank?.bank_id || matchedBank?._id || ""
+  ).trim();
+  const recordedBankName = String(
+    payload.bank_name || payload.bankName || matchedBank?.name || matchedBank?.bank_name || bankCode || "Bank Account"
+  ).trim();
   const lat = String(payload.lat || user.shop?.location?.latitude || "28.7041").trim();
   const long = String(payload.long || user.shop?.location?.longitude || "77.1025").trim();
-  const recordedBankName = String(payload.bank_name || bankCode).trim();
 
   // 4. Exact payload mapping for external payoutSettlement
   // STRICT RULE: Only exact field names, no alternatives or extra fields
@@ -302,6 +310,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     branchName: String(payload.branchName || "").trim(),
     benMobile: String(payload.benMobile || user.mobile || "").trim(),
     bank_code: bankCode,
+    bank_name: recordedBankName,
     beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number || "").trim(),
@@ -312,8 +321,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     txnid: txnid,
   };
 
-  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_code) {
-    throw ApiError.badRequest("Destination bank account details (account number, IFSC, and bank code) are required");
+  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_code || !providerPayload.bank_name) {
+    throw ApiError.badRequest("Destination bank account details (account number, IFSC, bank name, and bank code) are required");
   }
 
   // 5. Call external payoutSettlement from external service
@@ -389,6 +398,213 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   };
 };
 
+
+export const verifyWalletBalance = async (userId, requiredAmount) => {
+  if (!userId) {
+    throw ApiError.unauthorized("User identity is required to check wallet balance");
+  }
+
+  const numAmount = Number(requiredAmount);
+  if (isNaN(numAmount) || numAmount <= 0) {
+    throw ApiError.badRequest("Invalid transaction amount for wallet verification");
+  }
+
+  const walletData = await getUserWalletBalance(userId);
+  if (!walletData || walletData.status !== "active") {
+    throw ApiError.forbidden("Retailer wallet is inactive or suspended");
+  }
+
+  if (walletData.availableBalance < numAmount) {
+    throw ApiError.badRequest(
+      `Insufficient wallet balance. Required: ₹${numAmount.toFixed(2)}, Available: ₹${walletData.availableBalance.toFixed(2)}`
+    );
+  }
+
+  return walletData;
+};
+
+
+export const processServiceWalletTransaction = async ({
+  userId,
+  type,
+  amount,
+  service,
+  transactionId,
+  payee = {},
+  description = "",
+  commissionEarned = 0,
+  status = "success",
+}) => {
+  if (!userId) {
+    throw ApiError.unauthorized("User ID is required for wallet transaction");
+  }
+
+  const validTypes = ["credit", "debit"];
+  if (!validTypes.includes(type)) {
+    throw ApiError.badRequest(`Invalid transaction type '${type}'. Must be 'credit' or 'debit'`);
+  }
+
+  const numAmount = Math.round(Number(amount || 0) * 100) / 100;
+  if (isNaN(numAmount) || numAmount <= 0) {
+    throw ApiError.badRequest("Transaction amount must be a positive number");
+  }
+
+  const numCommission = Math.max(0, Math.round(Number(commissionEarned || 0) * 100) / 100);
+  const resolvedTxnId = String(transactionId || generate15CharTxnId("TXN")).trim();
+
+  // 1. Idempotency Guard: prevent duplicate debit/credit on network retries
+  const existingTxn = await Transaction.findOne({ transactionId: resolvedTxnId });
+  if (existingTxn) {
+    const existingWallet = await Wallet.findById(existingTxn.wallet);
+    return {
+      success: true,
+      isDuplicate: true,
+      transaction: existingTxn,
+      balanceBefore: existingTxn.balanceBefore,
+      balanceAfter: existingTxn.balanceAfter,
+      wallet: existingWallet,
+    };
+  }
+
+  // 2. Fetch or initialize wallet
+  let wallet = await Wallet.findOne({ user: userId });
+  if (!wallet) {
+    wallet = await createWallet(userId);
+  }
+
+  if (wallet.status !== "active") {
+    throw ApiError.forbidden("Retailer wallet is inactive or suspended");
+  }
+
+  // 3. Concurrency-safe atomic mutation:
+  // Attempt with mongoose transaction session. If MongoDB deployment does not support
+  // replica set sessions (e.g. standalone instance), fallback to atomic conditional update.
+  let balanceBefore = Number(wallet.balance || 0);
+  let balanceAfter = balanceBefore;
+  let savedTransaction = null;
+  let updatedWallet = null;
+
+  const session = await mongoose.startSession();
+
+  try {
+    await session.withTransaction(async () => {
+      const activeWallet = await Wallet.findOne({ user: userId }).session(session);
+      if (!activeWallet) {
+        throw ApiError.notFound("Wallet record not found during balance update");
+      }
+
+      balanceBefore = Number(activeWallet.balance || 0);
+
+      if (type === "debit") {
+        const holdBal = Number(activeWallet.holdBalance || 0);
+        const availBal = balanceBefore - holdBal;
+        if (availBal < numAmount) {
+          throw ApiError.badRequest(
+            `Insufficient available balance for debit. Available: ₹${availBal.toFixed(2)}, Required: ₹${numAmount.toFixed(2)}`
+          );
+        }
+        balanceAfter = Math.round((balanceBefore - numAmount) * 100) / 100;
+      } else {
+        // credit: principal + any commission
+        balanceAfter = Math.round((balanceBefore + numAmount + numCommission) * 100) / 100;
+      }
+
+      activeWallet.balance = balanceAfter;
+      await activeWallet.save({ session });
+
+      const transaction = new Transaction({
+        wallet: activeWallet._id,
+        type,
+        amount: numAmount,
+        balanceBefore,
+        balanceAfter,
+        payee: {
+          bankName: payee.bankName || undefined,
+          aadharNumber: payee.aadharNumber || undefined,
+          accountNumber: payee.accountNumber || undefined,
+          ifscCode: payee.ifscCode || undefined,
+          accountHolderName: payee.accountHolderName || undefined,
+        },
+        service,
+        transactionId: resolvedTxnId,
+        status: status || "success",
+        description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
+        commissionEarned: numCommission,
+      });
+
+      savedTransaction = await transaction.save({ session });
+      updatedWallet = activeWallet;
+    });
+  } catch (sessionErr) {
+    // Check if session error is because standalone MongoDB does not support transactions
+    const isReplicaSetError =
+      sessionErr.message?.includes("replica set") ||
+      sessionErr.message?.includes("Transaction numbers are only allowed") ||
+      sessionErr.code === 20;
+
+    if (!isReplicaSetError) {
+      throw sessionErr;
+    }
+
+    // Fallback: Standalone MongoDB atomic conditional update
+    if (type === "debit") {
+      const result = await Wallet.findOneAndUpdate(
+        { user: userId, balance: { $gte: numAmount } },
+        { $inc: { balance: -numAmount } },
+        { new: true }
+      );
+      if (!result) {
+        throw ApiError.badRequest("Insufficient wallet balance for debit transaction");
+      }
+      balanceBefore = result.balance + numAmount;
+      balanceAfter = result.balance;
+      updatedWallet = result;
+    } else {
+      const creditIncrement = numAmount + numCommission;
+      const result = await Wallet.findOneAndUpdate(
+        { user: userId },
+        { $inc: { balance: creditIncrement } },
+        { new: true, upsert: true }
+      );
+      balanceBefore = result.balance - creditIncrement;
+      balanceAfter = result.balance;
+      updatedWallet = result;
+    }
+
+    const transaction = new Transaction({
+      wallet: updatedWallet._id,
+      type,
+      amount: numAmount,
+      balanceBefore,
+      balanceAfter,
+      payee: {
+        bankName: payee.bankName || undefined,
+        aadharNumber: payee.aadharNumber || undefined,
+        accountNumber: payee.accountNumber || undefined,
+        ifscCode: payee.ifscCode || undefined,
+        accountHolderName: payee.accountHolderName || undefined,
+      },
+      service,
+      transactionId: resolvedTxnId,
+      status: status || "success",
+      description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
+      commissionEarned: numCommission,
+    });
+
+    savedTransaction = await transaction.save();
+  } finally {
+    session.endSession();
+  }
+
+  return {
+    success: true,
+    transaction: savedTransaction,
+    balanceBefore,
+    balanceAfter,
+    wallet: updatedWallet,
+  };
+};
+
 export default {
   addAmountToWallet,
   recordFailedWalletPayment,
@@ -396,6 +612,8 @@ export default {
   createWallet,
   getSettlementBankInfoService,
   initiateSettlementPayoutService,
+  verifyWalletBalance,
+  processServiceWalletTransaction,
 };
 
 

@@ -11,6 +11,8 @@ import {
   cashDepositController,
   sendOtpController,
   onboardController,
+  outletRegisterController,
+  outletRegisterVerifyController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
@@ -22,12 +24,28 @@ import {
   cashWithdrawSchema,
   cashDepositSchema,
   sendOtpSchema,
+  outletRegisterSchema,
+  outletRegisterVerifySchema,
 } from "../validations/aeps.validation.js";
 
 const router = Router();
 
 // Onboard retailer merchant to AEPS gateway
 router.post("/onboard", authMiddleware, onboardController);
+
+// Outlet bank registration & verification
+router.post(
+  "/outlet-register",
+  authMiddleware,
+  validate(outletRegisterSchema, "body"),
+  outletRegisterController
+);
+router.post(
+  "/outlet-register-verify",
+  authMiddleware,
+  validate(outletRegisterVerifySchema, "body"),
+  outletRegisterVerifyController
+);
 
 // Get retailer KYC details (Aadhaar and PAN)
 router.get(
