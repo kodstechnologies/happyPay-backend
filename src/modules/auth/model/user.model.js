@@ -66,13 +66,14 @@ const userSchema = new mongoose.Schema(
       uppercase: true,
     },
 
-    panDocument: {
+    panDocument:{
       type: String,
       trim: true,
     },
 
     mobile: {
       type: String,
+      unique:true,
       trim: true,
     },
 
