@@ -409,7 +409,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     txnid: txnid,
   };
 
-  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_code || !providerPayload.bank_name) {
+  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.code || !providerPayload.bank_name) {
     throw ApiError.badRequest("Bank account details (account number, IFSC, bank name, and bank code) are required");
   }
 
