@@ -71,18 +71,13 @@
 							"type": "text"
 						},
 						{
-							"key": "effectiveFrom",
-							"value": "2024-01-01T00:00:00.000Z",
-							"type": "text"
-						},
-						{
 							"key": "image",
 							"type": "file",
 							"src": []
 						},
 						{
 							"key": "services",
-							"value": "[{\"serviceId\":\"SERVICE_ID_HERE\",\"categories\":[{\"categoryId\":\"CATEGORY_ID_HERE\",\"pricing\":[{\"type\":\"COMMISSION\",\"slabs\":[{\"minAmount\":0,\"maxAmount\":1000,\"value\":2},{\"minAmount\":1001,\"maxAmount\":null,\"value\":1.5}]}]}]}]",
+							"value": "[{\"serviceId\":\"SERVICE_ID_HERE\",\"categories\":[{\"categoryId\":\"CATEGORY_ID_HERE\",\"pricing\":[{\"type\":\"COMMISSION\",\"calculationType\":\"PERCENTAGE\",\"slabs\":[{\"minAmount\":0,\"maxAmount\":1000,\"value\":2,\"adminAmount\":0.5,\"distributorAmount\":0.8,\"retailerAmount\":0.7},{\"minAmount\":1001,\"maxAmount\":null,\"value\":1.5,\"adminAmount\":0.3,\"distributorAmount\":0.6,\"retailerAmount\":0.6}]}]}]}]",
 							"type": "text",
 							"description": "JSON string for services array"
 						}

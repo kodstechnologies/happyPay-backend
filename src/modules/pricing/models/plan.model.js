@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import "./serviceConfig.model.js";
 
+
 const pricingSlabSchema = new mongoose.Schema(
   {
     minAmount: {
@@ -13,11 +14,29 @@ const pricingSlabSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
+
+    // Optional fixed amount for this slab
     value: {
       type: Number,
       min: 0,
     },
 
+    // Optional distribution amounts
+    adminAmount: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    distributorAmount: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    retailerAmount: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
   },
   { _id: false }
 );
@@ -29,6 +48,13 @@ const pricingSchema = new mongoose.Schema(
       enum: ["COMMISSION", "CHARGE"],
       required: true,
     },
+
+    calculationType: {
+      type: String,
+      enum: ["FIXED", "PERCENTAGE"],
+      required: true,
+    },
+
     slabs: {
       type: [pricingSlabSchema],
       default: [],
@@ -77,10 +103,20 @@ const planSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-   
+
     description: {
       type: String,
       default: "",
+    },
+
+    effectiveFrom: {
+      type: Date,
+      default: null,
+    },
+
+    effectiveTo: {
+      type: Date,
+      default: null,
     },
 
     services: {
@@ -91,14 +127,6 @@ const planSchema = new mongoose.Schema(
       type: String,
       enum: ["ACTIVE", "INACTIVE"],
       default: "INACTIVE",
-    },
-    effectiveFrom: {
-      type: Date,
-      default: null,
-    },
-    effectiveTo: {
-      type: Date,
-      default: null,
     },
   },
   { timestamps: true }

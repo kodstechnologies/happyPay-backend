@@ -20,6 +20,17 @@ export const parseFormDataFields = (req, res, next) => {
     }
   });
 
+  // Parse date fields
+  const dateFields = ['effectiveFrom', 'effectiveTo'];
+  dateFields.forEach(field => {
+    if (req.body[field] && typeof req.body[field] === 'string') {
+      const date = new Date(req.body[field]);
+      if (!isNaN(date.getTime())) {
+        req.body[field] = date;
+      }
+    }
+  });
+
   next();
 };
 
@@ -60,6 +71,27 @@ const pricingSlabSchema = Joi.object({
     .messages({
       "number.min": "Value must be greater than or equal to 0",
     }),
+  adminAmount: Joi.number()
+    .min(0)
+    .allow(null)
+    .optional()
+    .messages({
+      "number.min": "Admin amount must be greater than or equal to 0",
+    }),
+  distributorAmount: Joi.number()
+    .min(0)
+    .allow(null)
+    .optional()
+    .messages({
+      "number.min": "Distributor amount must be greater than or equal to 0",
+    }),
+  retailerAmount: Joi.number()
+    .min(0)
+    .allow(null)
+    .optional()
+    .messages({
+      "number.min": "Retailer amount must be greater than or equal to 0",
+    }),
 });
 
 const pricingSchema = Joi.object({
@@ -70,6 +102,14 @@ const pricingSchema = Joi.object({
       "any.required": "Pricing type is required",
       "string.empty": "Pricing type is required",
       "any.only": "Pricing type must be either COMMISSION or CHARGE",
+    }),
+  calculationType: Joi.string()
+    .valid("FIXED", "PERCENTAGE")
+    .required()
+    .messages({
+      "any.required": "Calculation type is required",
+      "string.empty": "Calculation type is required",
+      "any.only": "Calculation type must be either FIXED or PERCENTAGE",
     }),
   slabs: Joi.array()
     .items(pricingSlabSchema)
@@ -121,6 +161,20 @@ export const createPlanSchema = Joi.object({
     .messages({
       "string.uri": "Image must be a valid URL",
     }),
+  effectiveFrom: Joi.date()
+    .iso()
+    .optional()
+    .allow(null)
+    .messages({
+      "date.format": "Effective from must be a valid ISO date",
+    }),
+  effectiveTo: Joi.date()
+    .iso()
+    .optional()
+    .allow(null)
+    .messages({
+      "date.format": "Effective to must be a valid ISO date",
+    }),
   services: Joi.array()
     .items(planServiceSchema)
     .default([])
@@ -131,18 +185,6 @@ export const createPlanSchema = Joi.object({
     .optional()
     .messages({
       "any.only": "Status must be either ACTIVE or INACTIVE",
-    }),
-  effectiveFrom: Joi.date()
-    .optional()
-    .allow(null)
-    .messages({
-      "date.base": "Effective from must be a valid date",
-    }),
-  effectiveTo: Joi.date()
-    .optional()
-    .allow(null)
-    .messages({
-      "date.base": "Effective to must be a valid date",
     }),
 });
 
@@ -172,6 +214,20 @@ export const updatePlanSchema = Joi.object({
     .messages({
       "string.uri": "Image must be a valid URL",
     }),
+  effectiveFrom: Joi.date()
+    .iso()
+    .optional()
+    .allow(null)
+    .messages({
+      "date.format": "Effective from must be a valid ISO date",
+    }),
+  effectiveTo: Joi.date()
+    .iso()
+    .optional()
+    .allow(null)
+    .messages({
+      "date.format": "Effective to must be a valid ISO date",
+    }),
   services: Joi.array()
     .items(planServiceSchema)
     .optional(),
@@ -180,18 +236,6 @@ export const updatePlanSchema = Joi.object({
     .optional()
     .messages({
       "any.only": "Status must be either ACTIVE or INACTIVE",
-    }),
-  effectiveFrom: Joi.date()
-    .optional()
-    .allow(null)
-    .messages({
-      "date.base": "Effective from must be a valid date",
-    }),
-  effectiveTo: Joi.date()
-    .optional()
-    .allow(null)
-    .messages({
-      "date.base": "Effective to must be a valid date",
     }),
 }).min(1)
   .messages({
@@ -264,6 +308,12 @@ export const validateConfigurePlanServices = (req, res, next) => {
           );
         }
 
+        if (!["FIXED", "PERCENTAGE"].includes(item.calculationType)) {
+          throw ApiError.badRequest(
+            `${path}: calculationType must be FIXED or PERCENTAGE`
+          );
+        }
+
         if (!Array.isArray(item.slabs)) {
           throw ApiError.badRequest(
             `${path}: slabs must be an array`
@@ -296,12 +346,57 @@ export const validateConfigurePlanServices = (req, res, next) => {
           }
 
           if (
-            typeof slab.value !== "number" ||
-            !Number.isFinite(slab.value) ||
-            slab.value < 0
+            slab.value !== undefined &&
+            (
+              typeof slab.value !== "number" ||
+              !Number.isFinite(slab.value) ||
+              slab.value < 0
+            )
           ) {
             throw ApiError.badRequest(
               `${path}: value must be a non-negative number`
+            );
+          }
+
+          if (
+            slab.adminAmount !== undefined &&
+            slab.adminAmount !== null &&
+            (
+              typeof slab.adminAmount !== "number" ||
+              !Number.isFinite(slab.adminAmount) ||
+              slab.adminAmount < 0
+            )
+          ) {
+            throw ApiError.badRequest(
+              `${path}: adminAmount must be null or a non-negative number`
+            );
+          }
+
+          if (
+            slab.distributorAmount !== undefined &&
+            slab.distributorAmount !== null &&
+            (
+              typeof slab.distributorAmount !== "number" ||
+              !Number.isFinite(slab.distributorAmount) ||
+              slab.distributorAmount < 0
+            )
+          ) {
+            throw ApiError.badRequest(
+              `${path}: distributorAmount must be null or a non-negative number`
+            );
+          }
+
+          if (
+            slab.retailerAmount !== undefined &&
+            slab.retailerAmount !== null &&
+            (
+              typeof slab.retailerAmount !== "number" ||
+              !Number.isFinite(slab.retailerAmount) ||
+              slab.retailerAmount < 0
+            )
+          ) {
+            throw ApiError.badRequest(
+              `${path}: retailerAmount must be null or a non-negative number`
             );
           }
         }
