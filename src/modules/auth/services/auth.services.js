@@ -976,6 +976,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     documentReviews: retailer.documentReviews || null,
     status: retailer.status,
     isActive: retailer.isActive,
+    isMpinSet: Boolean(retailer.MPIN),
     lastLoginAt: retailer.lastLoginAt,
     createdAt: retailer.createdAt,
     updatedAt: retailer.updatedAt,
@@ -991,7 +992,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const retailer = await User.findById(retailerId)
     .select(
-      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc"
+      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc MPIN"
     )
     .populate([
       {
@@ -1054,6 +1055,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     isEmailVerified: !!retailer.isEmailVerified,
     status: retailer.status,
     isActive: !!retailer.isActive,
+    isMpinSet: Boolean(retailer.MPIN),
   };
 };
 

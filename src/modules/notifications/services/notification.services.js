@@ -434,4 +434,116 @@ const sendNewRetailerRegistrationNotification = async ({
   };
 };
 
-export { sendKycApprovedNotification, sendKycRejectedNotification, sendRegistrationSuccessNotification, sendNewRetailerRegistrationNotification };
+const sendWalletTransferNotification = async ({
+  recipientId,
+  type = "WALLET_CREDIT",
+  title,
+  body,
+  data = {},
+}) => {
+  try {
+    // 1. Find recipient retailer to fetch active devices
+    const retailer = await User.findById(recipientId).select("devices name fullName mobile");
+    if (!retailer) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Retailer not found",
+      };
+    }
+
+    // 2. Persist in-app notification in DB
+    const notification = await createNotification({
+      recipientId,
+      recipientType: "retailer",
+      type: type || "WALLET_CREDIT",
+      title: title || "Wallet Update",
+      body: body || "Your wallet balance has been updated.",
+      data: {
+        screen: "WALLET",
+        ...data,
+      },
+    });
+
+    // 3. Filter active devices with valid FCM tokens
+    const devices =
+      retailer.devices?.filter(
+        (device) =>
+          device.isActive &&
+          device.fcmToken &&
+          device.fcmToken !== "dummy"
+      ) || [];
+
+    if (devices.length === 0 || !firebaseMessaging) {
+      return {
+        success: true,
+        statusCode: 200,
+        message: !firebaseMessaging
+          ? "Notification saved, but Firebase messaging is not configured."
+          : "Notification saved, but no active FCM device found.",
+        data: notification,
+      };
+    }
+
+    let fcmSent = false;
+    let failureReason = null;
+
+    // Convert all payload values to string (Firebase Messaging requirement)
+    const sanitizedData = Object.fromEntries(
+      Object.entries({
+        screen: "WALLET",
+        type: type || "WALLET_CREDIT",
+        ...data,
+      }).map(([k, v]) => [k, String(v ?? "")])
+    );
+
+    // 4. Send push notification to all active devices
+    for (const device of devices) {
+      try {
+        await firebaseMessaging.send({
+          token: device.fcmToken,
+          notification: {
+            title: title || "Wallet Update",
+            body: body || "Your wallet balance has been updated.",
+          },
+          data: sanitizedData,
+        });
+        fcmSent = true;
+      } catch (error) {
+        console.error("Wallet FCM notification error:", error.message);
+        failureReason = error.message;
+      }
+    }
+
+    // 5. Update delivery status in DB
+    await updateFcmStatus({
+      notificationId: notification._id,
+      fcmSent,
+      fcmFailureReason: failureReason,
+    });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: fcmSent
+        ? "Push notification sent successfully."
+        : "Notification saved but delivery failed.",
+      data: notification,
+    };
+  } catch (err) {
+    console.error("Error in sendWalletTransferNotification:", err.message);
+    return {
+      success: false,
+      statusCode: 500,
+      message: err.message,
+    };
+  }
+};
+
+export {
+  sendKycApprovedNotification,
+  sendKycRejectedNotification,
+  sendRegistrationSuccessNotification,
+  sendNewRetailerRegistrationNotification,
+  sendWalletTransferNotification,
+};

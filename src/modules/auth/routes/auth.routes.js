@@ -35,6 +35,17 @@ import authMiddleware from "../../../middlewares/auth.middleware.js";
 import { doBioEkycController, doEkycController } from "../../AEPS/controller/aeps.controller.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import { doEkycSchema, doBioEkycSchema } from "../../AEPS/validations/aeps.validation.js";
+import {
+  sendMpinOtpController,
+  setupMpinController,
+  changeMpinController,
+  verifyMpinController,
+} from "../controllers/mpin.controller.js";
+import {
+  validateSetupMpin,
+  validateChangeMpin,
+  validateVerifyMpin,
+} from "../validations/mpin.validation.js";
 
 const router = Router();
 
@@ -69,6 +80,12 @@ router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
 router.patch("/retailer/profile", authMiddleware, uploadRetailerDocuments, updateRetailerProfileController);
 router.get("/retailer/kyc-details", authMiddleware, getRetailerKycDetailsController);
 router.post("/retailer/kyc/reupload", authMiddleware, uploadRetailerDocuments, reuploadRetailerKycDocumentsController);
+
+// MPIN routes for retailer profile security
+router.post("/retailer/mpin/send-otp", authMiddleware, sendMpinOtpController);
+router.post("/retailer/mpin/setup", authMiddleware, validateSetupMpin, setupMpinController);
+router.post("/retailer/mpin/change", authMiddleware, validateChangeMpin, changeMpinController);
+router.post("/retailer/mpin/verify", authMiddleware, validateVerifyMpin, verifyMpinController);
 
 // Downline retailers routes for distributors
 router.get("/retailer/downline-retailers", authMiddleware, getDownlineRetailersController);

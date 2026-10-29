@@ -200,6 +200,7 @@ const initiateCmsPayment = (payload) =>
 
   const payoutSettlement=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.settlement,payload)
   const checkSettlement_status=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.checkSettlement_status,payload)
+  const payoutSettlementBankList=(payload)=>getProvider(PROVIDER_ROUTES.payoutSettlement.bankList)
 export {
   verifyAadhar,
   verifyPan,
@@ -244,6 +245,7 @@ export {
   initiateCmsPayment,
 
   payoutSettlement,
+  payoutSettlementBankList,
   checkSettlement_status
 };
 

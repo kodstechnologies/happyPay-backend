@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import deviceSchema from "./device.model.js";
 import refreshTokenSchema from "./token.model.js";
 import Role from "./role.model.js";
@@ -398,7 +399,10 @@ const userSchema = new mongoose.Schema(
       ],
       default: "active",
     },
-
+    MPIN:{
+      type:String,
+      trim:true
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -464,6 +468,11 @@ userSchema.methods.hasRole = function (roleSlug) {
     if (r.slug) return r.slug.toLowerCase() === target;
     return false;
   });
+};
+
+userSchema.methods.compareMpin = async function (candidateMpin) {
+  if (!this.MPIN) return false;
+  return await bcrypt.compare(String(candidateMpin).trim(), this.MPIN);
 };
 
 const User = mongoose.model("User", userSchema);
