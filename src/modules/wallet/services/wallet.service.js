@@ -397,8 +397,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     accountType: String(payload.accountType || "Savings Account").trim(),
     branchName: String(payload.branchName || "").trim(),
     benMobile: String(payload.benMobile || user.mobile || "").trim(),
-    code: bankCode,
-    bank_name: recordedBankName,
+    bank_code: bankCode,
+    // bank_name: recordedBankName,
     beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number || "").trim(),
@@ -409,7 +409,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     txnid: txnid,
   };
 
-  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.code || !providerPayload.bank_name) {
+  if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.code ) {
     throw ApiError.badRequest("Bank account details (account number, IFSC, bank name, and bank code) are required");
   }
 
