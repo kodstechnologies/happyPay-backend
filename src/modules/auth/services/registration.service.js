@@ -438,7 +438,8 @@ const registerRetailer = async (body = {}) => {
     banks: [
       {
         name: bankName,
-        bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
+        bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+      bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
         ifscCode: ifscCode,
         isPrimary: true,
         isActive: true,
@@ -700,7 +701,8 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   user.banks = [
     {
       name: bankName.trim(),
-      bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
+      bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+      bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
       ifscCode: body.ifscCode.trim().toUpperCase(),
       accountNumber: body.accountNumber.trim(),
       isPrimary: true,

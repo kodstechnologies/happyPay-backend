@@ -9,10 +9,14 @@ import {
   getDistributorSettlementInfoController,
   transferDistributorSettlementController,
   getRecentDistributorSettlementsController,
+  payoutSettlementBankLists,
 } from "../controllers/wallet.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 
 const router = Router();
+
+// Public settlement bank list endpoint (accessible during registration, distributor onboarding, and profile)
+router.get("/banklist", payoutSettlementBankLists);
 
 // Protect all wallet routes with authMiddleware
 router.use(authMiddleware);

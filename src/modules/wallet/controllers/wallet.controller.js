@@ -10,6 +10,7 @@ import {
   getDistributorSettlementInfoService,
   transferRetailerToDistributorService,
   getRecentDistributorSettlementsService,
+  payoutSettlementBankList,
 } from "../services/wallet.service.js";
 
 /**
@@ -24,6 +25,25 @@ export const getWalletBalanceController = asyncHandler(async (req, res) => {
     ApiResponse.success(
       result,
       "Wallet balance fetched successfully"
+    )
+  );
+});
+
+export const payoutSettlementBankLists = asyncHandler(async (req, res) => {
+  const page = req.query.page;
+  const limit = req.query.limit;
+  const search = req.query.search;
+
+  const result = await payoutSettlementBankList({ page, limit, search });
+
+  return res.status(200).json(
+    ApiResponse.success(
+      result.data,
+      "Bank list fetched successfully",
+      result.meta
+
+
+
     )
   );
 });

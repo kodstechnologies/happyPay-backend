@@ -1,14 +1,102 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import Wallet from "../model/wallet.model.js";
 import Transaction from "../../transaction/model/transaction.model.js";
 import User from "../../auth/model/user.model.js";
 
 import { ApiError } from "../../../utils/ApiError.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
-import { payoutSettlement } from "../../external/services/provider.service.js";
+import { payoutSettlement, payoutSettlementBankList as fetchPayoutSettlementBankListProvider } from "../../external/services/provider.service.js";
 import { sendWalletTransferNotification } from "../../notifications/services/notification.services.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
 
+
+export const verifyUserTransactionMpin = async (user, rawMpin) => {
+  const mpin = String(rawMpin || "").trim();
+  if (!mpin || !/^\d{4}$/.test(mpin)) {
+    throw ApiError.badRequest("Please enter a valid 4-digit MPIN");
+  }
+
+  if (!user || !user.MPIN) {
+    throw ApiError.badRequest(
+      "Transaction MPIN is not configured. Please set up your MPIN in Security Settings first."
+    );
+  }
+
+  const isBcrypt =
+    user.MPIN.startsWith("$2a$") ||
+    user.MPIN.startsWith("$2b$") ||
+    user.MPIN.startsWith("$2y$");
+
+  const isMatch = isBcrypt
+    ? await bcrypt.compare(mpin, user.MPIN)
+    : String(user.MPIN).trim() === mpin;
+
+  if (!isMatch) {
+    throw ApiError.badRequest("Incorrect security MPIN. Please try again.");
+  }
+
+  // Transparent upgrade: if legacy unhashed MPIN was matched, re-hash it to bcrypt now
+  if (!isBcrypt) {
+    user.MPIN = await bcrypt.hash(mpin, 10);
+    await user.save();
+  }
+
+  return true;
+};
+
+
+let cachedSettlementBanks = null;
+let cachedSettlementBanksExpiry = 0;
+
+export const payoutSettlementBankList = async ({ page = 1, limit = 50, search = "" } = {}) => {
+  const now = Date.now();
+  if (!cachedSettlementBanks || now > cachedSettlementBanksExpiry) {
+    const providerRes = await fetchPayoutSettlementBankListProvider();
+    const rawList = Array.isArray(providerRes?.data)
+      ? providerRes.data
+      : (Array.isArray(providerRes) ? providerRes : []);
+
+    cachedSettlementBanks = rawList
+      .filter((b) => b && (b.description || b.name || b.bank_name))
+      .map((b) => ({
+        description: String(b.description || b.name || b.bank_name || "").trim(),
+        code: String(b.code || b.bank_id || b.id || "").trim(),
+      }));
+    cachedSettlementBanksExpiry = now + 10 * 60 * 1000; // 10 minutes cache
+  }
+
+  const querySearch = String(search || "").trim().toLowerCase();
+  let filtered = cachedSettlementBanks;
+
+  if (querySearch) {
+    filtered = cachedSettlementBanks.filter(
+      (b) =>
+        b.description.toLowerCase().includes(querySearch) ||
+        b.code.toLowerCase().includes(querySearch)
+    );
+  }
+
+  const total = filtered.length;
+  const numPage = Math.max(Number(page) || 1, 1);
+  const numLimit = limit !== undefined && limit !== null
+    ? Math.min(Math.max(Number(limit) || 10, 1), 500)
+    : 50;
+
+  const totalPages = Math.ceil(total / numLimit) || 1;
+  const skip = (numPage - 1) * numLimit;
+  const data = filtered.slice(skip, skip + numLimit);
+
+  return {
+    data,
+    meta: {
+      total,
+      page: numPage,
+      limit: numLimit,
+      totalPages,
+    },
+  };
+};
 
 export const addAmountToWallet = async (
   userId,
@@ -646,7 +734,9 @@ export const verifyRecipientRetailerService = async (senderUserId, mobile) => {
 
   return {
     id: recipient._id.toString(),
+    _id: recipient._id.toString(),
     name: recipient.fullName || "Registered Retailer",
+    fullName: recipient.fullName || "Registered Retailer",
     shopName: recipient.shop?.name || "Retail Store",
     mobile: recipient.mobile,
     status: recipient.status,
@@ -707,16 +797,8 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
     throw ApiError.badRequest("You cannot transfer funds to your own wallet");
   }
 
-  // MPIN Verification Guard
-  if (sender.MPIN) {
-    if (String(sender.MPIN).trim() !== mpin) {
-      throw ApiError.badRequest("Incorrect security MPIN. Please try again.");
-    }
-  } else {
-    // If MPIN has not been set yet, register this MPIN for subsequent transfers
-    sender.MPIN = mpin;
-    await sender.save();
-  }
+  // MPIN Verification Guard: verified via bcrypt before running transaction
+  await verifyUserTransactionMpin(sender, mpin);
 
   // 2. Fetch recipient
   const recipient = await User.findOne({ mobile: recipientMobile })
@@ -1075,15 +1157,8 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
     throw ApiError.forbidden("Your account KYC must be approved to perform settlement transfers");
   }
 
-  // MPIN Verification Guard
-  if (sender.MPIN) {
-    if (String(sender.MPIN).trim() !== mpin) {
-      throw ApiError.badRequest("Incorrect security MPIN. Please try again.");
-    }
-  } else {
-    sender.MPIN = mpin;
-    await sender.save();
-  }
+  // MPIN Verification Guard: verified via bcrypt before running transaction
+  await verifyUserTransactionMpin(sender, mpin);
 
   // 2. Resolve assigned distributor for this retailer
   let assignedDistributorId = null;

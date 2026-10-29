@@ -222,11 +222,26 @@ export const verifyMpinService = async (userId, mpin) => {
     throw error;
   }
 
-  const isValid = await bcrypt.compare(String(mpin).trim(), user.MPIN);
+  const cleanMpin = String(mpin || "").trim();
+  const isBcrypt =
+    user.MPIN.startsWith("$2a$") ||
+    user.MPIN.startsWith("$2b$") ||
+    user.MPIN.startsWith("$2y$");
+
+  const isValid = isBcrypt
+    ? await bcrypt.compare(cleanMpin, user.MPIN)
+    : String(user.MPIN).trim() === cleanMpin;
+
   if (!isValid) {
     const error = new Error("Invalid transaction MPIN");
     error.statusCode = 400;
     throw error;
+  }
+
+  // Transparent upgrade: if legacy unhashed MPIN was matched, hash it now
+  if (!isBcrypt) {
+    user.MPIN = await bcrypt.hash(cleanMpin, 10);
+    await user.save();
   }
 
   return {
