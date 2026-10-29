@@ -18,7 +18,7 @@ import {
  * GET /api/v1/wallet/balance
  */
 export const getWalletBalanceController = asyncHandler(async (req, res) => {
-  const userId = req.user?.userId || req.user?.id || req.body?.userId;
+  const userId = req.user?.userId || req.user?.id
   const result = await getUserWalletBalance(userId);
 
   return res.status(200).json(
@@ -53,7 +53,7 @@ export const payoutSettlementBankLists = asyncHandler(async (req, res) => {
  * GET /api/v1/wallet/settlement/bank-info
  */
 export const getSettlementBankInfoController = asyncHandler(async (req, res) => {
-  const userId = req.user?.userId || req.user?.id || req.body?.userId;
+  const userId = req.user?.userId || req.user?.id
   const result = await getSettlementBankInfoService(userId);
 
   return res.status(200).json(
@@ -85,7 +85,7 @@ export const initiateSettlementPayoutController = asyncHandler(async (req, res) 
  * GET /api/v1/wallet/settlement/retailer/verify?mobile=9876543210
  */
 export const verifyRetailerSettlementController = asyncHandler(async (req, res) => {
-  const userId = req.user?.userId || req.user?.id || req.body?.userId;
+  const userId = req.user?.userId || req.user?.id;
   const mobile = req.query?.mobile || req.body?.mobile;
   const result = await verifyRecipientRetailerService(userId, mobile);
 

@@ -6,7 +6,7 @@ import User from "../../auth/model/user.model.js";
 
 import { ApiError } from "../../../utils/ApiError.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
-import { payoutSettlement, payoutSettlementBankList as fetchPayoutSettlementBankListProvider } from "../../external/services/provider.service.js";
+import { payoutSettlement, getBankList, payoutSettlementBankList as fetchPayoutSettlementBankListProvider } from "../../external/services/provider.service.js";
 import { sendWalletTransferNotification } from "../../notifications/services/notification.services.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
 
@@ -46,54 +46,29 @@ export const verifyUserTransactionMpin = async (user, rawMpin) => {
 };
 
 
-let cachedSettlementBanks = null;
-let cachedSettlementBanksExpiry = 0;
-
 export const payoutSettlementBankList = async ({ page = 1, limit = 50, search = "" } = {}) => {
-  const now = Date.now();
-  if (!cachedSettlementBanks || now > cachedSettlementBanksExpiry) {
-    const providerRes = await fetchPayoutSettlementBankListProvider();
-    const rawList = Array.isArray(providerRes?.data)
-      ? providerRes.data
-      : (Array.isArray(providerRes) ? providerRes : []);
+  // Use the same AEPS bank list service as AEPS page
+  const aepsResult = await getBankList({ page, limit, search });
+  const rawList = Array.isArray(aepsResult?.data) ? aepsResult.data : [];
 
-    cachedSettlementBanks = rawList
-      .filter((b) => b && (b.description || b.name || b.bank_name))
-      .map((b) => ({
-        description: String(b.description || b.name || b.bank_name || "").trim(),
-        code: String(b.code || b.bank_id || b.id || "").trim(),
-      }));
-    cachedSettlementBanksExpiry = now + 10 * 60 * 1000; // 10 minutes cache
-  }
-
-  const querySearch = String(search || "").trim().toLowerCase();
-  let filtered = cachedSettlementBanks;
-
-  if (querySearch) {
-    filtered = cachedSettlementBanks.filter(
-      (b) =>
-        b.description.toLowerCase().includes(querySearch) ||
-        b.code.toLowerCase().includes(querySearch)
-    );
-  }
-
-  const total = filtered.length;
-  const numPage = Math.max(Number(page) || 1, 1);
-  const numLimit = limit !== undefined && limit !== null
-    ? Math.min(Math.max(Number(limit) || 10, 1), 500)
-    : 50;
-
-  const totalPages = Math.ceil(total / numLimit) || 1;
-  const skip = (numPage - 1) * numLimit;
-  const data = filtered.slice(skip, skip + numLimit);
+  const data = rawList.map((b) => ({
+    name: b.name || b.description || "",
+    description: b.name || b.description || "",
+    code: String(b.bank_id || b.iin || b.id || b.code || "").trim(),
+    bank_id: b.bank_id || b.id || "",
+    iin: b.iin || "",
+    activeFlag: b.activeFlag ?? 1,
+    aeps_enabled: b.aeps_enabled ?? 1,
+    aadhaarpay_enabled: b.aadhaarpay_enabled ?? 1,
+  }));
 
   return {
     data,
-    meta: {
-      total,
-      page: numPage,
-      limit: numLimit,
-      totalPages,
+    meta: aepsResult.meta || {
+      total: data.length,
+      page: Math.max(Number(page) || 1, 1),
+      limit: Math.max(Number(limit) || 50, 1),
+      totalPages: 1,
     },
   };
 };
@@ -371,6 +346,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.badRequest("Insufficient wallet balance for settlement");
   }
   const txnid = generate15CharTxnId("TXN");
+  const recordedBankName = String(
+    payload.bank_name || payload.bankName || payload.name || "Bank Account"
+  ).trim();
   const providerPayload = {
     accountType:payload.accountType || "Savings Account",
     branchName: payload.branchName,
@@ -715,9 +693,9 @@ export const verifyRecipientRetailerService = async (senderUserId, mobile) => {
   return {
     id: recipient._id.toString(),
     _id: recipient._id.toString(),
-    name: recipient.fullName || "Registered Retailer",
-    fullName: recipient.fullName || "Registered Retailer",
-    shopName: recipient.shop?.name || "Retail Store",
+    name: recipient.fullName ,
+    fullName: recipient.fullName ,
+    shopName: recipient.shop?.name,
     mobile: recipient.mobile,
     status: recipient.status,
   };
@@ -867,11 +845,11 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         service: "SETTLEMENT",
         transactionId: txnid,
         payee: {
-          name: recipient.fullName || "Retailer",
+          name: recipient.fullName,
           mobile: recipient.mobile,
           shopName: recipient.shop?.name || "",
-          bankName: recipient.shop?.name || "Retailer Wallet",
-          accountHolderName: recipient.fullName || "Retailer",
+          bankName: recipient.shop?.name ,
+          accountHolderName: recipient.fullName,
           accountNumber: recipient.mobile,
         },
         status: "success",
@@ -889,11 +867,11 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         service: "SETTLEMENT",
         transactionId: recipientTxnId,
         payee: {
-          name: sender.fullName || "Retailer",
+          name: sender.fullName ,
           mobile: sender.mobile,
-          shopName: sender.shop?.name || "",
-          bankName: sender.shop?.name || "Retailer Wallet",
-          accountHolderName: sender.fullName || "Retailer",
+          shopName: sender.shop?.name,
+          bankName: sender.shop?.name ,
+          accountHolderName: sender.fullName ,
           accountNumber: sender.mobile,
         },
         status: "success",
@@ -909,8 +887,8 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         senderBalanceBefore,
         senderBalanceAfter,
         recipientBalanceAfter,
-        recipientName: recipient.fullName || "Retailer",
-        recipientShopName: recipient.shop?.name || "Retail Store",
+        recipientName: recipient.fullName ,
+        recipientShopName: recipient.shop?.name,
         recipientMobile: recipient.mobile,
         remarks,
         date: new Date(),
@@ -979,7 +957,7 @@ export const getRecentRetailerSettlementsService = async (userId) => {
 
   return transactions.map((t) => ({
     id: t.transactionId || String(t._id),
-    name: t.payee?.name || t.payee?.accountHolderName || "Retailer",
+    name: t.payee?.name || t.payee?.accountHolderName ,
     shopName: t.payee?.shopName || t.payee?.bankName || "",
     mobile: t.payee?.mobile || t.payee?.accountNumber || "",
     amount: t.amount,
@@ -1046,14 +1024,14 @@ export const getDistributorSettlementInfoService = async (userId) => {
       distributor: {
         id: distributorUser._id.toString(),
         customId: customDistId,
-        name: distributorUser.fullName || distributorUser.shop?.name || "Assigned Distributor",
-        contactName: distributorUser.fullName || "Distributor Partner",
-        shopName: distributorUser.shop?.name || "Distributor Hub",
+        name: distributorUser.fullName || distributorUser.shop?.name ,
+        contactName: distributorUser.fullName ,
+        shopName: distributorUser.shop?.name ,
         phone: distributorUser.mobile || "",
         email: distributorUser.email || "",
         address: formattedAddress,
         zone: zone,
-        status: distributorUser.status || "active",
+        status: distributorUser.status,
         isPrimary: true,
       },
       retailer: {
@@ -1249,11 +1227,11 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         service: "SETTLEMENT",
         transactionId: txnid,
         payee: {
-          name: distributor.fullName || "Distributor",
+          name: distributor.fullName ,
           mobile: distributor.mobile,
-          shopName: distributor.shop?.name || "",
-          bankName: distributor.shop?.name || "Distributor Wallet",
-          accountHolderName: distributor.fullName || "Distributor",
+          shopName: distributor.shop?.name,
+          bankName: distributor.shop?.name ,
+          accountHolderName: distributor.fullName,
           accountNumber: distributor.mobile,
         },
         status: "success",
@@ -1291,8 +1269,8 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         senderBalanceBefore,
         senderBalanceAfter,
         distributorBalanceAfter: distBalanceAfter,
-        distributorName: distributor.fullName || "Distributor",
-        distributorShopName: distributor.shop?.name || "Distributor Hub",
+        distributorName: distributor.fullName,
+        distributorShopName: distributor.shop?.name ,
         distributorId: distributor._id.toString(),
         distributorMobile: distributor.mobile,
         reason,
@@ -1345,11 +1323,11 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       service: "SETTLEMENT",
       transactionId: txnid,
       payee: {
-        name: distributor.fullName || "Distributor",
+        name: distributor.fullName,
         mobile: distributor.mobile,
-        shopName: distributor.shop?.name || "",
-        bankName: distributor.shop?.name || "Distributor Wallet",
-        accountHolderName: distributor.fullName || "Distributor",
+        shopName: distributor.shop?.name ,
+        bankName: distributor.shop?.name ,
+        accountHolderName: distributor.fullName ,
         accountNumber: distributor.mobile,
       },
       status: "success",
@@ -1366,11 +1344,11 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       service: "SETTLEMENT",
       transactionId: distTxnId,
       payee: {
-        name: sender.fullName || "Retailer",
+        name: sender.fullName ,
         mobile: sender.mobile,
-        shopName: sender.shop?.name || "",
-        bankName: sender.shop?.name || "Retailer Wallet",
-        accountHolderName: sender.fullName || "Retailer",
+        shopName: sender.shop?.name ,
+        bankName: sender.shop?.name ,
+        accountHolderName: sender.fullName,
         accountNumber: sender.mobile,
       },
       status: "success",
@@ -1386,8 +1364,8 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       senderBalanceBefore,
       senderBalanceAfter,
       distributorBalanceAfter: distBalanceAfter,
-      distributorName: distributor.fullName || "Distributor",
-      distributorShopName: distributor.shop?.name || "Distributor Hub",
+      distributorName: distributor.fullName,
+      distributorShopName: distributor.shop?.name,
       distributorId: distributor._id.toString(),
       distributorMobile: distributor.mobile,
       reason,
