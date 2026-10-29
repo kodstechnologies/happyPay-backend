@@ -359,16 +359,17 @@ const getBankListController = asyncHandler(async (req, res) => {
       1
     );
 
-    // Only apply limit if explicitly provided in query
     const limit = req.query.limit
       ? Math.min(Math.max(Number(req.query.limit), 1), 500)
-      : undefined;
+      : 50;
+
+    const search = req.query.search ? String(req.query.search).trim() : "";
 
     const result = await getBankList({
       page,
       limit,
+      search,
     });
-  console.log("Bank list fetched successfully:", result);
     return res.status(200).json(
       ApiResponse.success(
         result.data,

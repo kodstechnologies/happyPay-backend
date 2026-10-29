@@ -39,6 +39,7 @@ const changeMpinSchema = Joi.object({
     .messages({
       "string.pattern.base": "Current MPIN must be 4 digits",
     }),
+  isReset: Joi.boolean().optional(),
   newMpin: Joi.string()
     .trim()
     .pattern(/^\d{4}$/)

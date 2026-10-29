@@ -580,10 +580,15 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (shopCategoryId) user.shop.category = shopCategoryId;
   if (propertyTypeId) user.shop.propertyType = propertyTypeId;
 
+  const finalState = (body.state && String(body.state).trim()) || detectedState || user.shop?.address?.state;
+  if (!finalState) {
+    throw fail(400, "State is required");
+  }
+
   if (!user.shop.address) user.shop.address = {};
   if (city) user.shop.address.city = city.trim();
   if (pincode) user.shop.address.pincode = pincode.trim();
-  if (detectedState) user.shop.address.state = detectedState;
+  if (finalState) user.shop.address.state = finalState.trim();
   if (address) user.shop.completeAddress = address.trim();
 
   // Update location

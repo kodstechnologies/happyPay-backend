@@ -346,7 +346,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.notFound("Retailer not found");
   }
 
-  if (user.status !== "active") {
+  if (user.status == "blocked"||user.status=="blocked") {
     throw ApiError.forbidden("Retailer account is currently inactive or suspended");
   }
 
@@ -397,7 +397,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     accountType: String(payload.accountType || "Savings Account").trim(),
     branchName: String(payload.branchName || "").trim(),
     benMobile: String(payload.benMobile || user.mobile || "").trim(),
-    bank_code: bankCode,
+    code: bankCode,
     bank_name: recordedBankName,
     beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),

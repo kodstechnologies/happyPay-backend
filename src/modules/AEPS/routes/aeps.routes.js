@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getBankListController } from "../../auth/controllers/auth.controllers.js";
 import {
   getRetailerKycDetailsController,
   doEkycController,
@@ -106,5 +107,9 @@ router.post(
   validate(sendOtpSchema, "body"),
   sendOtpController
 );
+
+// AEPS Bank List endpoints (accessible for bank selection during AEPS transactions & wallet recharge)
+router.get("/banks", getBankListController);
+router.get("/bank-list", getBankListController);
 
 export default router;

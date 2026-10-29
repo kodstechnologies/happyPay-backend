@@ -1,5 +1,6 @@
 import PROVIDER_ROUTES from "../constants/provider.routes.js";
 import { getProvider, postProviderForm } from "../utils/providerRequest.js";
+import { AEPS_BANKS } from "../constants/aepsBanks.js";
 
 const verifyAadhar = (payload) =>
   postProviderForm(
@@ -19,26 +20,58 @@ const verifyAccount = (payload) =>
     payload
   );
 
-const getBankList = async ({ page = 1, limit = 10 } = {}) => {
-  const response = await getProvider(PROVIDER_ROUTES.aeps.bankList);
+let cachedProviderBanks = null;
 
-  console.log("========== BANK API RESPONSE ==========");
-  console.log("response.data:", response);
-  console.log("BankList:", response?.BankList);
-  console.log("Is Array:", Array.isArray(response?.BankList));
-  console.log("=======================================");
+const getBankList = async ({ page = 1, limit = 50, search = "" } = {}) => {
+  let banks = cachedProviderBanks;
 
-  const banks = response?.BankList || [];
+  if (!banks || banks.length === 0) {
+    try {
+      const response = await getProvider(PROVIDER_ROUTES.aeps.bankList);
+      if (response && Array.isArray(response.BankList) && response.BankList.length > 0) {
+        cachedProviderBanks = response.BankList;
+        banks = response.BankList;
+      } else if (response && Array.isArray(response.data) && response.data.length > 0) {
+        cachedProviderBanks = response.data;
+        banks = response.data;
+      }
+    } catch (err) {
+      console.warn(
+        "[AEPS Bank List] Upstream provider fetch failed, using fallback AEPS bank list:",
+        err?.message || err
+      );
+    }
+  }
+
+
+
+  if (!banks || !Array.isArray(banks) || banks.length === 0) {
+    banks = AEPS_BANKS;
+  }
+
+  // Filter by search if provided
+  if (search && typeof search === "string" && search.trim()) {
+    const q = search.trim().toLowerCase();
+    banks = banks.filter(
+      (b) =>
+        (b.name && String(b.name).toLowerCase().includes(q)) ||
+        (b.iin && String(b.iin).includes(q)) ||
+        (Array.isArray(b.aliases) && b.aliases.some((a) => a.toLowerCase().includes(q)))
+    );
+  }
+
+  const effectiveLimit = Math.max(Number(limit) || 50, 1);
+  const effectivePage = Math.max(Number(page) || 1, 1);
   const total = banks.length;
-  const skip = (page - 1) * limit;
+  const skip = (effectivePage - 1) * effectiveLimit;
 
   return {
-    data: banks.slice(skip, skip + limit),
+    data: banks.slice(skip, skip + effectiveLimit),
     meta: {
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: effectivePage,
+      limit: effectiveLimit,
+      totalPages: Math.ceil(total / effectiveLimit) || 1,
     },
   };
 };

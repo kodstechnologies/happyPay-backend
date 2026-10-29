@@ -64,10 +64,9 @@ const shopDetailsSchema = Joi.object({
     .trim()
     .min(2)
     .max(50)
-    .required()
+    .optional()
+    .allow("", null)
     .messages({
-      "any.required": "State is required",
-      "string.empty": "State is required",
       "string.min": "State must be at least 2 characters",
       "string.max": "State must not exceed 50 characters",
     }),

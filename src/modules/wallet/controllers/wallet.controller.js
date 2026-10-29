@@ -69,7 +69,7 @@ export const getSettlementBankInfoController = asyncHandler(async (req, res) => 
  * POST /api/v1/wallet/settlement/payout
  */
 export const initiateSettlementPayoutController = asyncHandler(async (req, res) => {
-  const userId = req.user?.userId || req.user?.id || req.body?.userId;
+  const userId = req.user?.userId || req.user?.id;
   const result = await initiateSettlementPayoutService(userId, req.body);
 
   return res.status(200).json(

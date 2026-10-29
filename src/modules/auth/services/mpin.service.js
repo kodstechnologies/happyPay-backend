@@ -148,7 +148,7 @@ export const setupMpinService = async (userId, { newMpin, confirmMpin, otp }) =>
 /**
  * Change or Reset MPIN
  */
-export const changeMpinService = async (userId, { currentMpin, newMpin, confirmMpin, otp }) => {
+export const changeMpinService = async (userId, { currentMpin, newMpin, confirmMpin, otp, isReset }) => {
   if (!userId) {
     const error = new Error("User authentication required");
     error.statusCode = 401;
@@ -174,9 +174,18 @@ export const changeMpinService = async (userId, { currentMpin, newMpin, confirmM
     throw error;
   }
 
-  // If user already has an MPIN and supplied currentMpin, verify it
-  if (user.MPIN && currentMpin) {
-    const isCurrentValid = await bcrypt.compare(String(currentMpin).trim(), user.MPIN);
+  // If this is a regular change (not a reset via OTP) and currentMpin is provided, verify it
+  if (!isReset && user.MPIN && currentMpin) {
+    const cleanCurrent = String(currentMpin).trim();
+    const isBcrypt =
+      user.MPIN.startsWith("$2a$") ||
+      user.MPIN.startsWith("$2b$") ||
+      user.MPIN.startsWith("$2y$");
+
+    const isCurrentValid = isBcrypt
+      ? await bcrypt.compare(cleanCurrent, user.MPIN)
+      : String(user.MPIN).trim() === cleanCurrent;
+
     if (!isCurrentValid) {
       const error = new Error("Current MPIN is incorrect");
       error.statusCode = 400;
@@ -184,7 +193,7 @@ export const changeMpinService = async (userId, { currentMpin, newMpin, confirmM
     }
   }
 
-  // Compulsory OTP verification for changing MPIN
+  // Compulsory OTP verification for changing or resetting MPIN
   await verifyMpinOtpInternal(user.mobile, otp);
 
   // Hash new MPIN with bcrypt
@@ -194,7 +203,9 @@ export const changeMpinService = async (userId, { currentMpin, newMpin, confirmM
 
   return {
     success: true,
-    message: "Transaction MPIN updated successfully",
+    message: isReset || !currentMpin
+      ? "Transaction MPIN reset successfully via phone OTP"
+      : "Transaction MPIN updated successfully",
     isMpinSet: true,
   };
 };

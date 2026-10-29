@@ -132,6 +132,11 @@ router.get(
   getBankListController
 );
 
+router.get(
+  "/bank",
+  getBankListController
+);
+
 
 
 router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);
