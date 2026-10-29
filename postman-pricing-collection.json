@@ -1,0 +1,194 @@
+{
+	"info": {
+		"_postman_id": "pricing-plan-collection",
+		"name": "HappyPay - Pricing Plans API",
+		"description": "CRUD API for Pricing Plans management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get All Plans",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/pricing",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "pricing"]
+				},
+				"description": "Get all plans (public access). Optional query params: status (ACTIVE/INACTIVE), page, limit"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Plan by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/pricing/:id",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "pricing", ":id"],
+					"variable": [
+						{
+							"key": "id",
+							"value": "PLAN_ID_HERE",
+							"description": "Plan ID"
+						}
+					]
+				},
+				"description": "Get a specific plan by ID (public access)"
+			},
+			"response": []
+		},
+		{
+			"name": "Create Plan",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"description": "Admin authentication token"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "name",
+							"value": "Basic Plan",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "Basic pricing plan for small retailers",
+							"type": "text"
+						},
+						{
+							"key": "status",
+							"value": "ACTIVE",
+							"type": "text"
+						},
+						{
+							"key": "effectiveFrom",
+							"value": "2024-01-01T00:00:00.000Z",
+							"type": "text"
+						},
+						{
+							"key": "image",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "services",
+							"value": "[{\"serviceId\":\"SERVICE_ID_HERE\",\"categories\":[{\"categoryId\":\"CATEGORY_ID_HERE\",\"pricing\":[{\"type\":\"COMMISSION\",\"slabs\":[{\"minAmount\":0,\"maxAmount\":1000,\"value\":2},{\"minAmount\":1001,\"maxAmount\":null,\"value\":1.5}]}]}]}]",
+							"type": "text",
+							"description": "JSON string for services array"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/pricing",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "pricing"]
+				},
+				"description": "Create a new plan (Admin only). Use form-data body type for file upload."
+			},
+			"response": []
+		},
+		{
+			"name": "Update Plan",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"description": "Admin authentication token"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "name",
+							"value": "Basic Plan Updated",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "Updated description",
+							"type": "text"
+						},
+						{
+							"key": "status",
+							"value": "ACTIVE",
+							"type": "text"
+						},
+						{
+							"key": "image",
+							"type": "file",
+							"src": [],
+							"description": "Optional: Upload new image to replace existing"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/pricing/:id",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "pricing", ":id"],
+					"variable": [
+						{
+							"key": "id",
+							"value": "PLAN_ID_HERE",
+							"description": "Plan ID to update"
+						}
+					]
+				},
+				"description": "Update an existing plan (Admin only). Use form-data body type for file upload. Image is optional for updates."
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Plan",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"description": "Admin authentication token"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/pricing/:id",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "pricing", ":id"],
+					"variable": [
+						{
+							"key": "id",
+							"value": "PLAN_ID_HERE",
+							"description": "Plan ID to delete"
+						}
+					]
+				},
+				"description": "Delete a plan (Admin only)"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "YOUR_ADMIN_TOKEN_HERE",
+			"type": "string",
+			"description": "Admin JWT token from authentication"
+		}
+	]
+}
