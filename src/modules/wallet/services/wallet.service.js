@@ -370,43 +370,19 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   if (numAmount > availableBalance) {
     throw ApiError.badRequest("Insufficient wallet balance for settlement");
   }
-
-  // 3. Generate unique transaction ID from backend
   const txnid = generate15CharTxnId("TXN");
-
-  const bankCode = String(payload.code || "").trim();
-
-  // Resolve bank details from payload code or registered user banks
-  const matchedBank = Array.isArray(user.banks)
-    ? user.banks.find(
-        (b) =>
-          (b.accountNumber && String(b.accountNumber).trim() === String(payload.account_number).trim()) ||
-          (b.bank_code && String(b.bank_code).trim() === bankCode) ||
-          (b._id && String(b._id).trim() === bankCode)
-      )
-    : null;
-  const recordedBankName = String(
-    payload.bank_name || payload.bankName || matchedBank?.name || matchedBank?.bank_name || bankCode || "Bank Account"
-  ).trim();
-  const lat = String(payload.lat || user.shop?.location?.latitude || "28.7041").trim();
-  const long = String(payload.long || user.shop?.location?.longitude || "77.1025").trim();
-
-  // 4. Exact payload mapping for external payoutSettlement
-  // STRICT RULE: Only exact field names, no alternatives or extra fields
   const providerPayload = {
-    accountType: String(payload.accountType || "Savings Account").trim(),
-    branchName: String(payload.branchName || "").trim(),
-    benMobile: String(payload.benMobile || user.mobile || "").trim(),
-    // bank_code: bankCode,
-    bank_name: bankCode,
-    // recordedBankName,
-    beneficiary_name: String(payload.beneficiary_name || user.fullName || "").trim(),
+    accountType:payload.accountType || "Savings Account",
+    branchName: payload.branchName,
+    benMobile: payload.benMobile,
+    bank_name: payload.bank_code,
+    beneficiary_name:payload.beneficiary_name,
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
-    account_number: String(payload.account_number || "").trim(),
+    account_number:payload.account_number,
     amount: numAmount,
-    mode: String(payload.mode || "IMPS").trim().toUpperCase(),
-    lat,
-    long,
+    mode:payload.mode,
+    lat:payload.lat,
+    long:payload.long,
     txnid: txnid,
   };
 
@@ -455,7 +431,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
         service: "PAYOUT",
         transactionId: txnid,
         status: "success",
-        description: `Settlement payout via ${providerPayload.mode} to ${recordedBankName} (${providerPayload.account_number.slice(-4)})`,
+        description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)})`,
       });
 
       await transaction.save({ session });
