@@ -375,7 +375,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     accountType:payload.accountType || "Savings Account",
     branchName: payload.branchName,
     benMobile: payload.benMobile,
-    bank_name: payload.bank_code,
+    bank_name: payload.bank_name,
     beneficiary_name:payload.beneficiary_name,
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number:payload.account_number,
