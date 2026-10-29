@@ -400,6 +400,53 @@ export const uploadBannerImage = multer({
   fileFilter: bannerFileFilter,
 }).single("image");
 
+const pricingStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "happypay/pricing",
+    resource_type: "image",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+  },
+});
+
+const pricingFileFilter = (req, file, cb) => {
+  if (file.fieldname !== "image") {
+    return cb(
+      new ApiError(400, `Unexpected file field: ${file.fieldname}`),
+      false
+    );
+  }
+
+  if (imageMimeTypes.includes(file.mimetype)) {
+    return cb(null, true);
+  }
+
+  if (
+    file.mimetype === "application/octet-stream" ||
+    file.mimetype === "application/x-octet-stream"
+  ) {
+    const extension = path.extname(file.originalname || "").toLowerCase();
+
+    if (imageExtensions.includes(extension)) {
+      return cb(null, true);
+    }
+  }
+
+  return cb(
+    new ApiError(400, `File type ${file.mimetype} is not allowed`),
+    false
+  );
+};
+
+export const uploadPricingImage = multer({
+  storage: pricingStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1,
+  },
+  fileFilter: pricingFileFilter,
+}).single("image");
+
 export const upload = multer(multerOptions);
 
 /**
