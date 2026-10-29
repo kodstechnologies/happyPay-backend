@@ -410,7 +410,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   };
 
   if (!providerPayload.account_number || !providerPayload.ifsc || !providerPayload.bank_code || !providerPayload.bank_name) {
-    throw ApiError.badRequest("Destination bank account details (account number, IFSC, bank name, and bank code) are required");
+    throw ApiError.badRequest("Bank account details (account number, IFSC, bank name, and bank code) are required");
   }
 
   // 5. Call external payoutSettlement from external service
