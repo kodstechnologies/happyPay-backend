@@ -976,6 +976,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     documentReviews: retailer.documentReviews || null,
     status: retailer.status,
     isActive: retailer.isActive,
+    isMpinSet: Boolean(retailer.MPIN),
     lastLoginAt: retailer.lastLoginAt,
     createdAt: retailer.createdAt,
     updatedAt: retailer.updatedAt,
@@ -991,7 +992,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const retailer = await User.findById(retailerId)
     .select(
-      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc"
+      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc MPIN"
     )
     .populate([
       {
@@ -1054,6 +1055,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     isEmailVerified: !!retailer.isEmailVerified,
     status: retailer.status,
     isActive: !!retailer.isActive,
+    isMpinSet: Boolean(retailer.MPIN),
   };
 };
 
@@ -1169,7 +1171,8 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
       const newBank = {
         name: (body.bankName || "Bank Account").trim(),
-        bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
+        bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+        bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
         ifscCode: String(body.ifscCode).trim().toUpperCase(),
         accountNumber: String(body.accountNumber).trim(),
         confirmAccountNumber: String(body.accountNumber).trim(),
@@ -1203,7 +1206,9 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
         user.banks[bankIndex].name = (body.bankName || user.banks[bankIndex].name).trim();
         if (body.bank_id !== undefined) {
-          user.banks[bankIndex].bank_id = body.bank_id ? String(body.bank_id).trim() : undefined;
+          const bankCodeVal = body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined);
+          user.banks[bankIndex].bank_code = bankCodeVal;
+          user.banks[bankIndex].bank_id = bankCodeVal;
         }
         user.banks[bankIndex].accountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].confirmAccountNumber = String(body.accountNumber).trim();
@@ -1218,7 +1223,8 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   } else if (body.accountNumber && body.ifscCode) {
     const updatedBank = {
       name: (body.bankName || "Primary Bank").trim(),
-      bank_id: body.bank_id ? String(body.bank_id).trim() : undefined,
+      bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+      bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
       ifscCode: String(body.ifscCode).trim().toUpperCase(),
       accountNumber: String(body.accountNumber).trim(),
       confirmAccountNumber: String(body.accountNumber).trim(),

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import deviceSchema from "./device.model.js";
 import refreshTokenSchema from "./token.model.js";
 import Role from "./role.model.js";
@@ -279,9 +280,13 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
-        bank_id: {
-          type: String,
-          trim: true
+        bank_id:{
+          type:String,
+          trim:true
+        },
+        bank_code:{
+          type:String,
+          trim:true
         },
         branchName: {
           type: String,
@@ -398,7 +403,10 @@ const userSchema = new mongoose.Schema(
       ],
       default: "active",
     },
-
+    MPIN:{
+      type:String,
+      trim:true
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -464,6 +472,18 @@ userSchema.methods.hasRole = function (roleSlug) {
     if (r.slug) return r.slug.toLowerCase() === target;
     return false;
   });
+};
+
+userSchema.methods.compareMpin = async function (candidateMpin) {
+  if (!this.MPIN) return false;
+  const cleanMpin = String(candidateMpin).trim();
+  const isBcrypt =
+    this.MPIN.startsWith("$2a$") ||
+    this.MPIN.startsWith("$2b$") ||
+    this.MPIN.startsWith("$2y$");
+  return isBcrypt
+    ? await bcrypt.compare(cleanMpin, this.MPIN)
+    : String(this.MPIN).trim() === cleanMpin;
 };
 
 const User = mongoose.model("User", userSchema);
