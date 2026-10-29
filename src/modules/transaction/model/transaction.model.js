@@ -19,12 +19,11 @@ const transactionSchema = new mongoose.Schema(
       sparse: true,
       default: () => generate15CharTxnId("TXN"),
     },
-    // referenceKey: {
-    //   type: String,
-    //   unique: true,
-    //   sparse: true,
-    // },
+   
     payee: {
+      name: String,
+      mobile: String,
+      shopName: String,
       bankName: String,
       aadharNumber: String,
       accountNumber: String,

@@ -654,7 +654,7 @@ const retailerRegister = async (data) => {
     banks: [
       {
         name: data.bankName,
-        bank_id: data.bank_id ? String(data.bank_id).trim() : undefined,
+        bank_code: data.bank_code ? String(data.bank_code).trim() : (data.bank_id ? String(data.bank_id).trim() : undefined),
         ifscCode: data.ifscCode,
         accountNumber: data.accountNumber,
         confirmAccountNumber: data.confirmAccountNumber,
@@ -1172,7 +1172,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
       const newBank = {
         name: (body.bankName || "Bank Account").trim(),
         bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
-        bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+
         ifscCode: String(body.ifscCode).trim().toUpperCase(),
         accountNumber: String(body.accountNumber).trim(),
         confirmAccountNumber: String(body.accountNumber).trim(),
@@ -1205,10 +1205,10 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
         }
 
         user.banks[bankIndex].name = (body.bankName || user.banks[bankIndex].name).trim();
-        if (body.bank_id !== undefined) {
+        if (body.bank_code !== undefined || body.bank_id !== undefined) {
           const bankCodeVal = body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined);
           user.banks[bankIndex].bank_code = bankCodeVal;
-          user.banks[bankIndex].bank_id = bankCodeVal;
+
         }
         user.banks[bankIndex].accountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].confirmAccountNumber = String(body.accountNumber).trim();
@@ -1224,7 +1224,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     const updatedBank = {
       name: (body.bankName || "Primary Bank").trim(),
       bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
-      bank_id: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+
       ifscCode: String(body.ifscCode).trim().toUpperCase(),
       accountNumber: String(body.accountNumber).trim(),
       confirmAccountNumber: String(body.accountNumber).trim(),

@@ -277,10 +277,8 @@ export const getSettlementBankInfoService = async (userId) => {
       const bankName = String(b.name || b.bank_name || b.bankName || "Bank Account").trim();
       return {
         _id: b._id ? b._id.toString() : "",
-        id: b._id ? b._id.toString() : String(b.bank_id || ""),
         name: bankName,
-        bank_name: bankName,
-        bank_id: b.bank_id || "",
+        bank_code: b.bank_code || "",
         accountNumber: acc,
         maskedAccountNumber: masked,
         ifscCode: String(b.ifscCode || "").trim().toUpperCase(),
@@ -342,8 +340,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
   // 1. Fetch user to check KYC & identity details
   const user = await User.findById(userId)
-    .select("fullName mobile status adminApproved banks")
-    .lean();
+    .select("fullName mobile status adminApproved banks MPIN");
 
   if (!user) {
     throw ApiError.notFound("Retailer not found");
@@ -356,6 +353,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   if (user.adminApproved !== "approved") {
     throw ApiError.forbidden("Retailer KYC is not approved for settlement payouts");
   }
+
+  // Step 1: Atomic MPIN Verification Guard before external provider or wallet lock
+  await verifyUserTransactionMpin(user, payload.mpin);
 
   // 2. Pre-verify wallet balance before calling provider
   const wallet = await Wallet.findOne({ user: userId });
@@ -374,19 +374,17 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   // 3. Generate unique transaction ID from backend
   const txnid = generate15CharTxnId("TXN");
 
-  // Resolve bank details from payload or match registered user banks
+  const bankCode = String(payload.code || "").trim();
+
+  // Resolve bank details from payload code or registered user banks
   const matchedBank = Array.isArray(user.banks)
     ? user.banks.find(
         (b) =>
           (b.accountNumber && String(b.accountNumber).trim() === String(payload.account_number).trim()) ||
-          (b.bank_id && String(b.bank_id).trim() === String(payload.bank_code || payload.bank_id).trim()) ||
-          (b._id && String(b._id).trim() === String(payload.bank_code || payload.bank_id).trim())
+          (b.bank_code && String(b.bank_code).trim() === bankCode) ||
+          (b._id && String(b._id).trim() === bankCode)
       )
     : null;
-
-  const bankCode = String(
-    payload.bank_code || payload.bank_id || matchedBank?.bank_id || matchedBank?._id || ""
-  ).trim();
   const recordedBankName = String(
     payload.bank_name || payload.bankName || matchedBank?.name || matchedBank?.bank_name || bankCode || "Bank Account"
   ).trim();
@@ -449,10 +447,12 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
         balanceBefore,
         balanceAfter,
         payee: {
+          name: providerPayload.beneficiary_name || user.fullName,
+          mobile: user.mobile,
           bankName: recordedBankName,
           accountNumber: providerPayload.account_number,
           ifscCode: providerPayload.ifsc,
-          accountHolderName: providerPayload.beneficiary_name,
+          accountHolderName: providerPayload.beneficiary_name || user.fullName,
         },
         service: "PAYOUT",
         transactionId: txnid,
@@ -609,11 +609,14 @@ export const processServiceWalletTransaction = async ({
         balanceBefore,
         balanceAfter,
         payee: {
+          name: payee.name || payee.accountHolderName || undefined,
+          mobile: payee.mobile || undefined,
+          shopName: payee.shopName || undefined,
           bankName: payee.bankName || undefined,
           aadharNumber: payee.aadharNumber || undefined,
           accountNumber: payee.accountNumber || undefined,
           ifscCode: payee.ifscCode || undefined,
-          accountHolderName: payee.accountHolderName || undefined,
+          accountHolderName: payee.accountHolderName || payee.name || undefined,
         },
         service,
         transactionId: resolvedTxnId,
@@ -668,11 +671,14 @@ export const processServiceWalletTransaction = async ({
       balanceBefore,
       balanceAfter,
       payee: {
+        name: payee.name || payee.accountHolderName || undefined,
+        mobile: payee.mobile || undefined,
+        shopName: payee.shopName || undefined,
         bankName: payee.bankName || undefined,
         aadharNumber: payee.aadharNumber || undefined,
         accountNumber: payee.accountNumber || undefined,
         ifscCode: payee.ifscCode || undefined,
-        accountHolderName: payee.accountHolderName || undefined,
+        accountHolderName: payee.accountHolderName || payee.name || undefined,
       },
       service,
       transactionId: resolvedTxnId,
@@ -887,14 +893,15 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         service: "SETTLEMENT",
         transactionId: txnid,
         payee: {
+          name: recipient.fullName || "Retailer",
+          mobile: recipient.mobile,
+          shopName: recipient.shop?.name || "",
           bankName: recipient.shop?.name || "Retailer Wallet",
           accountHolderName: recipient.fullName || "Retailer",
           accountNumber: recipient.mobile,
         },
         status: "success",
-        description: remarks
-          ? `P2P to ${recipient.fullName || "Retailer"} (${recipient.mobile}): ${remarks}`
-          : `P2P Settlement to ${recipient.fullName || "Retailer"} (${recipient.mobile})`,
+        description: remarks || `P2P Settlement to ${recipient.fullName || "Retailer"} (${recipient.mobile})`,
       });
       await senderTxn.save({ session });
 
@@ -908,14 +915,15 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         service: "SETTLEMENT",
         transactionId: recipientTxnId,
         payee: {
+          name: sender.fullName || "Retailer",
+          mobile: sender.mobile,
+          shopName: sender.shop?.name || "",
           bankName: sender.shop?.name || "Retailer Wallet",
           accountHolderName: sender.fullName || "Retailer",
           accountNumber: sender.mobile,
         },
         status: "success",
-        description: remarks
-          ? `P2P from ${sender.fullName || "Retailer"} (${sender.mobile}): ${remarks}`
-          : `P2P Settlement from ${sender.fullName || "Retailer"} (${sender.mobile})`,
+        description: remarks || `P2P Settlement from ${sender.fullName || "Retailer"} (${sender.mobile})`,
       });
       await recipientTxn.save({ session });
 
@@ -997,13 +1005,14 @@ export const getRecentRetailerSettlementsService = async (userId) => {
 
   return transactions.map((t) => ({
     id: t.transactionId || String(t._id),
-    name: t.payee?.accountHolderName || "Retailer",
-    shopName: t.payee?.bankName || "",
-    mobile: t.payee?.accountNumber || "",
+    name: t.payee?.name || t.payee?.accountHolderName || "Retailer",
+    shopName: t.payee?.shopName || t.payee?.bankName || "",
+    mobile: t.payee?.mobile || t.payee?.accountNumber || "",
     amount: t.amount,
     type: t.type,
     date: t.createdAt,
     status: t.status === "success" ? "Success" : t.status,
+    description: t.description || "",
   }));
 };
 
@@ -1266,12 +1275,15 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         service: "SETTLEMENT",
         transactionId: txnid,
         payee: {
+          name: distributor.fullName || "Distributor",
+          mobile: distributor.mobile,
+          shopName: distributor.shop?.name || "",
           bankName: distributor.shop?.name || "Distributor Wallet",
           accountHolderName: distributor.fullName || "Distributor",
           accountNumber: distributor.mobile,
         },
         status: "success",
-        description: `Settlement to Distributor: ${distributor.fullName || "Distributor"} (${distributor.mobile}) - ${reason}`,
+        description: reason || `Settlement to Distributor: ${distributor.fullName || "Distributor"} (${distributor.mobile})`,
       });
       await senderTxn.save({ session });
 
@@ -1285,12 +1297,15 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         service: "SETTLEMENT",
         transactionId: distTxnId,
         payee: {
+          name: sender.fullName || "Retailer",
+          mobile: sender.mobile,
+          shopName: sender.shop?.name || "",
           bankName: sender.shop?.name || "Retailer Wallet",
           accountHolderName: sender.fullName || "Retailer",
           accountNumber: sender.mobile,
         },
         status: "success",
-        description: `Settlement from Retailer: ${sender.fullName || "Retailer"} (${sender.mobile}) - ${reason}`,
+        description: reason || `Settlement from Retailer: ${sender.fullName || "Retailer"} (${sender.mobile})`,
       });
       await distTxn.save({ session });
 
@@ -1356,12 +1371,15 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       service: "SETTLEMENT",
       transactionId: txnid,
       payee: {
+        name: distributor.fullName || "Distributor",
+        mobile: distributor.mobile,
+        shopName: distributor.shop?.name || "",
         bankName: distributor.shop?.name || "Distributor Wallet",
         accountHolderName: distributor.fullName || "Distributor",
         accountNumber: distributor.mobile,
       },
       status: "success",
-      description: `Settlement to Distributor: ${distributor.fullName || "Distributor"} (${distributor.mobile}) - ${reason}`,
+      description: reason || `Settlement to Distributor: ${distributor.fullName || "Distributor"} (${distributor.mobile})`,
     });
     await senderTxn.save();
 
@@ -1374,12 +1392,15 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       service: "SETTLEMENT",
       transactionId: distTxnId,
       payee: {
+        name: sender.fullName || "Retailer",
+        mobile: sender.mobile,
+        shopName: sender.shop?.name || "",
         bankName: sender.shop?.name || "Retailer Wallet",
         accountHolderName: sender.fullName || "Retailer",
         accountNumber: sender.mobile,
       },
       status: "success",
-      description: `Settlement from Retailer: ${sender.fullName || "Retailer"} (${sender.mobile}) - ${reason}`,
+      description: reason || `Settlement from Retailer: ${sender.fullName || "Retailer"} (${sender.mobile})`,
     });
     await distTxn.save();
 
