@@ -34,7 +34,36 @@ export const getPlansController = asyncHandler(async (req, res) => {
 
 export const getPlanByIdController = asyncHandler(async (req, res) => {
   const plan = await fetchPlan(req.params.id);
-  res.status(200).json(ApiResponse.success(plan, "Plan fetched successfully"));
+
+  // Check if user has subscribed to this plan
+  // Admins can optionally pass userId query parameter to check for a specific user
+  // If no userId provided, check for the current authenticated user
+  const userId = req.query?.userId || req.user?.userId || req.user?._id || req.user?.id;
+  let isSubscribed = false;
+
+  if (userId) {
+    const { Subscription } = await import("../models/subscription.model.js");
+    const now = new Date();
+
+    // Check for active subscription (not expired and not cancelled)
+    const subscription = await Subscription.findOne({
+      userId,
+      planId: req.params.id,
+      isExpired: false,
+      cancelledAt: null,
+      expiresAt: { $gt: now },
+    });
+
+    isSubscribed = !!subscription;
+  }
+
+  // Add isSubscribed flag to the plan response
+  const planWithSubscriptionStatus = {
+    ...plan.toObject ? plan.toObject() : plan,
+    isSubscribed,
+  };
+
+  res.status(200).json(ApiResponse.success(planWithSubscriptionStatus, "Plan fetched successfully"));
 });
 
 export const updatePlanController = asyncHandler(async (req, res) => {

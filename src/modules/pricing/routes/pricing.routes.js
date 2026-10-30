@@ -24,7 +24,7 @@ router.get("/", getPlansController);
 router.get("/subscribed-plans", authMiddleware, getSubscribedPlansController);
 
 
-router.get("/:id", getPlanByIdController);
+router.get("/:id", authMiddleware, getPlanByIdController);
 
 // Subscription route for retailers / authenticated users
 // Supports both PATCH /api/v1/pricing/:id/subscribe and PATCH /api/v1/pricing/subscribe (with planId in body)
