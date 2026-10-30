@@ -1,35 +1,12 @@
 import Joi from "joi";
-import mongoose from "mongoose";
 import ApiError from "../../../utils/ApiError.js";
 
 // Middleware to parse JSON string fields from form-data
 export const parseFormDataFields = (req, res, next) => {
-  const jsonFields = ['services'];
-
-  jsonFields.forEach(field => {
-    if (req.body[field] && typeof req.body[field] === 'string') {
-      try {
-        req.body[field] = JSON.parse(req.body[field]);
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid JSON format for field: ${field}`,
-          errors: [`${field} must be a valid JSON string`],
-        });
-      }
-    }
-  });
-
-  // Parse date fields
-  const dateFields = ['effectiveFrom', 'effectiveTo'];
-  dateFields.forEach(field => {
-    if (req.body[field] && typeof req.body[field] === 'string') {
-      const date = new Date(req.body[field]);
-      if (!isNaN(date.getTime())) {
-        req.body[field] = date;
-      }
-    }
-  });
+  // Parse validity period fields
+  if (req.body.validityPeriod && typeof req.body.validityPeriod === 'string') {
+    req.body.validityPeriod = parseInt(req.body.validityPeriod, 10);
+  }
 
   next();
 };
@@ -38,16 +15,9 @@ const objectId = (label) =>
   Joi.string()
     .trim()
     .required()
-    .custom((value, helpers) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        return helpers.error("objectId.invalid", { label });
-      }
-      return value;
-    })
     .messages({
       "any.required": `${label} is required`,
       "string.empty": `${label} is required`,
-      "objectId.invalid": `Invalid ${label}`,
     });
 
 const pricingSlabSchema = Joi.object({
@@ -65,11 +35,11 @@ const pricingSlabSchema = Joi.object({
     .messages({
       "number.min": "Maximum amount must be greater than or equal to 0",
     }),
-  value: Joi.number()
+  chargeAmount: Joi.number()
     .min(0)
     .optional()
     .messages({
-      "number.min": "Value must be greater than or equal to 0",
+      "number.min": "Charge amount must be greater than or equal to 0",
     }),
   adminAmount: Joi.number()
     .min(0)
@@ -118,7 +88,13 @@ const pricingSchema = Joi.object({
 });
 
 const planCategorySchema = Joi.object({
-  categoryId: objectId("Category ID"),
+  categoryName: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "Category name is required",
+      "string.empty": "Category name is required",
+    }),
   pricing: Joi.array()
     .items(pricingSchema)
     .default([])
@@ -129,6 +105,10 @@ const planServiceSchema = Joi.object({
   serviceId: objectId("Service ID"),
   categories: Joi.array()
     .items(planCategorySchema)
+    .default([])
+    .optional(),
+  pricing: Joi.array()
+    .items(pricingSchema)
     .default([])
     .optional(),
 });
@@ -161,24 +141,21 @@ export const createPlanSchema = Joi.object({
     .messages({
       "string.uri": "Image must be a valid URL",
     }),
-  effectiveFrom: Joi.date()
-    .iso()
-    .optional()
-    .allow(null)
+  validityPeriod: Joi.number()
+    .min(1)
+    .required()
     .messages({
-      "date.format": "Effective from must be a valid ISO date",
+      "number.min": "Validity period must be at least 1",
+      "any.required": "Validity period is required",
     }),
-  effectiveTo: Joi.date()
-    .iso()
-    .optional()
-    .allow(null)
+  validityUnit: Joi.string()
+    .valid("DAYS", "MONTHS", "YEARS")
+    .default("MONTHS")
+    .required()
     .messages({
-      "date.format": "Effective to must be a valid ISO date",
+      "any.required": "Validity unit is required",
+      "any.only": "Validity unit must be DAYS, MONTHS, or YEARS",
     }),
-  services: Joi.array()
-    .items(planServiceSchema)
-    .default([])
-    .optional(),
   status: Joi.string()
     .valid("ACTIVE", "INACTIVE")
     .default("INACTIVE")
@@ -214,23 +191,18 @@ export const updatePlanSchema = Joi.object({
     .messages({
       "string.uri": "Image must be a valid URL",
     }),
-  effectiveFrom: Joi.date()
-    .iso()
+  validityPeriod: Joi.number()
+    .min(1)
     .optional()
-    .allow(null)
     .messages({
-      "date.format": "Effective from must be a valid ISO date",
+      "number.min": "Validity period must be at least 1",
     }),
-  effectiveTo: Joi.date()
-    .iso()
+  validityUnit: Joi.string()
+    .valid("DAYS", "MONTHS", "YEARS")
     .optional()
-    .allow(null)
     .messages({
-      "date.format": "Effective to must be a valid ISO date",
+      "any.only": "Validity unit must be DAYS, MONTHS, or YEARS",
     }),
-  services: Joi.array()
-    .items(planServiceSchema)
-    .optional(),
   status: Joi.string()
     .valid("ACTIVE", "INACTIVE")
     .optional()
@@ -284,7 +256,7 @@ export const validateConfigurePlanServices = (req, res, next) => {
     const { id } = req.params;
     const { services } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!id) {
       throw ApiError.badRequest("Invalid plan ID");
     }
 
@@ -346,15 +318,15 @@ export const validateConfigurePlanServices = (req, res, next) => {
           }
 
           if (
-            slab.value !== undefined &&
+            slab.chargeAmount !== undefined &&
             (
-              typeof slab.value !== "number" ||
-              !Number.isFinite(slab.value) ||
-              slab.value < 0
+              typeof slab.chargeAmount !== "number" ||
+              !Number.isFinite(slab.chargeAmount) ||
+              slab.chargeAmount < 0
             )
           ) {
             throw ApiError.badRequest(
-              `${path}: value must be a non-negative number`
+              `${path}: chargeAmount must be a non-negative number`
             );
           }
 
@@ -404,20 +376,17 @@ export const validateConfigurePlanServices = (req, res, next) => {
     };
 
     for (const service of services) {
-      if (
-        !service.serviceId ||
-        !mongoose.Types.ObjectId.isValid(service.serviceId)
-      ) {
+      if (!service.serviceId) {
         throw ApiError.badRequest("Invalid serviceId");
       }
 
-      if (serviceIds.has(service.serviceId.toString())) {
+      if (serviceIds.has(service.serviceId)) {
         throw ApiError.badRequest(
           "Duplicate serviceId in the request"
         );
       }
 
-      serviceIds.add(service.serviceId.toString());
+      serviceIds.add(service.serviceId);
 
       // Service-level pricing is optional.
       if (service.pricing !== undefined) {
@@ -435,23 +404,20 @@ export const validateConfigurePlanServices = (req, res, next) => {
           );
         }
 
-        const categoryIds = new Set();
+        const categoryNames = new Set();
 
         for (const category of service.categories) {
-          if (
-            !category.categoryId ||
-            !mongoose.Types.ObjectId.isValid(category.categoryId)
-          ) {
-            throw ApiError.badRequest("Invalid categoryId");
+          if (!category.categoryName) {
+            throw ApiError.badRequest("Invalid categoryName");
           }
 
-          if (categoryIds.has(category.categoryId.toString())) {
+          if (categoryNames.has(category.categoryName)) {
             throw ApiError.badRequest(
-              "Duplicate categoryId within a service"
+              "Duplicate categoryName within a service"
             );
           }
 
-          categoryIds.add(category.categoryId.toString());
+          categoryNames.add(category.categoryName);
 
           if (category.pricing !== undefined) {
             validatePricing(

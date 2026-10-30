@@ -1,4 +1,13 @@
-import { addPlan, listPlans, fetchPlan, modifyPlan, removePlan, configurePlanServices } from "../services/pricing.services.js";
+import {
+  addPlan,
+  listPlans,
+  fetchPlan,
+  modifyPlan,
+  removePlan,
+  configurePlanServices,
+  subscribeToPlan,
+  getSubscribedPlans,
+} from "../services/pricing.services.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
 
@@ -61,3 +70,47 @@ export const configurePlanServicesController = asyncHandler(
       );
   }
 );
+
+export const subscribeToPlanController = asyncHandler(async (req, res) => {
+  const planId = req.params.id || req.body?.planId;
+  const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+
+  const subscription = await subscribeToPlan(planId, userId);
+
+  res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        subscription,
+        "Subscribed to plan successfully"
+      )
+    );
+});
+
+export const getSubscribedPlansController = asyncHandler(async (req, res) => {
+  // Take user's ID from req.user object as requested
+  const userId =
+    req.user?.userId ||
+    req.user?._id ||
+    req.user?.id ||
+    req.params.id;
+
+  const activeOnly =
+    req.query.activeOnly === "true" ||
+    req.query.status === "ACTIVE" ||
+    req.query.status === "active";
+
+  const { page = 1, limit = 10 } = req.query;
+  const options = { page: parseInt(page), limit: parseInt(limit) };
+
+  const subscriptions = await getSubscribedPlans(userId, { activeOnly, ...options });
+
+  res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        subscriptions,
+        "Subscribed plans fetched successfully"
+      )
+    );
+});

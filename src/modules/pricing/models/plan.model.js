@@ -16,7 +16,7 @@ const pricingSlabSchema = new mongoose.Schema(
     },
 
     // Optional fixed amount for this slab
-    value: {
+    chargeAmount: {
       type: Number,
       min: 0,
     },
@@ -65,9 +65,8 @@ const pricingSchema = new mongoose.Schema(
 
 const planCategorySchema = new mongoose.Schema(
   {
-    categoryId: {
-      type: mongoose.Schema.Types.ObjectId,
-  
+    categoryName: {
+      type: String,
     },
     pricing: {
       type: [pricingSchema],
@@ -80,12 +79,15 @@ const planCategorySchema = new mongoose.Schema(
 const planServiceSchema = new mongoose.Schema(
   {
     serviceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "ServiceConfig",
+      type: String,
       required: true,
     },
     categories: {
       type: [planCategorySchema],
+      default: [],
+    },
+    pricing: {
+      type: [pricingSchema],
       default: [],
     },
   },
@@ -109,14 +111,17 @@ const planSchema = new mongoose.Schema(
       default: "",
     },
 
-    effectiveFrom: {
-      type: Date,
-      default: null,
+    validityPeriod: {
+      type: Number,
+      required: true,
+      min: 1,
     },
 
-    effectiveTo: {
-      type: Date,
-      default: null,
+    validityUnit: {
+      type: String,
+      enum: ["DAYS", "MONTHS", "YEARS"],
+      default: "MONTHS",
+      required: true,
     },
 
     services: {
