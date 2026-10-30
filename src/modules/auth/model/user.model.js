@@ -280,20 +280,10 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
-<<<<<<< Updated upstream
 
         bank_code:{
           type:String,
           trim:true
-=======
-        bank_id: {
-          type: String,
-          trim: true
-        },
-        bank_code: {
-          type: String,
-          trim: true
->>>>>>> Stashed changes
         },
         branchName: {
           type: String,
