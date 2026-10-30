@@ -41,7 +41,11 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
     query,
   });
 
-  // 1. Extract Event Identifier (from body or query or nested payload)
+  // 1. Extract nested param object or flat payload
+  const param =
+    body.param && typeof body.param === "object" ? body.param : body;
+
+  // 2. Extract Event Identifier (from body or query or nested param)
   const rawEvent =
     body.event ||
     body.event_type ||
@@ -50,12 +54,11 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
     query.event ||
     query.event_type ||
     query.action ||
+    param.event ||
+    param.event_type ||
+    param.action ||
     "";
   const event = String(rawEvent).toUpperCase().trim();
-
-  // 2. Extract nested param object or flat payload
-  const param =
-    body.param && typeof body.param === "object" ? body.param : body;
 
   const rawAmount =
     param.amount ?? body.amount ?? query.amount ?? 0;
@@ -82,10 +85,22 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
   ).trim();
 
   const billerId = String(
-    param.biller_id || body.biller_id || query.biller_id || ""
+    param.biller_id ||
+      param.billerId ||
+      body.biller_id ||
+      body.billerId ||
+      query.biller_id ||
+      query.billerId ||
+      ""
   ).trim();
   const billerName = String(
-    param.biller_name || body.biller_name || query.biller_name || ""
+    param.biller_name ||
+      param.billerName ||
+      body.biller_name ||
+      body.billerName ||
+      query.biller_name ||
+      query.billerName ||
+      ""
   ).trim();
 
   // Validate presence of event

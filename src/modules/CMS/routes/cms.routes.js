@@ -20,6 +20,6 @@ router.post(
 // CMS Server-to-Server Webhook Callback (Public endpoint for provider - no authMiddleware)
 // Accepts both POST and GET callbacks from provider
 router.post("/callback", cmsCallbackController);
-
+router.get("/callback", cmsCallbackController);
 
 export default router;
