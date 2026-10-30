@@ -312,6 +312,11 @@ const userSchema = new mongoose.Schema(
       ref: "AepsEkyc",
       default: null,
     },
+    UpiEkyc:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UpiEkyc",
+      default: null,
+    },
 
     adminApproved: {
       type: String,

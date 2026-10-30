@@ -29,4 +29,4 @@ const upiEkycSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("upiEkyc", upiEkycSchema);
+export default mongoose.model("UpiEkyc", upiEkycSchema);
