@@ -23,6 +23,7 @@ import transactionRoutes from "../modules/transaction/routes/transaction.routes.
 import dashboardRoutes from "../modules/dashboard/routes/dashboard.routes.js";
 import pricingRoutes from "../modules/pricing/routes/pricing.routes.js";
 
+
 router.use("/api/v1/otp", otpRoutes);
 router.use("/api/v1/email-otp", emailOtpRoutes);
 router.use("/api/v1/master-data", masterDataRoutes);

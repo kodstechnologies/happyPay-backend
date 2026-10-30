@@ -228,8 +228,19 @@ const initiateUpiCashpointPayment = (payload) =>
 
 
 // CMS Payment services
+ const merchantRegistration=(payload)=>postProviderForm(PROVIDER_ROUTES.upiCashpoint.merchantRegistration,payload)
+  const merchantRegistrationSendOtp=(payload)=>postProviderForm(PROVIDER_ROUTES.upiCashpoint.sendOtp,payload)
+   const merchantRegistrationVerifyOtp=(payload)=>postProviderForm(PROVIDER_ROUTES.upiCashpoint.verifyOtp,payload)
+   const merchantRegistrationVerify=merchantRegistrationVerifyOtp
+    const merchantEKYC = (payload) => postProviderForm(PROVIDER_ROUTES.upiCashpoint.Ekyc, payload);
+    const merchantRegistrationEkyc = merchantEKYC;
+     const merchantRegistrationOnboarding=(payload)=>postProviderForm(PROVIDER_ROUTES.upiCashpoint.sellerOnboarding,payload)
+
 const initiateCmsPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.cmsPayment.initiatePayment, payload);
+
+
+
 
   const payoutSettlement=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.settlement,payload)
   const checkSettlement_status=(payload)=>postProviderForm(PROVIDER_ROUTES.payoutSettlement.checkSettlement_status,payload)
@@ -274,7 +285,18 @@ export {
   getTransactionStatus,
   getbankList,
 
+  merchantRegistration,
+  merchantRegistrationSendOtp,
+  merchantRegistrationVerifyOtp,
+  merchantRegistrationVerify,
+  merchantRegistrationOnboarding,
+  merchantRegistrationEkyc,
+  merchantEKYC,
   initiateUpiCashpointPayment,
+
+
+
+
   initiateCmsPayment,
 
   payoutSettlement,

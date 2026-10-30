@@ -63,6 +63,11 @@ const PROVIDER_ROUTES = {
   },
 
   upiCashpoint: {
+    merchantRegistration:`${PROVIDER_API_PREFIX}/upi/merchantregistration`,
+    sendOtp:`${PROVIDER_API_PREFIX}/upi/sendotp`,
+    verifyOtp:`${PROVIDER_API_PREFIX}/upi/validateotp`,
+    Ekyc:`${PROVIDER_API_PREFIX}/upi/ekyc`,
+    sellerOnboarding:`${PROVIDER_API_PREFIX}/upi/sellerOnboarding`,
     intiatepayment: `${PROVIDER_API_PREFIX}/upi/cashpoint`,
   },
 
