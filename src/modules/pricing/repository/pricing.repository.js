@@ -9,11 +9,30 @@ const createPlan = async (planData) => {
 const getPlans = async (filters = {}, options = {}) => {
   const { sort = { createdAt: -1 }, limit = 100, page = 1 } = options;
   const skip = (page - 1) * limit;
-  return await Plan.find(filters).sort(sort).skip(skip).limit(limit);
+
+  // Get total count for pagination metadata
+  const total = await Plan.countDocuments(filters);
+
+  // Get paginated plans
+  const plans = await Plan.find(filters).sort(sort).skip(skip).limit(limit);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: plans,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    },
+  };
 };
 
 const getPlanById = async (id) => {
-  return await Plan.findById(id).populate("services.serviceId");
+  return await Plan.findById(id);
 };
 
 const updatePlan = async (id, updateData) => {

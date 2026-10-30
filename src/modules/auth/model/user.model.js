@@ -67,14 +67,14 @@ const userSchema = new mongoose.Schema(
       uppercase: true,
     },
 
-    panDocument:{
+    panDocument: {
       type: String,
       trim: true,
     },
 
     mobile: {
       type: String,
-      unique:true,
+      unique: true,
       trim: true,
     },
 
@@ -252,8 +252,8 @@ const userSchema = new mongoose.Schema(
       ref: "User"
     },
     distributor: {
-       type: mongoose.Schema.Types.ObjectId,
-       ref: "User",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     // =========================
     // Bank Details (Array for multiple banks)
@@ -400,9 +400,9 @@ const userSchema = new mongoose.Schema(
       ],
       default: "active",
     },
-    MPIN:{
-      type:String,
-      trim:true
+    MPIN: {
+      type: String,
+      trim: true
     },
     isActive: {
       type: Boolean,
@@ -412,10 +412,13 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+    subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subscription",
+    },
 
 
   },
-
 
 
   {
