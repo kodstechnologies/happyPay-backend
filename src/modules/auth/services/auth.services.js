@@ -3,6 +3,7 @@ import env from "../../../config/env.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import User from "../model/user.model.js";
 import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
+import UpiEkyc from "../../UPICashpoint/models/upiEkyc.model.js";
 import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
 
 import {
@@ -44,15 +45,36 @@ import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
    Helper to Resolve eKYC Data
 ============================== */
 
-const resolveEkycData = async (user) => {
+const resolveEkycData = async (user) => {
+  if (!user) return null;
+  if (user.AepsEkyc && typeof user.AepsEkyc === "object" && user.AepsEkyc.outletId !== undefined) {
+    return user.AepsEkyc;
+  }
+  if (user.AepsEkyc) {
+    return await AepsEkyc.findById(user.AepsEkyc);
+  }
+  return await AepsEkyc.findOne({ userId: user._id });
+};
+
+const resolveUpiEkycData = async (user) => {
   if (!user) return null;
-  if (user.AepsEkyc && typeof user.AepsEkyc === "object" && user.AepsEkyc.outletId !== undefined) {
-    return user.AepsEkyc;
+  const upiRef = user.UpiEkyc || user.upiEkyc;
+  if (upiRef && typeof upiRef === "object" && (upiRef.merchantId !== undefined || upiRef.eKYCStatus !== undefined)) {
+    return upiRef;
   }
-  if (user.AepsEkyc) {
-    return await AepsEkyc.findById(user.AepsEkyc);
+  if (upiRef) {
+    return await UpiEkyc.findById(upiRef);
   }
-  return await AepsEkyc.findOne({ userId: user._id });
+  return await UpiEkyc.findOne({ userId: user._id });
+};
+
+const formatUpiEkyc = (upiEkycData) => {
+  if (!upiEkycData) return null;
+  return {
+    merchantId: upiEkycData.merchantId || null,
+    eKYCStatus: upiEkycData.eKYCStatus || "PENDING",
+    eKYCRejectionReason: upiEkycData.eKYCRejectionReason || null,
+  };
 };
 
 /* ==============================
@@ -404,6 +426,7 @@ const verifyRetailerLoginOtp = async ({
   await updateLastLogin(user._id);
 
   const ekycData = await resolveEkycData(user);
+  const upiEkycData = await resolveUpiEkycData(user);
 
   const aepsEkycObj = ekycData
     ? {
@@ -414,6 +437,8 @@ const verifyRetailerLoginOtp = async ({
         eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
       }
     : null;
+
+  const upiEkycObj = formatUpiEkyc(upiEkycData);
 
   const accessTokenPayload = buildAccessTokenPayload(user, access, ekycData);
   const refreshTokenPayload = buildRefreshTokenPayload(user, ekycData);
@@ -444,6 +469,7 @@ const verifyRetailerLoginOtp = async ({
       referenceKey: ekycData?.referenceKey || null,
       eKYCStatus: ekycData?.eKYCStatus || null,
       AepsEkyc: aepsEkycObj,
+      UpiEkyc: upiEkycObj,
       roles: access.roles,
       permissions: access.permissions,
     },
@@ -992,7 +1018,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const retailer = await User.findById(retailerId)
     .select(
-      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc MPIN"
+      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc UpiEkyc MPIN"
     )
     .populate([
       {
@@ -1024,6 +1050,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const access = resolveUserAccess(retailer);
   const ekycData = await resolveEkycData(retailer);
+  const upiEkycData = await resolveUpiEkycData(retailer);
 
   const aepsEkycObj = ekycData
     ? {
@@ -1034,6 +1061,8 @@ const getAuthenticatedRetailerService = async (retailerId) => {
         eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
       }
     : null;
+
+  const upiEkycObj = formatUpiEkyc(upiEkycData);
 
   return {
     id: retailer._id,
@@ -1049,6 +1078,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     referenceKey: ekycData?.referenceKey || null,
     eKYCStatus: ekycData?.eKYCStatus || null,
     AepsEkyc: aepsEkycObj,
+    UpiEkyc: upiEkycObj,
     roles: access.roles,
     permissions: access.permissions,
     isMobileVerified: !!retailer.isMobileVerified,

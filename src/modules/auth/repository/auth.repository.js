@@ -2,6 +2,7 @@ import User from "../model/user.model.js";
 import "../model/role.model.js";
 import "../model/permission.model.js";
 import "../../AEPS/model/aepsEkyc.model.js";
+import "../../UPICashpoint/models/upiEkyc.model.js";
 
 const rbacPopulate = [
   {
@@ -15,6 +16,9 @@ const rbacPopulate = [
   },
   {
     path: "AepsEkyc",
+  },
+  {
+    path: "UpiEkyc",
   },
 ];
 

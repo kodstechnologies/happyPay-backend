@@ -27,7 +27,8 @@ const parseMonetaryAmount = (value) => {
 /**
  * Service to handle CMS Server-to-Server Webhook Callbacks from Provider:
  * 1. CMS_BALANCE_INQUIRY: Verifies that the retailer has sufficient wallet balance.
- * 2. CMS_BALANCE_DEBIT: Debits the transaction amount from the retailer's wallet atomically.
+ * 2. CMS_BALANCE_DEBIT: Debits the transaction amount from the retailer's wallet atomically
+ *    and records the Payee with the details of whose bill was paid (Customer / Biller).
  *
  * Success Response expected by Provider:
  * { "status": 200, "message": "Transaction completed successfully" }
@@ -45,7 +46,7 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
   const param =
     body.param && typeof body.param === "object" ? body.param : body;
 
-  // 2. Extract Event Identifier (from body or query or nested param)
+  // Extract Event Identifier
   const rawEvent =
     body.event ||
     body.event_type ||
@@ -60,11 +61,13 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
     "";
   const event = String(rawEvent).toUpperCase().trim();
 
+  // Extract Monetary Amount
   const rawAmount =
     param.amount ?? body.amount ?? query.amount ?? 0;
   const numAmount = Math.round(parseMonetaryAmount(rawAmount) * 100) / 100;
 
-  const rawMobile = String(
+  // Retailer Mobile (Used ONLY to identify which retailer's wallet to check/debit)
+  const rawRetailerMobile = String(
     param.mobile_no ||
       param.mobile ||
       body.mobile_no ||
@@ -74,32 +77,95 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
       ""
   ).trim();
 
+  // Provider Reference / Transaction ID
   const refid = String(
     param.refid ||
       param.txnid ||
+      param.txn_id ||
+      param.rrn ||
       body.refid ||
       body.txnid ||
+      body.txn_id ||
       query.refid ||
       query.txnid ||
       ""
   ).trim();
 
+  // =========================================================================
+  // Details of WHOSE BILL WAS PAID (Biller / Agency / Consumer / Customer)
+  // =========================================================================
   const billerId = String(
     param.biller_id ||
       param.billerId ||
+      param.biller_code ||
+      param.agency_id ||
+      param.agencyId ||
       body.biller_id ||
       body.billerId ||
       query.biller_id ||
-      query.billerId ||
       ""
   ).trim();
+
   const billerName = String(
     param.biller_name ||
       param.billerName ||
+      param.agency_name ||
+      param.agencyName ||
       body.biller_name ||
       body.billerName ||
       query.biller_name ||
-      query.billerName ||
+      ""
+  ).trim();
+
+  const consumerId = String(
+    param.consumer_id ||
+      param.consumerId ||
+      param.consumer_no ||
+      param.consumerNo ||
+      param.customer_id ||
+      param.customerId ||
+      param.agent_id ||
+      param.agentId ||
+      param.rider_id ||
+      param.riderId ||
+      param.account_no ||
+      param.accountNumber ||
+      param.loan_no ||
+      param.ca_number ||
+      body.consumer_id ||
+      body.consumer_no ||
+      body.account_no ||
+      query.consumer_id ||
+      ""
+  ).trim();
+
+  const consumerName = String(
+    param.consumer_name ||
+      param.consumerName ||
+      param.customer_name ||
+      param.customerName ||
+      param.client_name ||
+      param.clientName ||
+      param.payer_name ||
+      param.payerName ||
+      param.rider_name ||
+      body.consumer_name ||
+      body.customer_name ||
+      query.customer_name ||
+      ""
+  ).trim();
+
+  const consumerMobile = String(
+    param.customer_mobile ||
+      param.customerMobile ||
+      param.consumer_mobile ||
+      param.consumerMobile ||
+      param.client_mobile ||
+      param.payer_mobile ||
+      param.rider_mobile ||
+      body.customer_mobile ||
+      body.consumer_mobile ||
+      query.customer_mobile ||
       ""
   ).trim();
 
@@ -115,11 +181,11 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
     };
   }
 
-  // 3. Resolve Retailer by 10-digit mobile
-  const cleanMobile = rawMobile.replace(/\D/g, "").slice(-10);
+  // Resolve Retailer by 10-digit mobile
+  const cleanRetailerMobile = rawRetailerMobile.replace(/\D/g, "").slice(-10);
 
-  if (!cleanMobile || cleanMobile.length < 10) {
-    console.warn(`[CMS Callback Validation Error]: Invalid or missing mobile number '${rawMobile}'`);
+  if (!cleanRetailerMobile || cleanRetailerMobile.length < 10) {
+    console.warn(`[CMS Callback Validation Error]: Invalid or missing retailer mobile '${rawRetailerMobile}'`);
     return {
       httpStatus: 400,
       response: {
@@ -131,15 +197,15 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
 
   const user = await User.findOne({
     $or: [
-      { mobile: cleanMobile },
-      { mobile: rawMobile },
-      { mobile: `+91${cleanMobile}` },
-      { mobile: `91${cleanMobile}` },
+      { mobile: cleanRetailerMobile },
+      { mobile: rawRetailerMobile },
+      { mobile: `+91${cleanRetailerMobile}` },
+      { mobile: `91${cleanRetailerMobile}` },
     ],
   });
 
   if (!user) {
-    console.warn(`[CMS Callback Error]: Retailer not found with mobile '${cleanMobile}'`);
+    console.warn(`[CMS Callback Error]: Retailer not found with mobile '${cleanRetailerMobile}'`);
     return {
       httpStatus: 400,
       response: {
@@ -216,7 +282,30 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
 
     try {
       const resolvedTxnId = refid || generate15CharTxnId("CMS");
-      const billerLabel = billerName || billerId || "Cash Collection";
+      const billerLabel = billerName || billerId || "CMS Biller";
+
+      // Display name of who received the payment / whose bill was paid
+      const payeeDisplayName = consumerName
+        ? `${consumerName}${billerName ? ` (${billerName})` : ""}`
+        : (billerName || `CMS Bill Payment (${consumerId || billerId || "Service"})`);
+
+      // Payee Details strictly represent the Biller / Customer whose bill was paid
+      // NOTE: Retailer's own mobile/shopName are deliberately excluded here
+      const payee = {
+        name: payeeDisplayName,
+        accountHolderName: consumerName || billerName || "CMS Payee",
+        bankName: billerName || "CMS Collection",
+        accountNumber: consumerId || billerId || undefined,
+        mobile: consumerMobile ? consumerMobile.replace(/\D/g, "").slice(-10) : undefined,
+      };
+
+      const billDetails = [
+        billerLabel,
+        consumerName ? `Customer: ${consumerName}` : "",
+        consumerId ? `A/C: ${consumerId}` : "",
+      ].filter(Boolean).join(" | ");
+
+      const description = `CMS Bill Paid: ${billDetails} (Ref: ${refid || resolvedTxnId})`;
 
       // Execute atomic wallet debit with double-entry ledger & idempotency guard
       const debitResult = await processServiceWalletTransaction({
@@ -226,12 +315,8 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
         service: "CMS",
         transactionId: resolvedTxnId,
         status: "success",
-        description: `CMS Collection: ${billerLabel} (Ref: ${refid || resolvedTxnId})`,
-        payee: {
-          name: billerName || "CMS Biller",
-          mobile: cleanMobile || user.mobile,
-          shopName: user.shop?.name || undefined,
-        },
+        description,
+        payee,
       });
 
       console.log(

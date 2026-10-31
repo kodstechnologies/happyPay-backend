@@ -3,6 +3,7 @@ import {
   createPlan,
   getPlans,
   getPlanById,
+  findOnePlan,
   updatePlan,
   deletePlan,
   savePlan,
@@ -235,6 +236,206 @@ const getSubscribedPlans = async (userId, options = {}) => {
   };
 };
 
+/* =========================================================
+   Helper: Extract Commission & Charge Components from Pricing
+========================================================= */
+const extractPricingComponents = (pricingArray = []) => {
+  const commission =
+    pricingArray.find((p) => p.type === "COMMISSION") || null;
+  const charge =
+    pricingArray.find((p) => p.type === "CHARGE") || null;
+
+  return {
+    pricing: pricingArray,
+    commission,
+    charge,
+  };
+};
+
+const normalizeName = (name) => {
+  return String(name || "").trim().toLowerCase();
+};
+
+const sanitizeForMatch = (name) => {
+  return normalizeName(name).replace(/[^a-z0-9]/g, "");
+};
+
+/* =========================================================
+   Fetch Commission and Charge by Service and Category Query
+========================================================= */
+const fetchCommissionAndCharge = async ({
+  planId,
+  userId,
+  serviceName,
+  categoryName,
+}) => {
+  if (!serviceName) {
+    throw ApiError.badRequest("Service name is required in query parameter");
+  }
+
+  // 1. Resolve Target Plan
+  let plan = null;
+
+  if (planId) {
+    if (!mongoose.Types.ObjectId.isValid(planId)) {
+      throw ApiError.badRequest("Invalid Plan ID format");
+    }
+    plan = await getPlanById(planId);
+    if (!plan) {
+      throw ApiError.notFound("Plan not found with the provided planId");
+    }
+  } else if (userId) {
+    const activeSub = await Subscription.findOne({
+      userId,
+      isExpired: false,
+      cancelledAt: null,
+      expiresAt: { $gt: new Date() },
+    }).populate("planId");
+
+    if (activeSub?.planId) {
+      plan = activeSub.planId;
+    }
+  }
+
+  // Fallback to active plan if no plan resolved yet
+  if (!plan) {
+    plan = await findOnePlan({ status: "ACTIVE" });
+  }
+
+  if (!plan) {
+    throw ApiError.notFound(
+      "No active plan found. Please provide a valid planId or subscribe to an active plan."
+    );
+  }
+
+  // 2. Match Service inside Plan
+  const targetServiceNorm = normalizeName(serviceName);
+  const targetServiceSanitized = sanitizeForMatch(serviceName);
+
+  let matchedService = (plan.services || []).find((s) => {
+    const sIdNorm = normalizeName(s.serviceId);
+    const sIdSanitized = sanitizeForMatch(s.serviceId);
+    return (
+      sIdNorm === targetServiceNorm ||
+      sIdSanitized === targetServiceSanitized ||
+      (mongoose.Types.ObjectId.isValid(s.serviceId) &&
+        s.serviceId.toString() === serviceName.trim())
+    );
+  });
+
+  // If not directly matched, check against ServiceConfig name if available
+  if (!matchedService) {
+    const ServiceConfigModel = mongoose.models.ServiceConfig;
+    if (ServiceConfigModel) {
+      const serviceConfig = await ServiceConfigModel.findOne({
+        $or: [
+          { name: new RegExp(`^${serviceName.trim()}$`, "i") },
+          { serviceName: new RegExp(`^${serviceName.trim()}$`, "i") },
+          ...(mongoose.Types.ObjectId.isValid(serviceName.trim())
+            ? [{ _id: serviceName.trim() }]
+            : []),
+        ],
+      });
+
+      if (serviceConfig) {
+        const configIdStr = serviceConfig._id.toString();
+        const configName = normalizeName(serviceConfig.name || serviceConfig.serviceName);
+        matchedService = (plan.services || []).find(
+          (s) =>
+            s.serviceId === configIdStr ||
+            normalizeName(s.serviceId) === configName
+        );
+      }
+    }
+  }
+
+  if (!matchedService) {
+    throw ApiError.notFound(
+      `Service '${serviceName}' is not configured in plan '${plan.name}'`
+    );
+  }
+
+  // 3. Category Lookup (if categoryName is provided)
+  if (categoryName && String(categoryName).trim() !== "") {
+    const targetCategoryNorm = normalizeName(categoryName);
+    const targetCategorySanitized = sanitizeForMatch(categoryName);
+
+    const matchedCategory = (matchedService.categories || []).find((c) => {
+      if (!c.categoryName) return false;
+      const cNameNorm = normalizeName(c.categoryName);
+      const cNameSanitized = sanitizeForMatch(c.categoryName);
+
+      // Exact or sanitized match
+      if (
+        cNameNorm === targetCategoryNorm ||
+        cNameSanitized === targetCategorySanitized ||
+        (c._id && c._id.toString() === categoryName.trim())
+      ) {
+        return true;
+      }
+
+      // Tolerant match for common category names / slight spelling variations
+      if (
+        (cNameSanitized.includes("withdr") && targetCategorySanitized.includes("withdr")) ||
+        (cNameSanitized.includes("enquir") && targetCategorySanitized.includes("enquir")) ||
+        (cNameSanitized.includes("statement") && targetCategorySanitized.includes("statement")) ||
+        (cNameSanitized.includes("deposit") && targetCategorySanitized.includes("deposit"))
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (!matchedCategory) {
+      throw ApiError.notFound(
+        `Category '${categoryName}' not found under service '${serviceName}' in plan '${plan.name}'`
+      );
+    }
+
+    const { pricing, commission, charge } = extractPricingComponents(
+      matchedCategory.pricing || []
+    );
+
+    return {
+      planId: plan._id,
+      planName: plan.name,
+      serviceId: matchedService.serviceId,
+      categoryId: matchedCategory._id,
+      categoryName: matchedCategory.categoryName,
+      commission,
+      charge,
+      pricing,
+    };
+  }
+
+  // 4. Return Service-Level Pricing and all Categories under this Service
+  const { pricing, commission, charge } = extractPricingComponents(
+    matchedService.pricing || []
+  );
+
+  const categories = (matchedService.categories || []).map((cat) => {
+    const catPricing = extractPricingComponents(cat.pricing || []);
+    return {
+      categoryId: cat._id,
+      categoryName: cat.categoryName,
+      commission: catPricing.commission,
+      charge: catPricing.charge,
+      pricing: catPricing.pricing,
+    };
+  });
+
+  return {
+    planId: plan._id,
+    planName: plan.name,
+    serviceId: matchedService.serviceId,
+    commission,
+    charge,
+    pricing,
+    categories,
+  };
+};
+
 export {
   addPlan,
   listPlans,
@@ -244,4 +445,5 @@ export {
   configurePlanServices,
   subscribeToPlan,
   getSubscribedPlans,
+  fetchCommissionAndCharge,
 };

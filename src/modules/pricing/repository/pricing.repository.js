@@ -35,6 +35,10 @@ const getPlanById = async (id) => {
   return await Plan.findById(id);
 };
 
+const findOnePlan = async (query = {}) => {
+  return await Plan.findOne(query);
+};
+
 const updatePlan = async (id, updateData) => {
   return await Plan.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 };
@@ -51,6 +55,7 @@ export {
   createPlan,
   getPlans,
   getPlanById,
+  findOnePlan,
   updatePlan,
   deletePlan,
   savePlan,

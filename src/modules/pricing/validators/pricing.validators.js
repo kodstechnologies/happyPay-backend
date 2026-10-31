@@ -434,3 +434,61 @@ export const validateConfigurePlanServices = (req, res, next) => {
     next(error);
   }
 };
+
+
+export const validateGetCommissionChargeQuery = (req, res, next) => {
+  const schema = Joi.object({
+    service: Joi.string().trim().messages({
+      "string.empty": "Service name cannot be empty",
+    }),
+    serviceName: Joi.string().trim(),
+    serviceId: Joi.string().trim(),
+    category: Joi.string().trim().allow(""),
+    categoryName: Joi.string().trim().allow(""),
+    categoryId: Joi.string().trim().allow(""),
+    planId: Joi.string()
+      .trim()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .messages({
+        "string.pattern.base": "Invalid Plan ID format",
+      }),
+  }).custom((values, helpers) => {
+    if (!values.service && !values.serviceName && !values.serviceId) {
+      return helpers.message(
+        "Service name is required in query parameter (e.g. ?service=AEPS)"
+      );
+    }
+    return values;
+  });
+
+  const { error, value } = schema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: false,
+  });
+
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: error.details.map((item) => item.message),
+    });
+  }
+
+  // Normalize query values for downstream handlers
+  req.query.service = value.service || value.serviceName || value.serviceId;
+  const resolvedCategory =
+    value.category !== undefined
+      ? value.category
+      : value.categoryName !== undefined
+      ? value.categoryName
+      : value.categoryId;
+
+  if (resolvedCategory !== undefined && resolvedCategory !== "") {
+    req.query.category = resolvedCategory;
+  }
+  if (value.planId) {
+    req.query.planId = value.planId;
+  }
+
+  next();
+};

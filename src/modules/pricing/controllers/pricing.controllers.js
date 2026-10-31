@@ -7,6 +7,7 @@ import {
   configurePlanServices,
   subscribeToPlan,
   getSubscribedPlans,
+  fetchCommissionAndCharge,
 } from "../services/pricing.services.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
@@ -111,6 +112,29 @@ export const getSubscribedPlansController = asyncHandler(async (req, res) => {
       ApiResponse.success(
         subscriptions,
         "Subscribed plans fetched successfully"
+      )
+    );
+});
+
+export const getCommissionAndChargeController = asyncHandler(async (req, res) => {
+  const serviceName = req.query.service || req.query.serviceName || req.query.serviceId;
+  const categoryName = req.query.category || req.query.categoryName || req.query.categoryId;
+  const planId = req.query.planId;
+  const userId = req.user?.userId || req.user?._id || req.user?.id;
+
+  const result = await fetchCommissionAndCharge({
+    planId,
+    userId,
+    serviceName,
+    categoryName,
+  });
+
+  res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        result,
+        "Commission and charges fetched successfully"
       )
     );
 });
