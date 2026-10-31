@@ -141,6 +141,8 @@ export const registerRetailerSchema = Joi.object({
 
   fatherName: Joi.string().trim().optional(),
 
+  motherName: Joi.string().trim().optional(),
+
   businessProof: objectId("business proof"),
 
   // bankName: Joi.string().trim().required().messages({

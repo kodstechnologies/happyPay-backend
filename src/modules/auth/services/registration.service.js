@@ -71,6 +71,7 @@ const buildRetailerResponse = (user, ekycDoc = null) => {
   educationalQualification: user.educationalQualification || null,
   panDocument: user.panDocument || null,
   fatherName: user.fatherName || null,
+  motherName: user.motherName || null,
   aadhaarDocument: user.aadhaarDocument || null,
   shopInsidePhoto: user.shopInsidePhoto || null,
   shopOutsidePhoto: user.shopOutsidePhoto || null,
@@ -145,6 +146,9 @@ const registerRetailer = async (body = {}) => {
   const fatherName = isBlank(body.fatherName)
     ? ""
     : String(body.fatherName).trim();
+  const motherName = isBlank(body.motherName)
+    ? ""
+    : String(body.motherName).trim();
   const aadhaarDocument = isBlank(body.aadhaarDocument)
     ? ""
     : String(body.aadhaarDocument).trim();
@@ -190,6 +194,7 @@ const registerRetailer = async (body = {}) => {
     educationalQualification,
     panDocument,
     fatherName,
+    motherName,
     aadhaarDocument,
     shopInsidePhoto,
     shopOutsidePhoto,
@@ -429,6 +434,7 @@ const registerRetailer = async (body = {}) => {
     educationalQualification: educationalQualification, // Store as plain text
     panDocument,
     fatherName,
+    motherName,
     aadhaarDocument,
     shopInsidePhoto,
     shopOutsidePhoto,
@@ -644,6 +650,7 @@ const updateAboutDetails = async (body = {}, files = {}) => {
   user.educationalQualification = body.educationalQualification.trim();
   if (selfie) user.selfie = selfie;
   if (body.fatherName) user.fatherName = body.fatherName.trim();
+  if (body.motherName) user.motherName = body.motherName.trim();
 
   // Update registration progress
   user.registrationStatus = "IN_PROGRESS";
@@ -908,6 +915,7 @@ const getCurrentRegistrationStep = async (params = {}) => {
       // Personal/About details
       fullName: user.fullName || null,
       fatherName: user.fatherName || null,
+      motherName: user.motherName || null,
       gender: user.gender || null,
       maritalStatus: user.maritalStatus || null,
       educationalQualification: user.educationalQualification || null,

@@ -164,6 +164,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    motherName: {
+      type: String,
+      trim: true,
+    },
+    
     gender: {
       type: String,
       trim: true,

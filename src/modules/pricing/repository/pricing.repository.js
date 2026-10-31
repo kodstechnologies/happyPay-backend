@@ -7,14 +7,25 @@ const createPlan = async (planData) => {
 };
 
 const getPlans = async (filters = {}, options = {}) => {
-  const { sort = { createdAt: -1 }, limit = 100, page = 1 } = options;
+  const { sort = { createdAt: -1 }, limit = 100, page = 1, search } = options;
   const skip = (page - 1) * limit;
 
+  // Build query with search functionality
+  const query = { ...filters };
+
+  // Add search filter if provided (search in name and description)
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+    ];
+  }
+
   // Get total count for pagination metadata
-  const total = await Plan.countDocuments(filters);
+  const total = await Plan.countDocuments(query);
 
   // Get paginated plans
-  const plans = await Plan.find(filters).sort(sort).skip(skip).limit(limit);
+  const plans = await Plan.find(query).sort(sort).skip(skip).limit(limit);
 
   const totalPages = Math.ceil(total / limit);
 

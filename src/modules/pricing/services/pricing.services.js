@@ -198,20 +198,68 @@ const getSubscribedPlans = async (userId, options = {}) => {
     query.expiresAt = { $gt: now };
   }
 
+  // Add status filter
+  if (options.status) {
+    if (options.status === "ACTIVE") {
+      query.isExpired = false;
+      query.cancelledAt = null;
+      query.expiresAt = { $gt: now };
+    } else if (options.status === "EXPIRED") {
+      query.isExpired = true;
+    } else if (options.status === "CANCELLED") {
+      query.cancelledAt = { $ne: null };
+    }
+  }
+
   // Pagination options
   const page = parseInt(options.page) || 1;
   const limit = parseInt(options.limit) || 10;
   const skip = (page - 1) * limit;
 
+  // Build sort object
+  let sort = { createdAt: -1 }; // default: newest first
+  if (options.sortBy === "oldest") {
+    sort = { createdAt: 1 };
+  } else if (options.sortBy === "expiry") {
+    sort = { expiresAt: 1 };
+  } else if (options.sortBy === "planName") {
+    sort = { "planId.name": 1 };
+  }
+
+  // Build final query with search if provided
+  let finalQuery = query;
+  if (options.search) {
+    finalQuery = {
+      ...query,
+      $or: [
+        { "planId.name": { $regex: options.search, $options: "i" } },
+        { "planId.description": { $regex: options.search, $options: "i" } },
+      ],
+    };
+  }
+
   // Get total count for pagination metadata
-  const total = await Subscription.countDocuments(query);
+  const total = await Subscription.countDocuments(finalQuery);
 
   // Get paginated subscriptions
-  const subscriptions = await Subscription.find(query)
+  const subscriptions = await Subscription.find(finalQuery)
     .populate("planId")
-    .sort({ createdAt: -1 })
+    .sort(sort)
     .skip(skip)
     .limit(limit);
+
+  // Add isSubscribed flag to each plan in the subscriptions
+  const subscriptionsWithFlag = subscriptions.map((subscription) => {
+    const subObj = subscription.toObject ? subscription.toObject() : subscription;
+    if (subObj.planId) {
+      const planObj = subObj.planId.toObject ? subObj.planId.toObject() : subObj.planId;
+      subObj.planId = {
+        ...planObj,
+        isSubscribed: true,
+      };
+    }
+    return subObj;
+  });
 
   const totalPages = Math.ceil(total / limit);
 
@@ -224,7 +272,7 @@ const getSubscribedPlans = async (userId, options = {}) => {
   console.log("=================================================");
 
   return {
-    data: subscriptions,
+    data: subscriptionsWithFlag,
     pagination: {
       page,
       limit,

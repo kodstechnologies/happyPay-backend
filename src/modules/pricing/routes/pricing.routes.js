@@ -70,7 +70,7 @@ router.get(
   getCommissionAndChargeController
 );
 
-router.get("/:id", getPlanByIdController);
+router.get("/:id", authMiddleware, getPlanByIdController);
 
 router.patch("/:id/subscribe", authMiddleware, subscribeToPlanController);
 

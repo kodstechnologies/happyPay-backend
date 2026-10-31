@@ -83,6 +83,28 @@ const aboutDetailsSchema = Joi.object({
       "string.max": "Educational qualification must not exceed 100 characters",
     }),
 
+  fatherName: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .allow("")
+    .optional()
+    .messages({
+      "string.min": "Father's name must be at least 2 characters",
+      "string.max": "Father's name must not exceed 100 characters",
+    }),
+
+  motherName: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .allow("")
+    .optional()
+    .messages({
+      "string.min": "Mother's name must be at least 2 characters",
+      "string.max": "Mother's name must not exceed 100 characters",
+    }),
+
 
   // Note: File field (selfie) is handled by multer middleware and available in req.files, not req.body
 });
