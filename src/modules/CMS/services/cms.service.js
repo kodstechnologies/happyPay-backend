@@ -4,6 +4,7 @@ import {
   verifyWalletBalance,
   processServiceWalletTransaction,
 } from "../../wallet/services/wallet.service.js";
+import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 
 /**
@@ -307,6 +308,13 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
 
       const description = `CMS Bill Paid: ${billDetails} (Ref: ${refid || resolvedTxnId})`;
 
+      const pricing = await calculateTransactionPricing({
+        userId: user._id,
+        service: "CMS",
+        category: billerName || billerId || "Cash Collection",
+        amount: numAmount,
+      });
+
       // Execute atomic wallet debit with double-entry ledger & idempotency guard
       const debitResult = await processServiceWalletTransaction({
         userId: user._id,
@@ -316,6 +324,11 @@ const handleCmsCallbackService = async (body = {}, query = {}) => {
         transactionId: resolvedTxnId,
         status: "success",
         description,
+        commissionEarned: pricing.retailerCommission,
+        charges: pricing.charges,
+        distributorCommission: pricing.distributorCommission,
+        distributorId: pricing.distributorId,
+        commissionBreakdown: pricing.commissionBreakdown,
         payee,
       });
 

@@ -27,6 +27,7 @@ import {
   verifyWalletBalance,
   processServiceWalletTransaction,
 } from "../../wallet/services/wallet.service.js";
+import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -855,6 +856,13 @@ const cashWithdrawController = async (req, res) => {
       const bankName = String(result?.name || bankiin || "Bank").trim();
       const aadharMasked = aadhaar ? `•••• •••• ${String(aadhaar).slice(-4)}` : "";
 
+      const pricing = await calculateTransactionPricing({
+        userId,
+        service: "AEPS",
+        category: "Cash Withdrawal",
+        amount: withdrawAmount,
+      });
+
       try {
         await processServiceWalletTransaction({
           userId,
@@ -862,6 +870,11 @@ const cashWithdrawController = async (req, res) => {
           amount: withdrawAmount,
           service: "AEPS",
           transactionId: aepsTxnId,
+          commissionEarned: pricing.retailerCommission,
+          charges: pricing.charges,
+          distributorCommission: pricing.distributorCommission,
+          distributorId: pricing.distributorId,
+          commissionBreakdown: pricing.commissionBreakdown,
           payee: {
             bankName,
             aadharNumber: aadharMasked || undefined,

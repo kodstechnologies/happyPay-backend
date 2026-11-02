@@ -21,6 +21,7 @@ import {
   verifyWalletBalance,
   processServiceWalletTransaction,
 } from "../../wallet/services/wallet.service.js";
+import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 
 const getAuthFields = (user) => {
   const outletid = user?.outletid || user?.outletId ;
@@ -355,6 +356,13 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
     const mode = String(req.body.mode || "IMPS").toUpperCase();
     const effectiveAmount = Number(result?.data?.txnValue || transferAmount);
 
+    const pricing = await calculateTransactionPricing({
+      userId,
+      service: "DMT",
+      category: mode,
+      amount: effectiveAmount,
+    });
+
     try {
       await processServiceWalletTransaction({
         userId,
@@ -362,6 +370,11 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
         amount: effectiveAmount,
         service: "DMT",
         transactionId: dmtTxnId,
+        commissionEarned: pricing.retailerCommission,
+        charges: pricing.charges,
+        distributorCommission: pricing.distributorCommission,
+        distributorId: pricing.distributorId,
+        commissionBreakdown: pricing.commissionBreakdown,
         payee: {
           bankName,
           accountNumber: beneAccount,

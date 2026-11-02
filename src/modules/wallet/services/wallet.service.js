@@ -475,6 +475,10 @@ export const processServiceWalletTransaction = async ({
   payee = {},
   description = "",
   commissionEarned = 0,
+  charges = 0,
+  commissionBreakdown = null,
+  distributorCommission = 0,
+  distributorId = null,
   status = "success",
 }) => {
   if (!userId) {
@@ -492,6 +496,15 @@ export const processServiceWalletTransaction = async ({
   }
 
   const numCommission = Math.max(0, Math.round(Number(commissionEarned || 0) * 100) / 100);
+  const numCharges = Math.max(0, Math.round(Number(charges || 0) * 100) / 100);
+  const numDistributorComm = Math.max(0, Math.round(Number(distributorCommission || 0) * 100) / 100);
+
+  // Net amounts:
+  // For credit: principal + commissionEarned - charges
+  // For debit: principal + charges - commissionEarned
+  const netCreditAmount = Math.round((numAmount + numCommission - numCharges) * 100) / 100;
+  const netDebitAmount = Math.max(0, Math.round((numAmount + numCharges - numCommission) * 100) / 100);
+
   const resolvedTxnId = String(transactionId || generate15CharTxnId("TXN")).trim();
 
   // 1. Idempotency Guard: prevent duplicate debit/credit on network retries
@@ -519,8 +532,6 @@ export const processServiceWalletTransaction = async ({
   }
 
   // 3. Concurrency-safe atomic mutation:
-  // Attempt with mongoose transaction session. If MongoDB deployment does not support
-  // replica set sessions (e.g. standalone instance), fallback to atomic conditional update.
   let balanceBefore = Number(wallet.balance || 0);
   let balanceAfter = balanceBefore;
   let savedTransaction = null;
@@ -540,15 +551,15 @@ export const processServiceWalletTransaction = async ({
       if (type === "debit") {
         const holdBal = Number(activeWallet.holdBalance || 0);
         const availBal = balanceBefore - holdBal;
-        if (availBal < numAmount) {
+        if (availBal < netDebitAmount) {
           throw ApiError.badRequest(
-            `Insufficient available balance for debit. Available: ₹${availBal.toFixed(2)}, Required: ₹${numAmount.toFixed(2)}`
+            `Insufficient available balance for debit. Available: ₹${availBal.toFixed(2)}, Required: ₹${netDebitAmount.toFixed(2)}`
           );
         }
-        balanceAfter = Math.round((balanceBefore - numAmount) * 100) / 100;
+        balanceAfter = Math.round((balanceBefore - netDebitAmount) * 100) / 100;
       } else {
-        // credit: principal + any commission
-        balanceAfter = Math.round((balanceBefore + numAmount + numCommission) * 100) / 100;
+        // credit: principal + commission - charges
+        balanceAfter = Math.round((balanceBefore + netCreditAmount) * 100) / 100;
       }
 
       activeWallet.balance = balanceAfter;
@@ -575,10 +586,46 @@ export const processServiceWalletTransaction = async ({
         status: status || "success",
         description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
         commissionEarned: numCommission,
+        charges: numCharges,
+        ...(commissionBreakdown ? { commissionBreakdown } : {}),
       });
 
       savedTransaction = await transaction.save({ session });
       updatedWallet = activeWallet;
+
+      // 4. Auto-credit Distributor Wallet if distributor exists and has commission
+      if (distributorId && numDistributorComm > 0 && mongoose.Types.ObjectId.isValid(distributorId)) {
+        try {
+          let distWallet = await Wallet.findOne({ user: distributorId }).session(session);
+          if (!distWallet) {
+            distWallet = new Wallet({ user: distributorId, balance: 0, status: "active" });
+          }
+          const distBalBefore = Number(distWallet.balance || 0);
+          const distBalAfter = Math.round((distBalBefore + numDistributorComm) * 100) / 100;
+          distWallet.balance = distBalAfter;
+          await distWallet.save({ session });
+
+          const distTxn = new Transaction({
+            wallet: distWallet._id,
+            type: "credit",
+            amount: numDistributorComm,
+            balanceBefore: distBalBefore,
+            balanceAfter: distBalAfter,
+            service: "COMMISSION",
+            transactionId: generate15CharTxnId("DST"),
+            status: "success",
+            description: `Distributor Commission for ${service} (Retailer Ref: ${resolvedTxnId})`,
+            payee: {
+              name: payee.name || payee.shopName || "Retailer Sub-Commission",
+              mobile: payee.mobile || undefined,
+            },
+            commissionEarned: numDistributorComm,
+          });
+          await distTxn.save({ session });
+        } catch (distErr) {
+          console.error("[Distributor Commission Credit Error]:", distErr.message || distErr);
+        }
+      }
     });
   } catch (sessionErr) {
     // Check if session error is because standalone MongoDB does not support transactions
@@ -594,24 +641,23 @@ export const processServiceWalletTransaction = async ({
     // Fallback: Standalone MongoDB atomic conditional update
     if (type === "debit") {
       const result = await Wallet.findOneAndUpdate(
-        { user: userId, balance: { $gte: numAmount } },
-        { $inc: { balance: -numAmount } },
+        { user: userId, balance: { $gte: netDebitAmount } },
+        { $inc: { balance: -netDebitAmount } },
         { new: true }
       );
       if (!result) {
         throw ApiError.badRequest("Insufficient wallet balance for debit transaction");
       }
-      balanceBefore = result.balance + numAmount;
+      balanceBefore = result.balance + netDebitAmount;
       balanceAfter = result.balance;
       updatedWallet = result;
     } else {
-      const creditIncrement = numAmount + numCommission;
       const result = await Wallet.findOneAndUpdate(
         { user: userId },
-        { $inc: { balance: creditIncrement } },
+        { $inc: { balance: netCreditAmount } },
         { new: true, upsert: true }
       );
-      balanceBefore = result.balance - creditIncrement;
+      balanceBefore = result.balance - netCreditAmount;
       balanceAfter = result.balance;
       updatedWallet = result;
     }
@@ -637,9 +683,41 @@ export const processServiceWalletTransaction = async ({
       status: status || "success",
       description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
       commissionEarned: numCommission,
+      charges: numCharges,
+      ...(commissionBreakdown ? { commissionBreakdown } : {}),
     });
 
     savedTransaction = await transaction.save();
+
+    if (distributorId && numDistributorComm > 0 && mongoose.Types.ObjectId.isValid(distributorId)) {
+      try {
+        const distWallet = await Wallet.findOneAndUpdate(
+          { user: distributorId },
+          { $inc: { balance: numDistributorComm } },
+          { new: true, upsert: true }
+        );
+        const distBalAfter = distWallet.balance;
+        const distBalBefore = Math.round((distBalAfter - numDistributorComm) * 100) / 100;
+        const distTxn = new Transaction({
+          wallet: distWallet._id,
+          type: "credit",
+          amount: numDistributorComm,
+          balanceBefore: distBalBefore,
+          balanceAfter: distBalAfter,
+          service: "COMMISSION",
+          transactionId: generate15CharTxnId("DST"),
+          status: "success",
+          description: `Distributor Commission for ${service} (Retailer Ref: ${resolvedTxnId})`,
+          payee: {
+            name: payee.name || payee.shopName || "Retailer Sub-Commission",
+          },
+          commissionEarned: numDistributorComm,
+        });
+        await distTxn.save();
+      } catch (distErr) {
+        console.error("[Distributor Commission Credit Fallback Error]:", distErr.message || distErr);
+      }
+    }
   } finally {
     session.endSession();
   }

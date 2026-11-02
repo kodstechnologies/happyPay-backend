@@ -14,6 +14,7 @@ import {
   verifyWalletBalance,
   processServiceWalletTransaction,
 } from "../../wallet/services/wallet.service.js";
+import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 
 const getAuthFields = (user) => {
   const outletid = user?.outletId || user?.outletid || "747932";
@@ -147,6 +148,14 @@ const payBillController = asyncHandler(async (req, res) => {
     const consumerNo = String(req.body.CUSTNO || req.body.canumber || "").trim();
     const customerName = String(req.body.customerName || req.body.FIELD2 || "").trim();
 
+    const categoryName = String(req.body.category || req.body.category_name || req.body.operator || "").trim();
+    const pricing = await calculateTransactionPricing({
+      userId,
+      service: "BBPS",
+      category: categoryName,
+      amount: billAmount,
+    });
+
     try {
       await processServiceWalletTransaction({
         userId,
@@ -154,6 +163,11 @@ const payBillController = asyncHandler(async (req, res) => {
         amount: billAmount,
         service: "BBPS",
         transactionId: trnId,
+        commissionEarned: pricing.retailerCommission,
+        charges: pricing.charges,
+        distributorCommission: pricing.distributorCommission,
+        distributorId: pricing.distributorId,
+        commissionBreakdown: pricing.commissionBreakdown,
         payee: {
           bankName: operatorName,
           accountNumber: consumerNo,

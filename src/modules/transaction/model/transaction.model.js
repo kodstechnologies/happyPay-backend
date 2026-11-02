@@ -65,6 +65,24 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    charges: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    commissionBreakdown: {
+      providerCharge: { type: Number, default: 0 },
+      adminCommission: { type: Number, default: 0 },
+      distributorCommission: { type: Number, default: 0 },
+      retailerCommission: { type: Number, default: 0 },
+      totalCommission: { type: Number, default: 0 },
+      totalChargesDeducted: { type: Number, default: 0 },
+      distributorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,
