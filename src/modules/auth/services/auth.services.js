@@ -45,17 +45,28 @@ import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
    Helper to Resolve eKYC Data
 ============================== */
 
-const resolveEkycData = async (user) => {
-  if (!user) return null;
-  if (user.AepsEkyc && typeof user.AepsEkyc === "object" && user.AepsEkyc.outletId !== undefined) {
-    return user.AepsEkyc;
-  }
-  if (user.AepsEkyc) {
-    return await AepsEkyc.findById(user.AepsEkyc);
-  }
-  return await AepsEkyc.findOne({ userId: user._id });
-};
-
+const resolveEkycData = async (user) => {
+
+  if (!user) return null;
+
+  if (user.AepsEkyc && typeof user.AepsEkyc === "object" && user.AepsEkyc.outletId !== undefined) {
+
+    return user.AepsEkyc;
+
+  }
+
+  if (user.AepsEkyc) {
+
+    return await AepsEkyc.findById(user.AepsEkyc);
+
+  }
+
+  return await AepsEkyc.findOne({ userId: user._id });
+
+};
+
+
+
 const resolveUpiEkycData = async (user) => {
   if (!user) return null;
   const upiRef = user.UpiEkyc || user.upiEkyc;
@@ -66,8 +77,10 @@ const resolveUpiEkycData = async (user) => {
     return await UpiEkyc.findById(upiRef);
   }
   return await UpiEkyc.findOne({ userId: user._id });
-};
-
+};
+
+
+
 const formatUpiEkyc = (upiEkycData) => {
   if (!upiEkycData) return null;
   return {
@@ -280,7 +293,7 @@ const verifyRetailerLoginOtp = async ({
   //   );
 
   //   error.statusCode = 403;
-    
+
   //   // Include registration status information
   //   error.registrationStatus = user.registrationStatus;
   //   error.currentRegistrationStep = user.currentRegistrationStep;
@@ -297,7 +310,7 @@ const verifyRetailerLoginOtp = async ({
   //   );
 
   //   error.statusCode = 403;
-    
+
   //   // Include admin approval status information
   //   error.adminApproved = user.adminApproved;
   //   error.reasonOfRejection = user.reasonOfRejection;
@@ -312,7 +325,7 @@ const verifyRetailerLoginOtp = async ({
   //   );
 
   //   error.statusCode = 403;
-    
+
   //   // Include eKYCStatus and currentRegistrationStep in error details
   //   error.eKYCStatus = user.eKYCStatus;
   //   error.currentRegistrationStep = user.currentRegistrationStep;
@@ -430,12 +443,12 @@ const verifyRetailerLoginOtp = async ({
 
   const aepsEkycObj = ekycData
     ? {
-        outletId: ekycData.outletId || null,
-        referenceKey: ekycData.referenceKey || null,
-        pidOptionWadh: ekycData.pidOptionWadh || null,
-        eKYCStatus: ekycData.eKYCStatus || "PENDING",
-        eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
-      }
+      outletId: ekycData.outletId || null,
+      referenceKey: ekycData.referenceKey || null,
+      pidOptionWadh: ekycData.pidOptionWadh || null,
+      eKYCStatus: ekycData.eKYCStatus || "PENDING",
+      eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
+    }
     : null;
 
   const upiEkycObj = formatUpiEkyc(upiEkycData);
@@ -1054,12 +1067,12 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const aepsEkycObj = ekycData
     ? {
-        outletId: ekycData.outletId || null,
-        referenceKey: ekycData.referenceKey || null,
-        pidOptionWadh: ekycData.pidOptionWadh || null,
-        eKYCStatus: ekycData.eKYCStatus || "PENDING",
-        eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
-      }
+      outletId: ekycData.outletId || null,
+      referenceKey: ekycData.referenceKey || null,
+      pidOptionWadh: ekycData.pidOptionWadh || null,
+      eKYCStatus: ekycData.eKYCStatus || "PENDING",
+      eKYCRejectionReason: ekycData.eKYCRejectionReason || null,
+    }
     : null;
 
   const upiEkycObj = formatUpiEkyc(upiEkycData);
@@ -1116,6 +1129,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   // Personal fields update
   if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
   if (body.fatherName !== undefined) user.fatherName = String(body.fatherName).trim();
+  if (body.motherName !== undefined) user.motherName = String(body.motherName).trim();
   if (body.gender !== undefined) user.gender = String(body.gender).trim();
   if (body.maritalStatus !== undefined) user.maritalStatus = String(body.maritalStatus).trim();
   if (body.educationalQualification !== undefined) {
@@ -1145,6 +1159,9 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   if (body.addressLine !== undefined) user.shop.address.addressLine = String(body.addressLine).trim();
   if (body.city !== undefined) user.shop.address.city = String(body.city).trim();
   if (body.state !== undefined) user.shop.address.state = String(body.state).trim();
+  if (body.stateCode !== undefined) user.shop.address.stateCode = String(body.stateCode).trim();
+  if (body.districtName !== undefined) user.shop.address.districtName = String(body.districtName).trim();
+  if (body.districtCode !== undefined) user.shop.address.districtCode = String(body.districtCode).trim();
   if (body.pincode !== undefined) user.shop.address.pincode = String(body.pincode).trim();
   if (body.completeAddress !== undefined) user.shop.completeAddress = String(body.completeAddress).trim();
 

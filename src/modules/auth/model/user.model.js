@@ -133,6 +133,16 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
+
+        districtName: {
+          type: String,
+          trim: true,
+        },
+
+        districtCode: {
+          type: String,
+          trim: true,
+        },
       },
 
       completeAddress: {
@@ -168,7 +178,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    
+
     gender: {
       type: String,
       trim: true,
@@ -286,9 +296,9 @@ const userSchema = new mongoose.Schema(
           trim: true,
         },
 
-        bank_code:{
-          type:String,
-          trim:true
+        bank_code: {
+          type: String,
+          trim: true
         },
         branchName: {
           type: String,
@@ -312,7 +322,7 @@ const userSchema = new mongoose.Schema(
       ref: "AepsEkyc",
       default: null,
     },
-    UpiEkyc:{
+    UpiEkyc: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "UpiEkyc",
       default: null,

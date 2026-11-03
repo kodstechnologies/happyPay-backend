@@ -212,7 +212,7 @@ const verifyRetailerLoginOtp = async (req, res) => {
         currentRegistrationStep: error.currentRegistrationStep
       };
     }
-    
+
     // If it's a registration error, include the registration status fields in data
     else if (error.registrationStatus !== undefined) {
       errorData = {
@@ -220,7 +220,7 @@ const verifyRetailerLoginOtp = async (req, res) => {
         currentRegistrationStep: error.currentRegistrationStep
       };
     }
-    
+
     // If it's an admin approval error, include the admin approval status fields in data
     else if (error.adminApproved !== undefined) {
       errorData = {
@@ -696,14 +696,14 @@ const getDownlineRetailerTransactionsController = asyncHandler(async (req, res) 
   const ownershipCondition = isMapped
     ? { _id: targetRetailerId }
     : {
-        _id: targetRetailerId,
-        $or: [
-          { ditributor: retailerObjectId },
-          { ditributor: retailerIdStr },
-          { distributor: retailerObjectId },
-          { distributor: retailerIdStr },
-        ],
-      };
+      _id: targetRetailerId,
+      $or: [
+        { ditributor: retailerObjectId },
+        { ditributor: retailerIdStr },
+        { distributor: retailerObjectId },
+        { distributor: retailerIdStr },
+      ],
+    };
 
   const retailer = await User.findOne(ownershipCondition).lean();
   if (!retailer) {
@@ -759,14 +759,14 @@ const getDownlineRetailerDetailsController = asyncHandler(async (req, res) => {
   const ownershipCondition = isMapped
     ? { _id: targetRetailerId }
     : {
-        _id: targetRetailerId,
-        $or: [
-          { ditributor: retailerObjectId },
-          { ditributor: retailerIdStr },
-          { distributor: retailerObjectId },
-          { distributor: retailerIdStr },
-        ],
-      };
+      _id: targetRetailerId,
+      $or: [
+        { ditributor: retailerObjectId },
+        { ditributor: retailerIdStr },
+        { distributor: retailerObjectId },
+        { distributor: retailerIdStr },
+      ],
+    };
 
   const retailer = await User.findOne(ownershipCondition).lean();
   if (!retailer) {

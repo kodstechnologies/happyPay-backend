@@ -87,10 +87,10 @@ async function sync() {
           Array.isArray(billerResponse?.data?.data)
             ? billerResponse.data.data
             : Array.isArray(billerResponse?.data)
-            ? billerResponse.data
-            : Array.isArray(billerResponse)
-            ? billerResponse
-            : [];
+              ? billerResponse.data
+              : Array.isArray(billerResponse)
+                ? billerResponse
+                : [];
 
         if (!rawBillers.length) {
           console.log(`[SYNC] No billers found for category: "${catName}".`);
@@ -175,7 +175,7 @@ async function sync() {
 const isDirectRun =
   process.argv[1] &&
   path.resolve(url.fileURLToPath(import.meta.url)).toLowerCase() ===
-    path.resolve(process.argv[1]).toLowerCase();
+  path.resolve(process.argv[1]).toLowerCase();
 
 if (isDirectRun) {
   (async () => {

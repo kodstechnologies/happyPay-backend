@@ -44,51 +44,51 @@ const toDateOnly = (value) => {
 const buildRetailerResponse = (user, ekycDoc = null) => {
   const ekyc = ekycDoc || (user.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
   return {
-  id: user._id,
-  mobile: user.mobile,
-  fullName: user.fullName,
-  email: user.email,
-  isEmailVerified: user.isEmailVerified,
-  isMobileVerified: user.isMobileVerified,
-  panNumber: user.panNumber,
-  aadhaarNumber: user.aadhaarNumber,
-  dateOfBirth: user.dateOfBirth
-    ? new Date(user.dateOfBirth).toISOString().slice(0, 10)
-    : null,
-  gender: user.gender,
-  shopName: user.shop?.name || null,
-  shopCategory: user.shop?.category || null,
-  propertyType: user.shop?.propertyType || null,
-  addressLine: user.shop?.address?.addressLine || null,
-  city: user.shop?.address?.city || null,
-  state: user.shop?.address?.state || null,
-  pincode: user.shop?.address?.pincode || null,
-  shopAddress: user.shop?.completeAddress || null,
-  latitude: user.shop?.location?.latitude ?? null,
-  longitude: user.shop?.location?.longitude ?? null,
-  selfie: user.selfie || null,
-  maritalStatus: user.maritalStatus || null,
-  educationalQualification: user.educationalQualification || null,
-  panDocument: user.panDocument || null,
-  fatherName: user.fatherName || null,
-  motherName: user.motherName || null,
-  aadhaarDocument: user.aadhaarDocument || null,
-  shopInsidePhoto: user.shopInsidePhoto || null,
-  shopOutsidePhoto: user.shopOutsidePhoto || null,
-  shopLocationPhoto: user.shopLocationPhoto || null,
-  businessProof: user.businessProofType || null,
-  businessProofDocument: user.businessProofDocument || null,
-  banks: user.banks || [],
-  primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
-  outletId: ekyc?.outletId || null,
-  adminApproved: user.adminApproved,
-  reasonOfRejection: user.reasonOfRejection || null,
-  documentReviews: user.documentReviews || null,
-  registrationStatus: user.registrationStatus || "NOT_STARTED",
-  currentRegistrationStep: user.currentRegistrationStep || "ACCOUNT",
-  eKYCStatus: ekyc?.eKYCStatus || null,
-  referenceKey: ekyc?.referenceKey || null,
-};
+    id: user._id,
+    mobile: user.mobile,
+    fullName: user.fullName,
+    email: user.email,
+    isEmailVerified: user.isEmailVerified,
+    isMobileVerified: user.isMobileVerified,
+    panNumber: user.panNumber,
+    aadhaarNumber: user.aadhaarNumber,
+    dateOfBirth: user.dateOfBirth
+      ? new Date(user.dateOfBirth).toISOString().slice(0, 10)
+      : null,
+    gender: user.gender,
+    shopName: user.shop?.name || null,
+    shopCategory: user.shop?.category || null,
+    propertyType: user.shop?.propertyType || null,
+    addressLine: user.shop?.address?.addressLine || null,
+    city: user.shop?.address?.city || null,
+    state: user.shop?.address?.state || null,
+    pincode: user.shop?.address?.pincode || null,
+    shopAddress: user.shop?.completeAddress || null,
+    latitude: user.shop?.location?.latitude ?? null,
+    longitude: user.shop?.location?.longitude ?? null,
+    selfie: user.selfie || null,
+    maritalStatus: user.maritalStatus || null,
+    educationalQualification: user.educationalQualification || null,
+    panDocument: user.panDocument || null,
+    fatherName: user.fatherName || null,
+    motherName: user.motherName || null,
+    aadhaarDocument: user.aadhaarDocument || null,
+    shopInsidePhoto: user.shopInsidePhoto || null,
+    shopOutsidePhoto: user.shopOutsidePhoto || null,
+    shopLocationPhoto: user.shopLocationPhoto || null,
+    businessProof: user.businessProofType || null,
+    businessProofDocument: user.businessProofDocument || null,
+    banks: user.banks || [],
+    primaryBank: user.banks?.find((b) => b.isPrimary) || user.banks?.[0] || null,
+    outletId: ekyc?.outletId || null,
+    adminApproved: user.adminApproved,
+    reasonOfRejection: user.reasonOfRejection || null,
+    documentReviews: user.documentReviews || null,
+    registrationStatus: user.registrationStatus || "NOT_STARTED",
+    currentRegistrationStep: user.currentRegistrationStep || "ACCOUNT",
+    eKYCStatus: ekyc?.eKYCStatus || null,
+    referenceKey: ekyc?.referenceKey || null,
+  };
 };
 
 const assertActiveMaster = async (Model, id, label) => {
@@ -596,6 +596,12 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (pincode) user.shop.address.pincode = pincode.trim();
   if (finalState) user.shop.address.state = finalState.trim();
   if (address) user.shop.completeAddress = address.trim();
+
+  // Store district name and district code if provided
+  const districtName = body.districtName || body.district_name || body.district;
+  const districtCode = body.districtCode || body.district_code;
+  if (districtName) user.shop.address.districtName = String(districtName).trim();
+  if (districtCode) user.shop.address.districtCode = String(districtCode).trim();
 
   // Update location
   if (body.latitude !== undefined && body.latitude !== null && body.latitude !== "") {

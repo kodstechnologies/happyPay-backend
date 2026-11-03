@@ -69,6 +69,8 @@ const PROVIDER_ROUTES = {
     Ekyc:`${PROVIDER_API_PREFIX}/upi/ekyc`,
     sellerOnboarding:`${PROVIDER_API_PREFIX}/upi/sellerOnboarding`,
     intiatepayment: `${PROVIDER_API_PREFIX}/upi/cashpoint`,
+    stateList: `${PROVIDER_API_PREFIX}/upi/statelist`,
+    district: `${PROVIDER_API_PREFIX}/upi/district`,
   },
 
   cmsPayment: {

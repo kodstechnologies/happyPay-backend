@@ -236,6 +236,13 @@ const initiateUpiCashpointPayment = (payload) =>
     const merchantRegistrationEkyc = merchantEKYC;
      const merchantRegistrationOnboarding=(payload)=>postProviderForm(PROVIDER_ROUTES.upiCashpoint.sellerOnboarding,payload)
 
+// UPI State & District lookup services
+const getUpiStateList = () =>
+  postProviderForm(PROVIDER_ROUTES.upiCashpoint.stateList, {});
+
+const getUpiDistrict = (payload) =>
+  postProviderForm(PROVIDER_ROUTES.upiCashpoint.district, payload);
+
 const initiateCmsPayment = (payload) =>
   postProviderForm(PROVIDER_ROUTES.cmsPayment.initiatePayment, payload);
 
@@ -293,9 +300,8 @@ export {
   merchantRegistrationEkyc,
   merchantEKYC,
   initiateUpiCashpointPayment,
-
-
-
+  getUpiStateList,
+  getUpiDistrict,
 
   initiateCmsPayment,
 

@@ -130,6 +130,27 @@ const shopDetailsSchema = Joi.object({
   businessProof: objectId("Business proof type").optional(),
   distributorId: Joi.string().trim().allow("", null).optional(),
 
+  districtName: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .required()
+    .messages({
+      "any.required": "District name is required",
+      "string.empty": "District name is required",
+      "string.min": "District name must be at least 2 characters",
+      "string.max": "District name must not exceed 100 characters",
+    }),
+
+  districtCode: Joi.string()
+    .trim()
+    .max(20)
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.max": "District code must not exceed 20 characters",
+    }),
+
   // Note: File fields (shopInsidePhoto, shopOutsidePhoto, shopLocationPhoto, businessProofDocument, panDocument)
   // are handled by multer middleware and available in req.files, not req.body
 });

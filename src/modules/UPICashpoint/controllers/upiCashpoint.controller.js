@@ -8,6 +8,8 @@ import {
   merchantRegistrationVerifyService,
   sellerOnboardingService,
   merchantEkycService,
+  getUpiStateListService,
+  getUpiDistrictService,
 } from "../services/upiCashpoint.service.js";
 
 /**
@@ -164,6 +166,50 @@ const merchantEkycController = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * Controller to fetch UPI State List with pagination
+ * Supports: page, limit, search parameters
+ */
+const getUpiStateListController = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, search = "" } = req.body;
+
+  const result = await getUpiStateListService({
+    page: Number(page),
+    limit: Number(limit),
+    search: String(search).trim(),
+  });
+
+  return res.status(200).json(
+    ApiResponse.success(result, "UPI state list fetched successfully")
+  );
+});
+
+/**
+ * Controller to fetch UPI Districts by State Code with pagination
+ * Requires: stateCode in body (e.g. "RJ")
+ * Supports: page, limit, search parameters
+ */
+const getUpiDistrictController = asyncHandler(async (req, res) => {
+  const { stateCode, page = 1, limit = 20, search = "" } = req.body;
+
+  if (!stateCode) {
+    return res.status(400).json(
+      ApiResponse.error("stateCode is required", null, null, 400)
+    );
+  }
+
+  const result = await getUpiDistrictService({
+    stateCode: String(stateCode).trim(),
+    page: Number(page),
+    limit: Number(limit),
+    search: String(search).trim(),
+  });
+
+  return res.status(200).json(
+    ApiResponse.success(result, "UPI district list fetched successfully")
+  );
+});
+
 export {
   initiateUpiCashpointController,
   merchantRegistrationController,
@@ -171,4 +217,6 @@ export {
   merchantRegistrationVerifyController,
   sellerOnboardingController,
   merchantEkycController,
+  getUpiStateListController,
+  getUpiDistrictController,
 };

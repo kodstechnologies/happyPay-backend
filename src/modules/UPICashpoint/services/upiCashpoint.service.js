@@ -5,6 +5,8 @@ import {
   merchantRegistrationVerify,
   merchantRegistrationOnboarding,
   merchantEKYC,
+  getUpiStateList,
+  getUpiDistrict,
 } from "../../external/services/provider.service.js";
 import User from "../../auth/model/user.model.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
@@ -252,6 +254,100 @@ const merchantEkycService = async ({ merchantId, pidData } = {}) => {
   return await merchantEKYC(externalPayload);
 };
 
+/**
+ * Service to fetch the list of states from UPI provider with pagination
+ * @param {object} params - { page, limit, search }
+ */
+const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
+  const result = await getUpiStateList();
+
+  // Extract the array from various possible response structures
+  let states = [];
+  if (Array.isArray(result)) {
+    states = result;
+  } else if (result && typeof result === "object") {
+    states = result.states || result.data || result.stateList || result.results || [];
+  }
+
+  // Apply search filter if provided
+  if (search && search.trim()) {
+    const searchLower = search.toLowerCase();
+    states = states.filter((state) => {
+      const stateName = state.stateName || state.name || state.state || "";
+      const stateCode = state.stateCode || state.code || "";
+      return (
+        stateName.toLowerCase().includes(searchLower) ||
+        stateCode.toLowerCase().includes(searchLower)
+      );
+    });
+  }
+
+  // Calculate pagination
+  const total = states.length;
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedStates = states.slice(startIndex, endIndex);
+
+  return {
+    data: paginatedStates,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: endIndex < total,
+      hasPrevPage: page > 1,
+    },
+  };
+};
+
+/**
+ * Service to fetch districts by state code from UPI provider with pagination
+ * @param {object} params - { stateCode, page, limit, search }
+ */
+const getUpiDistrictService = async ({ stateCode, page = 1, limit = 20, search = "" } = {}) => {
+  const result = await getUpiDistrict({ stateCode: String(stateCode).trim() });
+
+  // Extract the array from various possible response structures
+  let districts = [];
+  if (Array.isArray(result)) {
+    districts = result;
+  } else if (result && typeof result === "object") {
+    districts = result.districts || result.data || result.districtList || result.results || [];
+  }
+
+  // Apply search filter if provided
+  if (search && search.trim()) {
+    const searchLower = search.toLowerCase();
+    districts = districts.filter((district) => {
+      const districtName = district.districtName || district.name || district.district || "";
+      const districtCode = district.districtCode || district.code || "";
+      return (
+        districtName.toLowerCase().includes(searchLower) ||
+        districtCode.toLowerCase().includes(searchLower)
+      );
+    });
+  }
+
+  // Calculate pagination
+  const total = districts.length;
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedDistricts = districts.slice(startIndex, endIndex);
+
+  return {
+    data: paginatedDistricts,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: endIndex < total,
+      hasPrevPage: page > 1,
+    },
+  };
+};
+
 export {
   initiateUpiCashpointService,
   merchantRegistrationService,
@@ -259,4 +355,6 @@ export {
   merchantRegistrationVerifyService,
   sellerOnboardingService,
   merchantEkycService,
+  getUpiStateListService,
+  getUpiDistrictService,
 };

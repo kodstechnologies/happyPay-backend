@@ -8,6 +8,8 @@ import {
   merchantRegistrationVerifyController,
   sellerOnboardingController,
   merchantEkycController,
+  getUpiStateListController,
+  getUpiDistrictController,
 } from "../controllers/upiCashpoint.controller.js";
 import {
   initiateUpiCashpointSchema,
@@ -16,6 +18,8 @@ import {
   merchantRegistrationVerifySchema,
   sellerOnboardingSchema,
   merchantEkycSchema,
+  paginationSchema,
+  districtPaginationSchema,
 } from "../validations/upiCashpoint.validation.js";
 
 const router = Router();
@@ -64,4 +68,21 @@ router.post(
   validate(initiateUpiCashpointSchema, "body"),
   initiateUpiCashpointController
 );
+
+// UPI State List with pagination
+router.post(
+  "/state-list",
+  authMiddleware,
+  validate(paginationSchema, "body"),
+  getUpiStateListController
+);
+
+// UPI District List by State Code with pagination
+router.post(
+  "/district",
+  authMiddleware,
+  validate(districtPaginationSchema, "body"),
+  getUpiDistrictController
+);
+
 export default router;

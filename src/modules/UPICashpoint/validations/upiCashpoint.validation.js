@@ -268,6 +268,40 @@ const merchantEkycSchema = Joi.object({
     }),
 });
 
+const paginationSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.min": "Page must be at least 1",
+  }),
+  limit: Joi.number().integer().min(1).max(100).default(20).messages({
+    "number.base": "Limit must be a number",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit cannot exceed 100",
+  }),
+  search: Joi.string().trim().allow("").messages({
+    "string.base": "Search must be a string",
+  }),
+});
+
+const districtPaginationSchema = Joi.object({
+  stateCode: Joi.string().trim().required().messages({
+    "any.required": "stateCode is required",
+    "string.empty": "stateCode cannot be empty",
+  }),
+  page: Joi.number().integer().min(1).default(1).messages({
+    "number.base": "Page must be a number",
+    "number.min": "Page must be at least 1",
+  }),
+  limit: Joi.number().integer().min(1).max(100).default(20).messages({
+    "number.base": "Limit must be a number",
+    "number.min": "Limit must be at least 1",
+    "number.max": "Limit cannot exceed 100",
+  }),
+  search: Joi.string().trim().allow("").messages({
+    "string.base": "Search must be a string",
+  }),
+});
+
 export {
   initiateUpiCashpointSchema,
   merchantRegistrationSchema,
@@ -275,4 +309,6 @@ export {
   merchantRegistrationVerifySchema,
   sellerOnboardingSchema,
   merchantEkycSchema,
+  paginationSchema,
+  districtPaginationSchema,
 };
