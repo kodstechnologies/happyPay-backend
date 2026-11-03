@@ -366,9 +366,41 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
 
   // 5. Call external payoutSettlement from external service
-  const providerResponse = await payoutSettlement(providerPayload);
+  
 
-  // 6. Debit wallet balance and record Transaction atomically
+  // 6. Check provider response status before debiting wallet
+  const providerStatus = String(providerResponse?.status || providerResponse?.data?.status || "").toUpperCase();
+  const isProviderSuccess = providerStatus === "SUCCESS" || providerStatus === "SUCCESSFUL" || providerStatus === "COMPLETED";
+
+  if (!isProviderSuccess) {
+    // Provider failed - do not debit wallet, record failed transaction
+    const failedTxn = new Transaction({
+      wallet: wallet._id,
+      type: "debit",
+      amount: numAmount,
+      balanceBefore: currentBalance,
+      balanceAfter: currentBalance, // No balance change since it failed
+      payee: {
+        name: providerPayload.beneficiary_name || user.fullName,
+        mobile: user.mobile,
+        bankName: recordedBankName,
+        accountNumber: providerPayload.account_number,
+        ifscCode: providerPayload.ifsc,
+        accountHolderName: providerPayload.beneficiary_name || user.fullName,
+      },
+      service: "PAYOUT",
+      transactionId: txnid,
+      status: "failed",
+      description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Failed: ${providerResponse?.msg || providerResponse?.message || "Provider error"}`,
+    });
+    await failedTxn.save();
+
+    throw ApiError.badRequest(
+      providerResponse?.msg || providerResponse?.message || "Settlement payout failed. Please try again."
+    );
+  }
+
+  // 7. Debit wallet balance and record Transaction atomically (only if provider succeeded)
   const session = await mongoose.startSession();
   let balanceAfter = currentBalance - numAmount;
 

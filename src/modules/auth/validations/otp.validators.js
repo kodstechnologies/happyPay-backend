@@ -11,6 +11,15 @@ const sendOtpSchema = Joi.object({
       "string.empty": "Mobile number is required",
       "string.pattern.base": "Please enter a valid 10-digit mobile number",
     }),
+  role: Joi.string()
+    .trim()
+    .valid("retailer", "distributor")
+    .default("retailer")
+    .optional()
+    .messages({
+      "any.only": "Role must be either 'retailer' or 'distributor'",
+    }),
+  distributorId: Joi.string().trim().allow("", null).optional(),
 });
 
 const verifyOtpSchema = Joi.object({
@@ -31,6 +40,14 @@ const verifyOtpSchema = Joi.object({
       "any.required": "OTP is required",
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
+    }),
+  role: Joi.string()
+    .trim()
+    .valid("retailer", "distributor")
+    .default("retailer")
+    .optional()
+    .messages({
+      "any.only": "Role must be either 'retailer' or 'distributor'",
     }),
   distributorId: Joi.string().trim().allow("", null).optional(),
 });

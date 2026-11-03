@@ -15,7 +15,7 @@ const sendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const { mobile } = req.body;
+    const { mobile, role } = req.body;
 
     // Check if mobile is present
     if (!mobile) {
@@ -45,7 +45,7 @@ const sendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const result = await otpService.sendOtp(mobile);
+    const result = await otpService.sendOtp(mobile, role);
 
     const response = ApiResponse.success(
       result,
@@ -71,7 +71,7 @@ const resendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const { mobile } = req.body;
+    const { mobile, role } = req.body;
 
     if (!mobile) {
       const response = ApiResponse.error(
@@ -100,7 +100,7 @@ const resendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const result = await otpService.sendOtp(mobile);
+    const result = await otpService.sendOtp(mobile, role);
 
     const response = ApiResponse.success(
       result,

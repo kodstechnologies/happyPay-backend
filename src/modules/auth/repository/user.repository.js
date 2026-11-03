@@ -5,7 +5,7 @@ const findByMobile = async (mobile) => {
   return await User.findOne({ mobile });
 };
 
-const createUser = async (mobile, distributorId = null) => {
+const createUser = async (mobile, distributorId = null, role = "retailer") => {
   const userData = {
     mobile,
     isMobileVerified: true,
@@ -15,7 +15,7 @@ const createUser = async (mobile, distributorId = null) => {
   };
 
   const user = new User(userData);
-  await user.assignRole("retailer", "Retailer");
+  await user.assignRole(role, role.charAt(0).toUpperCase() + role.slice(1));
   return await user.save();
 };
 
@@ -26,7 +26,7 @@ const verifyMobile = async (userId) => {
   user.isMobileVerified = true;
   user.registrationStatus = "IN_PROGRESS";
   user.currentRegistrationStep = "ACCOUNT";
-  await user.assignRole("retailer", "Retailer");
+  // Don't re-assign role here since it was already set during account creation
   return await user.save();
 };
 

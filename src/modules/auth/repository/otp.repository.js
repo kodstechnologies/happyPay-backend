@@ -1,18 +1,19 @@
 import Otp from "../model/otp.model.js";
 
-const createOtp = async (mobile, otp, expiresAt) => {
+const createOtp = async (mobile, otp, expiresAt, role = "retailer") => {
   const testOtp = process.env.NODE_ENV === "development"
     ? String(otp).length === 4
       ? "1234"
       : "123456"
     : otp;
 
-  console.log("Creating OTP", mobile, testOtp, expiresAt);
+  console.log("Creating OTP", mobile, testOtp, expiresAt, role);
 
   return await Otp.create({
     mobile,
     otp: testOtp,
     expiresAt,
+    role,
   });
 };
 

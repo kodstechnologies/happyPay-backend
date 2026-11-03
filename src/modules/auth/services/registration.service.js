@@ -757,13 +757,13 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     }
   }
 
-  // Ensure retailer role is assigned to the user upon completing registration
-  await user.assignRole("retailer", "Retailer");
+  // Role is already assigned during account creation based on user selection
+  // No need to re-assign role here
 
   await user.save();
 
-  // Handle distributor mapping and role progression
-  let isUpgradedToDistributor = false;
+  // Handle distributor mapping (for sub-retailers under a distributor)
+  // Note: Automatic distributor role upgrade removed - distributors are now explicitly created
   const parentDistId = user.ditributor || user.distributor;
   if (parentDistId) {
     try {
@@ -772,36 +772,8 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
         { retailerId: user._id, distributorId: parentDistId, isActive: true },
         { upsert: true, new: true }
       );
-
-      // Rule: if a retailer registers one or more retailers, make that role distributor
-      const parentObjectId = mongoose.Types.ObjectId.isValid(parentDistId)
-        ? new mongoose.Types.ObjectId(parentDistId)
-        : parentDistId;
-      const parentIdStr = String(parentDistId);
-
-      const registeredCount = await User.countDocuments({
-        $or: [
-          { ditributor: parentObjectId },
-          { ditributor: parentIdStr },
-          { distributor: parentObjectId },
-          { distributor: parentIdStr },
-        ],
-      });
-
-      if (registeredCount >= 1) {
-        const parentUser = await User.findById(parentObjectId);
-        if (parentUser) {
-          await parentUser.populate("roles");
-          const hadRole = parentUser.hasRole("distributor");
-          await parentUser.assignRole("distributor", "Distributor");
-          await parentUser.save();
-          if (!hadRole) {
-            isUpgradedToDistributor = true;
-          }
-        }
-      }
     } catch (mappingErr) {
-      console.warn("Distributor mapping or role upgrade error:", mappingErr?.message);
+      console.warn("Distributor mapping error:", mappingErr?.message);
     }
   }
 

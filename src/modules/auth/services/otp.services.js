@@ -16,25 +16,25 @@ import {
     return Math.floor(1000 + Math.random() * 9000).toString();
   };
   
-  const sendOtp = async (mobile) => {
+  const sendOtp = async (mobile, role = "retailer") => {
     // Generate OTP
     const otp = generateOtp();
-  
+
     // OTP valid for 5 minutes
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-  
+
     // Remove previous active OTPs
     await deletePreviousOtps(mobile);
-  
-    // Save new OTP
-    await createOtp(mobile, otp, expiresAt);
-  
+
+    // Save new OTP with role
+    await createOtp(mobile, otp, expiresAt, role);
+
     // TODO:
     // Integrate SMS provider here.
     //
     // Example:
     // await smsService.sendOtp(mobile, otp);
-  
+
     return {
       message: "OTP sent successfully",
     };
@@ -69,12 +69,15 @@ import {
     // Mark OTP verified
     await markOtpVerified(otpRecord._id);
 
+    // Get role from OTP record (defaults to "retailer" if not set)
+    const role = otpRecord.role || "retailer";
+
     // Find retailer
     let user = await findByMobile(mobile);
 
-    // If retailer doesn't exist, create one
+    // If retailer doesn't exist, create one with selected role
     if (!user) {
-      user = await createUser(mobile, distributorId);
+      user = await createUser(mobile, distributorId, role);
     } else {
       // Existing retailer - update mobile verification status
       if (distributorId && (!user.ditributor || !user.distributor)) {
