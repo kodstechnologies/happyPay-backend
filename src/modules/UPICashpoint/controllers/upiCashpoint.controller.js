@@ -171,7 +171,8 @@ const merchantEkycController = asyncHandler(async (req, res) => {
  * Supports: page, limit, search parameters
  */
 const getUpiStateListController = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, search = "" } = req.body;
+  const body = req.body || {};
+  const { page = 1, limit = 20, search = "" } = body;
 
   const result = await getUpiStateListService({
     page: Number(page),
@@ -190,7 +191,8 @@ const getUpiStateListController = asyncHandler(async (req, res) => {
  * Supports: page, limit, search parameters
  */
 const getUpiDistrictController = asyncHandler(async (req, res) => {
-  const { stateCode, page = 1, limit = 20, search = "" } = req.body;
+  const body = req.body || {};
+  const { stateCode, page = 1, limit = 20, search = "" } = body;
 
   if (!stateCode) {
     return res.status(400).json(
