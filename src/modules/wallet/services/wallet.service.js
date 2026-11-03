@@ -371,6 +371,35 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   // 6. Check provider response status before debiting wallet
   const providerStatus = String(providerResponse?.status || providerResponse?.data?.status || "").toUpperCase();
   const isProviderSuccess = providerStatus === "SUCCESS" || providerStatus === "SUCCESSFUL" || providerStatus === "COMPLETED";
+  const isProviderQueued = providerStatus === "QUEUED" || providerStatus === "PENDING" || providerStatus === "PROCESSING";
+
+  if (isProviderQueued) {
+    // Provider queued the transaction - do not debit wallet yet, record pending transaction
+    const pendingTxn = new Transaction({
+      wallet: wallet._id,
+      type: "debit",
+      amount: numAmount,
+      balanceBefore: currentBalance,
+      balanceAfter: currentBalance, // No balance change since it's pending
+      payee: {
+        name: providerPayload.beneficiary_name || user.fullName,
+        mobile: user.mobile,
+        bankName: recordedBankName,
+        accountNumber: providerPayload.account_number,
+        ifscCode: providerPayload.ifsc,
+        accountHolderName: providerPayload.beneficiary_name || user.fullName,
+      },
+      service: "PAYOUT",
+      transactionId: txnid,
+      status: "pending",
+      description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Queued for processing`,
+    });
+    await pendingTxn.save();
+
+    throw ApiError.badRequest(
+      providerResponse?.msg || providerResponse?.message || "Transaction is queued for processing. Please check transaction status later."
+    );
+  }
 
   if (!isProviderSuccess) {
     // Provider failed - do not debit wallet, record failed transaction

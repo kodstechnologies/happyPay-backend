@@ -73,7 +73,7 @@ router.post(
 router.post(
   "/state-list",
   authMiddleware,
-  validate(paginationSchema, "body"),
+  // validate(paginationSchema, "body"),
   getUpiStateListController
 );
 
@@ -81,7 +81,7 @@ router.post(
 router.post(
   "/district",
   authMiddleware,
-  validate(districtPaginationSchema, "body"),
+  // validate(districtPaginationSchema, "body"),
   getUpiDistrictController
 );
 
