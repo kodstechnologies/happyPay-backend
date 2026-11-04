@@ -809,7 +809,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
     user: buildRetailerResponse(user),
     registrationStatus: user.registrationStatus,
     currentRegistrationStep: user.currentRegistrationStep,
-    isUpgradedToDistributor,
+    // isUpgradedToDistributor,
   };
 };
 
