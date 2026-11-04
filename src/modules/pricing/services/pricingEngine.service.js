@@ -262,7 +262,19 @@ export const calculateTransactionPricing = async ({
 
     // For debit transactions (e.g. DMT, BBPS, CMS): principal + total charges - commission
     const netDebitAmount = round2(numAmount + totalChargesDeducted - finalRetailerCommission);
-
+   console.log("[PRICING DEBUG] Transaction Details:", {
+      service,
+      category: resolvedCategoryName || category,
+      amount: numAmount,
+      planName: plan.name,
+      pricingList,
+      hasDistributor: Boolean(distributorId),
+      distributorId,
+      retailerCommission,
+      distributorCommission,
+      finalRetailerCommission,
+      finalDistributorCommission,
+    });
     return {
       planId: plan._id,
       planName: plan.name,
