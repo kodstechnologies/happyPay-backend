@@ -72,7 +72,6 @@ router.post(
 // UPI State List with pagination
 router.post(
   "/state-list",
-  authMiddleware,
   // validate(paginationSchema, "body"),
   getUpiStateListController
 );
@@ -80,7 +79,6 @@ router.post(
 // UPI District List by State Code with pagination
 router.post(
   "/district",
-  authMiddleware,
   // validate(districtPaginationSchema, "body"),
   getUpiDistrictController
 );
