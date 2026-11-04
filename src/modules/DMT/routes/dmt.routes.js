@@ -45,7 +45,7 @@ router.post(
   "/register-remitter",
   authMiddleware,
   validate(remitterRegisterSchema, "body"),
-  registerRemitterControllers
+  registerRemitterController
 );
 
 router.post(
