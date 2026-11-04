@@ -43,7 +43,7 @@ export const getRemitterDetailsController = asyncHandler(async (req, res) => {
     outletid: req.user?.outletid || req.user?.outletId || authFields.outletid,
   };
   const result = await getRemitterDetailsService(payload);
-
+console.log("result===========", result);
   const message = result?.isNewRegistration
     ? "New remitter detected. Registration initiated and OTP sent."
     : "Remitter details fetched successfully";
