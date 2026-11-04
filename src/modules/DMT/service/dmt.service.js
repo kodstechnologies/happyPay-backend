@@ -32,7 +32,7 @@ import {
 
 export const getRemitterDetailsService = async (payload = {}) => {
   const loginResult = await loginRemitter(payload);
-
+console.log("loginResult", loginResult);
   const msg = String(loginResult?.msg || loginResult?.message || "").toLowerCase();
   const isNotFound =
     msg.includes("not found") ||
