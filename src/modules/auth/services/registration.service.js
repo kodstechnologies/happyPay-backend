@@ -688,6 +688,11 @@ const updateAadhaarDetails = async (body = {}, files = {}) => {
   // Process file upload
   const aadhaarDocument = files.aadhaarDocument?.[0]?.path;
 
+  // Ensure aadhaar consent is true
+  if (body.aadhaarConsent !== true) {
+    throw fail(400, "Aadhaar consent must be provided");
+  }
+
   // Update user data (all already validated by Joi and multer middleware)
   user.aadhaarNumber = aadhaarNumber;
   user.aadhaarConsent = body.aadhaarConsent;
