@@ -124,6 +124,12 @@ const planSchema = new mongoose.Schema(
       required: true,
     },
 
+    subscriptionAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
     services: {
       type: [planServiceSchema],
       default: [],

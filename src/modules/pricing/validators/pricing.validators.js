@@ -8,6 +8,11 @@ export const parseFormDataFields = (req, res, next) => {
     req.body.validityPeriod = parseInt(req.body.validityPeriod, 10);
   }
 
+  // Parse subscriptionAmount from form-data string to number
+  if (req.body.subscriptionAmount !== undefined && typeof req.body.subscriptionAmount === "string") {
+    req.body.subscriptionAmount = parseFloat(req.body.subscriptionAmount);
+  }
+
   next();
 };
 
@@ -156,6 +161,14 @@ export const createPlanSchema = Joi.object({
       "any.required": "Validity unit is required",
       "any.only": "Validity unit must be DAYS, MONTHS, or YEARS",
     }),
+  subscriptionAmount: Joi.number()
+    .min(0)
+    .required()
+    .messages({
+      "any.required": "Subscription amount is required",
+      "number.base": "Subscription amount must be a number",
+      "number.min": "Subscription amount must be greater than or equal to 0",
+    }),
   status: Joi.string()
     .valid("ACTIVE", "INACTIVE")
     .default("INACTIVE")
@@ -202,6 +215,13 @@ export const updatePlanSchema = Joi.object({
     .optional()
     .messages({
       "any.only": "Validity unit must be DAYS, MONTHS, or YEARS",
+    }),
+  subscriptionAmount: Joi.number()
+    .min(0)
+    .optional()
+    .messages({
+      "number.base": "Subscription amount must be a number",
+      "number.min": "Subscription amount must be greater than or equal to 0",
     }),
   status: Joi.string()
     .valid("ACTIVE", "INACTIVE")
@@ -480,8 +500,8 @@ export const validateGetCommissionChargeQuery = (req, res, next) => {
     value.category !== undefined
       ? value.category
       : value.categoryName !== undefined
-      ? value.categoryName
-      : value.categoryId;
+        ? value.categoryName
+        : value.categoryId;
 
   if (resolvedCategory !== undefined && resolvedCategory !== "") {
     req.query.category = resolvedCategory;

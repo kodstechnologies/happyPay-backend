@@ -1081,6 +1081,14 @@ const cashDepositController = async (req, res) => {
       const bankName = String(result?.name || bankiin || "Bank").trim();
       const aadharMasked = aadhaar ? `•••• •••• ${String(aadhaar).slice(-4)}` : "";
 
+      // Calculate commission & charges from the retailer's active plan
+      const pricing = await calculateTransactionPricing({
+        userId,
+        service: "AEPS",
+        category: "Cash Deposit",
+        amount: depositAmount,
+      });
+
       try {
         await processServiceWalletTransaction({
           userId,
@@ -1088,6 +1096,11 @@ const cashDepositController = async (req, res) => {
           amount: Number(result?.amount || depositAmount),
           service: "AEPS",
           transactionId: aepsTxnId,
+          commissionEarned: pricing.retailerCommission,
+          charges: pricing.charges,
+          distributorCommission: pricing.distributorCommission,
+          distributorId: pricing.distributorId,
+          commissionBreakdown: pricing.commissionBreakdown,
           payee: {
             bankName,
             aadharNumber: aadharMasked || undefined,

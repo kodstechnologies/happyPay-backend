@@ -19,6 +19,7 @@ import "../../AEPS/model/aepsEkyc.model.js";
 import { validatePincode } from "./pincode.service.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
 import Role from "../model/role.model.js";
+import { subscribeToDefaultPlan } from "../../pricing/services/pricing.services.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -808,6 +809,9 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
       console.warn("Admin notification send failed:", notifError?.message);
     });
   }
+
+  // Auto-subscribe the new retailer to the Default Plan (non-blocking)
+  await subscribeToDefaultPlan(user._id);
 
   return {
     userId: user._id,

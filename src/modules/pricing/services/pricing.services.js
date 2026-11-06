@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 import {
   createPlan,
   getPlans,
@@ -166,6 +166,7 @@ const subscribeToPlan = async (planId, userId) => {
   console.log(`📧 User Email    : ${user.email || "N/A"}`);
   console.log(`📦 Plan Name     : ${plan.name} (ID: ${plan._id})`);
   console.log(`⏱️ Validity      : ${validityPeriod} ${validityUnit}`);
+  console.log(`💰 Amount        : ${plan.subscriptionAmount ?? "N/A"}`);
   console.log(`📅 Subscribed At : ${subscribedAt.toISOString()}`);
   console.log(`⏳ Expires At    : ${expiresAt.toISOString()}`);
   console.log(`🆔 Subscription  : ${subscription._id}`);
@@ -494,4 +495,56 @@ export {
   subscribeToPlan,
   getSubscribedPlans,
   fetchCommissionAndCharge,
+  subscribeToDefaultPlan,
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-subscribe a new retailer to the Default Plan on registration completion.
+//
+// - Looks up the active plan named "Default Plan"
+// - Skips silently if no such plan exists (safe — won't block registration)
+// - Skips if the user already has an active subscription
+// - Creates a non-expiring subscription (expiresAt = null) so the retailer is
+//   always covered by the Default Plan until they manually subscribe to another
+// ─────────────────────────────────────────────────────────────────────────────
+async function subscribeToDefaultPlan(userId) {
+  try {
+    if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) return;
+
+    // 1. Find the Default Plan (must be ACTIVE)
+    const defaultPlan = await findOnePlan({ name: "Default Plan", status: "ACTIVE" });
+    if (!defaultPlan) {
+      console.warn("[subscribeToDefaultPlan] No active Default Plan found — skipping auto-subscribe.");
+      return;
+    }
+
+    // 2. Skip if user already has a live subscription (e.g. registered twice)
+    const existingActiveSub = await Subscription.findOne({
+      userId,
+      isExpired: false,
+      cancelledAt: null,
+    });
+    if (existingActiveSub) {
+      console.log(`[subscribeToDefaultPlan] User ${userId} already has an active subscription — skipping.`);
+      return;
+    }
+
+    // 3. Create subscription with no expiry so it acts as a permanent default
+    const subscribedAt = new Date();
+    const subscription = await Subscription.create({
+      planId: defaultPlan._id,
+      userId,
+      subscribedAt,
+      expiresAt: null,   // null = never expires unless replaced
+      isExpired: false,
+    });
+
+    // 4. Link subscription ID onto the user document
+    await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+
+    console.log(`[subscribeToDefaultPlan] User ${userId} auto-subscribed to Default Plan (sub: ${subscription._id})`);
+  } catch (err) {
+    // Non-blocking — log and continue so registration is never interrupted
+    console.error("[subscribeToDefaultPlan] Failed (non-fatal):", err?.message || err);
+  }
+}
