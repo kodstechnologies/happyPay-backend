@@ -52,6 +52,7 @@ const buildRetailerResponse = (user, ekycDoc = null) => {
     isMobileVerified: user.isMobileVerified,
     panNumber: user.panNumber,
     aadhaarNumber: user.aadhaarNumber,
+    aadhaarConsent: user.aadhaarConsent,
     dateOfBirth: user.dateOfBirth
       ? new Date(user.dateOfBirth).toISOString().slice(0, 10)
       : null,
