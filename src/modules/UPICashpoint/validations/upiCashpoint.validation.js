@@ -132,124 +132,54 @@ const merchantRegistrationSchema = Joi.object({
       "string.empty": "User ID cannot be empty",
     }),
 
-  stateCode: Joi.string().trim().required().messages({
-    "any.required": "stateCode is required",
-    "string.empty": "stateCode cannot be empty",
-  }),
-  fathername: Joi.string().trim().required().messages({
-    "any.required": "fathername is required",
-    "string.empty": "fathername cannot be empty",
-  }),
-  mothername: Joi.string().trim().required().messages({
-    "any.required": "mothername is required",
-    "string.empty": "mothername cannot be empty",
-  }),
-  firstname: Joi.string().trim().required().messages({
-    "any.required": "firstname is required",
-    "string.empty": "firstname cannot be empty",
-  }),
-  lastname: Joi.string().trim().required().messages({
-    "any.required": "lastname is required",
-    "string.empty": "lastname cannot be empty",
-  }),
-  dob: Joi.string().trim().required().messages({
-    "any.required": "dob is required",
-    "string.empty": "dob cannot be empty",
-  }),
-  email: Joi.string().trim().email().required().messages({
-    "any.required": "email is required",
-    "string.empty": "email cannot be empty",
+  // All 24 KYC/profile fields are optional in the request body —
+  // the service fills them automatically from the retailer's DB record
+  // when only userId is supplied. Pass these only to explicitly override
+  // a value that differs from what is stored in the database.
+  stateCode: Joi.string().trim().optional(),
+  fathername: Joi.string().trim().optional(),
+  mothername: Joi.string().trim().optional(),
+  firstname: Joi.string().trim().optional(),
+  lastname: Joi.string().trim().optional(),
+  dob: Joi.string().trim().optional(),
+  email: Joi.string().trim().email().optional().messages({
     "string.email": "Please provide a valid email address",
   }),
   phone: Joi.alternatives()
-    .try(
-      Joi.string().trim().min(10),
-      Joi.number()
-    )
-    .required()
-    .messages({
-      "any.required": "phone is required",
-      "string.empty": "phone cannot be empty",
-    }),
-  latitude: latitudeRule,
-  longitude: longitudeRule,
-  txnid: Joi.string().trim().required().messages({
-    "any.required": "txnid is required",
-    "string.empty": "txnid cannot be empty",
-  }),
+    .try(Joi.string().trim().min(10), Joi.number())
+    .optional(),
+  latitude: Joi.alternatives()
+    .try(Joi.number().min(-90).max(90), Joi.string().trim().min(1))
+    .optional(),
+  longitude: Joi.alternatives()
+    .try(Joi.number().min(-180).max(180), Joi.string().trim().min(1))
+    .optional(),
+  txnid: Joi.string().trim().optional(),
   merchantpincode: Joi.alternatives()
-    .try(
-      Joi.string().trim().min(6),
-      Joi.number()
-    )
-    .required()
-    .messages({
-      "any.required": "merchantpincode is required",
-      "string.empty": "merchantpincode cannot be empty",
-    }),
-  panno: Joi.string().trim().required().messages({
-    "any.required": "panno is required",
-    "string.empty": "panno cannot be empty",
-  }),
+    .try(Joi.string().trim().min(6), Joi.number())
+    .optional(),
+  panno: Joi.string().trim().optional(),
   accountnumber: Joi.alternatives()
-    .try(
-      Joi.string().trim().min(1),
-      Joi.number()
-    )
-    .required()
-    .messages({
-      "any.required": "accountnumber is required",
-      "string.empty": "accountnumber cannot be empty",
-    }),
-  ifsc: Joi.string().trim().required().messages({
-    "any.required": "ifsc is required",
-    "string.empty": "ifsc cannot be empty",
-  }),
-  bankname: Joi.string().trim().required().messages({
-    "any.required": "bankname is required",
-    "string.empty": "bankname cannot be empty",
-  }),
+    .try(Joi.string().trim().min(1), Joi.number())
+    .optional(),
+  ifsc: Joi.string().trim().optional(),
+  bankname: Joi.string().trim().optional(),
   aadharno: Joi.alternatives()
-    .try(
-      Joi.string().trim().min(12),
-      Joi.number()
-    )
-    .required()
-    .messages({
-      "any.required": "aadharno is required",
-      "string.empty": "aadharno cannot be empty",
-    }),
-  state: Joi.string().trim().required().messages({
-    "any.required": "state is required",
-    "string.empty": "state cannot be empty",
-  }),
-  shopname: Joi.string().trim().required().messages({
-    "any.required": "shopname is required",
-    "string.empty": "shopname cannot be empty",
-  }),
-  address: Joi.string().trim().required().messages({
-    "any.required": "address is required",
-    "string.empty": "address cannot be empty",
-  }),
-  gender: Joi.string().trim().required().messages({
-    "any.required": "gender is required",
-    "string.empty": "gender cannot be empty",
-  }),
-  maritalstatus: Joi.string().trim().required().messages({
-    "any.required": "maritalstatus is required",
-    "string.empty": "maritalstatus cannot be empty",
-  }),
-  ipaddress: Joi.string().trim().required().messages({
-    "any.required": "ipaddress is required",
-    "string.empty": "ipaddress cannot be empty",
-  }),
-  district: Joi.string().trim().required().messages({
-    "any.required": "district is required",
-    "string.empty": "district cannot be empty",
-  }),
+    .try(Joi.string().trim().min(12), Joi.number())
+    .optional(),
+  state: Joi.string().trim().optional(),
+  shopname: Joi.string().trim().optional(),
+  address: Joi.string().trim().optional(),
+  gender: Joi.string().trim().optional(),
+  maritalstatus: Joi.string().trim().optional(),
+  ipaddress: Joi.string().trim().optional(),
+  district: Joi.string().trim().optional(),
 })
   .or("userId", "userid")
   .unknown(true)
+  .messages({
+    "object.missing": "userId is required in request body",
+  })
   .messages({
     "object.missing": "userId is required in request body",
   });

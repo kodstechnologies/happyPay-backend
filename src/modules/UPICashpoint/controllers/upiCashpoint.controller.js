@@ -1,6 +1,7 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
+import UpiEkyc from "../models/upiEkyc.model.js";
 import {
   initiateUpiCashpointService,
   merchantRegistrationService,
@@ -106,9 +107,29 @@ const merchantRegistrationController = asyncHandler(async (req, res) => {
     clientIp,
   });
 
+  // Upsert UpiEkyc document — create if not exists, update merchantId if already there
+  const returnedMerchantId =
+    result?.merchantId ||
+    result?.merchant_id ||
+    result?.data?.merchantId ||
+    result?.data?.merchant_id ||
+    null;
+
+  if (returnedMerchantId) {
+    const upiEkyc = await UpiEkyc.findOneAndUpdate(
+      { userId },
+      { merchantId: String(returnedMerchantId), eKYCStatus: "PENDING" },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // Link UpiEkyc doc back onto the User if not already linked
+    const User = (await import("../../auth/model/user.model.js")).default;
+    await User.findByIdAndUpdate(userId, { UpiEkyc: upiEkyc._id });
+  }
+
   return res.status(200).json(
     ApiResponse.success(
-      result,
+      { ...result, merchantId: returnedMerchantId },
       result?.msg || result?.message || "Merchant registered successfully"
     )
   );
