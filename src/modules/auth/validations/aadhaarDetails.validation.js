@@ -40,7 +40,7 @@ const aadhaarDetailsSchema = Joi.object({
     }),
 
   aadhaarConsent: Joi.boolean()
-    .valid(Joi.boolean().valid(true))
+    .valid(true)
     .required()
     .messages({
       "boolean.base": "Aadhaar consent must be true or false",
