@@ -155,40 +155,66 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
     overrides.txnid ||
     generate15CharTxnId("TXN");
 
+  // Pre-resolve fields that the external provider marks as required
+  const resolvedMothername = String(overrides.mothername || retailer.motherName || "").trim();
+  const resolvedShopname   = String(overrides.shopname   || shop.name            || "").trim();
+  const resolvedStateFinal = String(resolvedState).trim();
+  // Provider expects a bank CODE (e.g. "SBI"), not the full name — prefer bank_code over name
+  const resolvedBankname   = String(overrides.bankname || primaryBank.bank_code || primaryBank.name || "").trim();
+
+  // Pre-flight validation: surface missing required fields before hitting external API
+  const missingFields = [];
+  if (!resolvedMothername) missingFields.push("mothername — set retailer.motherName in profile");
+  if (!resolvedShopname)   missingFields.push("shopname — set shop.name in profile");
+  if (!resolvedStateFinal) missingFields.push("state — set shop.address.state in profile");
+  if (!resolvedBankname)   missingFields.push("bankname/bank_code — add bank details with bank_code in profile");
+
+  if (missingFields.length > 0) {
+    throw fail(
+      422,
+      "Merchant registration cannot proceed: required fields are missing from the retailer profile. " +
+        "Please update the profile and try again.",
+      { missingFields }
+    );
+  }
+
   // Build payload using strictly and exclusively the 24 required external fields
   const payload = {
-    stateCode: String(resolvedStateCode).trim(),
-    fathername: String(overrides.fathername || retailer.fatherName || "").trim(),
-    mothername: String(overrides.mothername || retailer.motherName || "").trim(),
-    firstname: String(overrides.firstname || derivedFirstname || "").trim(),
-    lastname: String(overrides.lastname || derivedLastname || "").trim(),
-    dob: String(resolvedDob).trim(),
-    email: String(overrides.email || retailer.email || "").trim(),
-    phone: String(overrides.phone || overrides.mobile || retailer.mobile || "").trim(),
-    latitude: overrides.latitude !== undefined && overrides.latitude !== null && overrides.latitude !== ""
-      ? String(overrides.latitude).trim()
-      : shop.location?.latitude !== undefined && shop.location?.latitude !== null
-        ? String(shop.location.latitude).trim()
-        : "",
-    longitude: overrides.longitude !== undefined && overrides.longitude !== null && overrides.longitude !== ""
-      ? String(overrides.longitude).trim()
-      : shop.location?.longitude !== undefined && shop.location?.longitude !== null
-        ? String(shop.location.longitude).trim()
-        : "",
-    txnid: String(resolvedTxnId).trim(),
+    stateCode:       String(resolvedStateCode).trim(),
+    fathername:      String(overrides.fathername || retailer.fatherName || "").trim(),
+    mothername:      resolvedMothername,
+    firstname:       String(overrides.firstname || derivedFirstname || "").trim(),
+    lastname:        String(overrides.lastname  || derivedLastname  || "").trim(),
+    dob:             String(resolvedDob).trim(),
+    email:           String(overrides.email  || retailer.email  || "").trim(),
+    phone:           String(overrides.phone  || overrides.mobile || retailer.mobile || "").trim(),
+    latitude:
+      overrides.latitude !== undefined && overrides.latitude !== null && overrides.latitude !== ""
+        ? String(overrides.latitude).trim()
+        : shop.location?.latitude !== undefined && shop.location?.latitude !== null
+          ? String(shop.location.latitude).trim()
+          : "",
+    longitude:
+      overrides.longitude !== undefined && overrides.longitude !== null && overrides.longitude !== ""
+        ? String(overrides.longitude).trim()
+        : shop.location?.longitude !== undefined && shop.location?.longitude !== null
+          ? String(shop.location.longitude).trim()
+          : "",
+    txnid:           String(resolvedTxnId).trim(),
     merchantpincode: String(overrides.merchantpincode || overrides.pincode || shopAddress.pincode || "").trim(),
-    panno: String(overrides.panno || overrides.pan || retailer.panNumber || "").trim(),
-    accountnumber: String(overrides.accountnumber || primaryBank.accountNumber || "").trim(),
-    ifsc: String(overrides.ifsc || primaryBank.ifscCode || "").trim(),
-    bankname: String(overrides.bankname || primaryBank.name || "").trim(),
-    aadharno: String(overrides.aadharno || overrides.aadhaar || retailer.aadhaarNumber || "").trim(),
-    state: String(resolvedState).trim(),
-    shopname: String(overrides.shopname || shop.name || "").trim(),
-    address: String(overrides.address || fullAddress).trim(),
-    gender: String(resolvedGender).trim(),
-    maritalstatus: String(resolvedMaritalStatus).trim(),
-    ipaddress: String(overrides.ipaddress || clientIp || "127.0.0.1").trim(),
-    district: String(overrides.district || shopAddress.district || shopAddress.city || "").trim(),
+    panno:           String(overrides.panno || overrides.pan || retailer.panNumber || "").trim(),
+    accountnumber:   String(overrides.accountnumber || primaryBank.accountNumber || "").trim(),
+    ifsc:            String(overrides.ifsc || primaryBank.ifscCode || "").trim(),
+    // Provider requires a bank CODE (e.g. "SBI"), not the full bank name
+    bankname:        resolvedBankname,
+    aadharno:        String(overrides.aadharno || overrides.aadhaar || retailer.aadhaarNumber || "").trim(),
+    state:           resolvedStateFinal,
+    shopname:        resolvedShopname,
+    address:         String(overrides.address || fullAddress).trim(),
+    gender:          String(resolvedGender).trim(),
+    maritalstatus:   String(resolvedMaritalStatus).trim(),
+    ipaddress:       String(overrides.ipaddress || clientIp || "127.0.0.1").trim(),
+    district:        String(overrides.district || shopAddress.districtName || shopAddress.city || "").trim(),
   };
 
   return await merchantRegistration(payload);
@@ -358,3 +384,4 @@ export {
   getUpiStateListService,
   getUpiDistrictService,
 };
+
