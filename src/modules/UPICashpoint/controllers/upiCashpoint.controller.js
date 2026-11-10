@@ -17,7 +17,12 @@ import {
  * Controller to initiate UPI Cashpoint payment
  */
 const initiateUpiCashpointController = asyncHandler(async (req, res) => {
-  const txnid = req.body.txnid || generate15CharTxnId("TXN");
+  const userId =
+    req.user?.userId ||
+    req.user?._id ||
+    req.user?.id ||
+    req.body?.userId;
+
   const merchantLoginId =
     req.body.merchantLoginId ||
     req.user?.outletid ||
@@ -26,6 +31,28 @@ const initiateUpiCashpointController = asyncHandler(async (req, res) => {
     req.user?.userId ||
     "HAPPY_PAY_MERCHANT";
 
+  // Check eKYC status before initiating payment - eKYC must be COMPLETED
+  if (userId || merchantLoginId) {
+    const upiEkyc = await UpiEkyc.findOne({
+      $or: [
+        ...(userId ? [{ userId }] : []),
+        ...(merchantLoginId ? [{ merchantId: String(merchantLoginId).trim() }] : []),
+      ],
+    });
+
+    if (!upiEkyc || upiEkyc.eKYCStatus !== "COMPLETED") {
+      return res.status(403).json(
+        ApiResponse.error(
+          "Merchant eKYC verification is required before initiating payments.",
+          null,
+          null,
+          403
+        )
+      );
+    }
+  }
+
+  const txnid = req.body.txnid || generate15CharTxnId("TXN");
   const payload = {
     ...req.body,
     txnid,
@@ -68,10 +95,31 @@ const merchantRegistrationVerifyController = asyncHandler(async (req, res) => {
 
   const result = await merchantRegistrationVerifyService({ merchantId, otp });
 
+  const msg = String(result?.msg || result?.message || "").trim();
+  const statusUpper = String(result?.status || "").toUpperCase();
+
+  // Validate that OTP verification actually succeeded ("OTP VERIFIED.")
+  const isVerified =
+    statusUpper === "SUCCESS" ||
+    result?.status === true ||
+    /otp\s*verified/i.test(msg) ||
+    msg === "OTP VERIFIED.";
+
+  if (!isVerified || statusUpper === "ERROR" || statusUpper === "FAILED" || result?.status === false) {
+    return res.status(400).json(
+      ApiResponse.error(
+        msg || "OTP verification failed. Please enter a valid OTP.",
+        result,
+        null,
+        400
+      )
+    );
+  }
+
   return res.status(200).json(
     ApiResponse.success(
       result,
-      result?.msg || result?.message || "Merchant registration verified successfully"
+      result?.msg || result?.message || "OTP VERIFIED."
     )
   );
 });
@@ -178,6 +226,29 @@ const merchantEkycController = asyncHandler(async (req, res) => {
   const { merchantId, pidData } = req.body;
 
   const result = await merchantEkycService({ merchantId, pidData });
+
+  const msg = String(result?.msg || result?.message || "").trim();
+  const statusUpper = String(result?.status || "").toUpperCase();
+
+  if (statusUpper === "ERROR" || statusUpper === "FAILED" || result?.status === false) {
+    return res.status(400).json(
+      ApiResponse.error(
+        msg || "Merchant eKYC failed. Please verify biometric data and try again.",
+        result,
+        null,
+        400
+      )
+    );
+  }
+
+  // Update eKYCStatus to COMPLETED upon successful eKYC verification
+  if (merchantId) {
+    await UpiEkyc.findOneAndUpdate(
+      { merchantId: String(merchantId).trim() },
+      { eKYCStatus: "COMPLETED", eKYCRejectionReason: null },
+      { new: true }
+    );
+  }
 
   return res.status(200).json(
     ApiResponse.success(
