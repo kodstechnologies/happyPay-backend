@@ -433,8 +433,9 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     const errorMsgLower = String(errorMsg).toLowerCase();
     
     // Specific handling for "activation is pending at the bank" error
-    if (errorMsgLower.includes("activation is pending") || 
+    if (errorMsgLower.includes("activation is pending") ||
         errorMsgLower.includes("pending at the bank") ||
+        errorMsgLower.includes("pending from the bank") ||
         errorMsgLower.includes("try again later")) {
       
       console.log("Detected bank activation pending error, setting eKYC status to PENDING");
