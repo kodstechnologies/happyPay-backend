@@ -137,9 +137,9 @@ router.get(
   getBankListController
 );
 
++
 
-
-router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);
+  router.post("/check-ekyc", validate(doEkycSchema, "body"), doEkycController);
 router.post("/do-bio-ekyc", validate(doBioEkycSchema, "body"), doBioEkycController);
 
 export default router;  

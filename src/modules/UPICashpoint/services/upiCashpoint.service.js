@@ -175,7 +175,7 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
   const payload = {
     stateCode:       String(resolvedStateCode).trim(),
     fathername:      String(overrides.fathername || retailer.fatherName || "").trim(),
-    mothername:      resolvedMothername,
+    mothername:      String(resolvedMothername).trim(),
     firstname:       String(overrides.firstname || derivedFirstname || "").trim(),
     lastname:        String(overrides.lastname  || derivedLastname  || "").trim(),
     dob:             String(resolvedDob).trim(),
