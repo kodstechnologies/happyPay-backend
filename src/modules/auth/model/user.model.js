@@ -129,6 +129,11 @@ const userSchema = new mongoose.Schema(
           trim: true,
         },
 
+        stateCode: {
+          type: String,
+          trim: true,
+        },
+
         pincode: {
           type: String,
           trim: true,
@@ -165,11 +170,6 @@ const userSchema = new mongoose.Schema(
     // Retailer Details
     // =========================
     fullName: {
-      type: String,
-      trim: true,
-    },
-
-    lastName: {
       type: String,
       trim: true,
     },

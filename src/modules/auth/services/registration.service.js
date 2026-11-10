@@ -590,6 +590,8 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (propertyTypeId) user.shop.propertyType = propertyTypeId;
 
   const finalState = (body.state && String(body.state).trim()) || detectedState || user.shop?.address?.state;
+  const finalStateCode = (body.stateCode && String(body.stateCode).trim()) || user.shop?.address?.stateCode;
+  
   if (!finalState) {
     throw fail(400, "State is required");
   }
@@ -598,6 +600,7 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (city) user.shop.address.city = city.trim();
   if (pincode) user.shop.address.pincode = pincode.trim();
   if (finalState) user.shop.address.state = finalState.trim();
+  if (finalStateCode) user.shop.address.stateCode = finalStateCode.trim();
   if (address) user.shop.completeAddress = address.trim();
 
   // Store district name and district code if provided
