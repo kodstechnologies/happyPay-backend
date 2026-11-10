@@ -79,15 +79,6 @@ const formatDateToDDMMYYYY = (value) => {
   return `${day}-${month}-${year}`;
 };
 
-const splitFullName = (fullName = "") => {
-  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstname: "", lastname: "" };
-  if (parts.length === 1) return { firstname: parts[0], lastname: parts[0] };
-  const firstname = parts[0];
-  const lastname = parts.slice(1).join(" ");
-  return { firstname, lastname };
-};
-
 const initiateUpiCashpointService = async (payload = {}) => {
   return await initiateUpiCashpointPayment(payload);
 };
@@ -123,13 +114,15 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
       .join(", ") ||
     "";
 
-  // Name extraction
-  const { firstname: derivedFirstname, lastname: derivedLastname } = splitFullName(retailer.fullName);
+  // Name extraction - use firstName and lastName from DB directly
+  const derivedFirstname = retailer.firstName || "";
+  const derivedLastname = retailer.lastName || "";
 
-  // State and stateCode derivation
+  // State and stateCode derivation - use stateCode from DB directly
   const resolvedState = overrides.state || shopAddress.state || "";
   const resolvedStateCode =
     overrides.stateCode ||
+    shopAddress.stateCode ||
     retailer.stateCode ||
     mapStateToCode(resolvedState) ||
     "";
@@ -208,7 +201,7 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
     // Provider requires a bank CODE (e.g. "SBI"), not the full bank name
     bankname:        resolvedBankname,
     aadharno:        String(overrides.aadharno || overrides.aadhaar || retailer.aadhaarNumber || "").trim(),
-    state:           resolvedStateFinal,
+    state:           String(resolvedStateCode).trim(),
     shopname:        resolvedShopname,
     address:         String(overrides.address || fullAddress).trim(),
     gender:          String(resolvedGender).trim(),
