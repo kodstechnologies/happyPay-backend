@@ -414,7 +414,54 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   console.log("========== DO BIO EKYC PAYLOAD ==========");
   console.log("payload:", payload);
   console.log("=======================================");
-  const result = await doBioEkyc(payload);
+  
+  let result;
+  try {
+    result = await doBioEkyc(payload);
+  } catch (error) {
+    console.log("doBioEkyc error:", error);
+    
+    // Check for specific "pending at bank" error message
+    const errorMsg = 
+      error?.message ||
+      error?.response?.data?.message ||
+      error?.response?.data?.msg ||
+      error?.providerData?.message ||
+      error?.providerData?.msg ||
+      "";
+    
+    const errorMsgLower = String(errorMsg).toLowerCase();
+    
+    // Specific handling for "activation is pending at the bank" error
+    if (errorMsgLower.includes("activation is pending") || 
+        errorMsgLower.includes("pending at the bank") ||
+        errorMsgLower.includes("try again later")) {
+      
+      console.log("Detected bank activation pending error, setting eKYC status to PENDING");
+      
+      // Set eKYC status to PENDING
+      if (userId) {
+        await updateEKYCStatus(userId, "PENDING", errorMsg);
+      }
+      
+      // Return success with PENDING status so frontend shows the "Do Bio KYC" button
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: error?.providerData || error?.response?.data,
+            eKYCStatus: "PENDING",
+            message: errorMsg,
+            kycRequired: true,
+          },
+          "Your AePS activation is pending at the bank. Please try again later."
+        )
+      );
+    }
+    
+    // For other errors, re-throw
+    throw error;
+  }
+  
   console.log("====================================result", result);
 
   // Extract referenceKey and pidOptionWadh from the provider response
