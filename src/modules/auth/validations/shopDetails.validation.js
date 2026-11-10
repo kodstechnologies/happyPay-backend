@@ -71,6 +71,15 @@ const shopDetailsSchema = Joi.object({
       "string.max": "State must not exceed 50 characters",
     }),
 
+  stateCode: Joi.string()
+    .trim()
+    .max(10)
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.max": "State code must not exceed 10 characters",
+    }),
+
   pincode: Joi.string()
     .trim()
     .pattern(/^\d{6}$/)

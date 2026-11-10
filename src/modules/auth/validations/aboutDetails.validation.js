@@ -33,6 +33,18 @@ const aboutDetailsSchema = Joi.object({
       "string.max": "Full name must not exceed 100 characters",
     }),
 
+  lastName: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .required()
+    .messages({
+      "any.required": "Last name is required",
+      "string.empty": "Last name is required",
+      "string.min": "Last name must be at least 2 characters",
+      "string.max": "Last name must not exceed 100 characters",
+    }),
+
   dateOfBirth: Joi.string()
     .trim()
     .required()

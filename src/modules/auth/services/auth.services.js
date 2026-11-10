@@ -569,6 +569,7 @@ const retailerRegister = async (data) => {
   const {
     mobile,
     name,
+    lastName,
     gender,
     pan,
     email,
@@ -662,6 +663,7 @@ const retailerRegister = async (data) => {
   const mappedData = {
     ...data,
     fullName: providerResult?.data?.name || name,
+    lastName: data.lastName || "",
     aadhaarNumber: data.aadhaar,
     dateOfBirth: providerResult?.data?.dateOfBirth
       ? new Date(providerResult.data.dateOfBirth)
@@ -980,7 +982,9 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     registrationStatus: retailer.registrationStatus,
     currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
     fullName: retailer.fullName,
+    lastName: retailer.lastName,
     fatherName: retailer.fatherName,
+    motherName: retailer.motherName,
     gender: retailer.gender,
     maritalStatus: retailer.maritalStatus,
     educationalQualification: retailer.educationalQualification,
@@ -1128,6 +1132,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
 
   // Personal fields update
   if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
+  if (body.lastName !== undefined) user.lastName = String(body.lastName).trim();
   if (body.fatherName !== undefined) user.fatherName = String(body.fatherName).trim();
   if (body.motherName !== undefined) user.motherName = String(body.motherName).trim();
   if (body.gender !== undefined) user.gender = String(body.gender).trim();

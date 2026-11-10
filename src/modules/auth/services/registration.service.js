@@ -48,6 +48,7 @@ const buildRetailerResponse = (user, ekycDoc = null) => {
     id: user._id,
     mobile: user.mobile,
     fullName: user.fullName,
+    lastName: user.lastName || null,
     email: user.email,
     isEmailVerified: user.isEmailVerified,
     isMobileVerified: user.isMobileVerified,
@@ -605,6 +606,10 @@ const updateShopDetails = async (body = {}, files = {}) => {
   if (districtName) user.shop.address.districtName = String(districtName).trim();
   if (districtCode) user.shop.address.districtCode = String(districtCode).trim();
 
+  // Store state code if provided
+  const stateCode = body.stateCode || body.state_code;
+  if (stateCode) user.shop.address.stateCode = String(stateCode).trim();
+
   // Update location
   if (body.latitude !== undefined && body.latitude !== null && body.latitude !== "") {
     if (!user.shop.location) user.shop.location = {};
@@ -652,6 +657,7 @@ const updateAboutDetails = async (body = {}, files = {}) => {
 
   // Update user data
   user.fullName = fullName.trim();
+  user.lastName = body.lastName ? body.lastName.trim() : "";
   user.dateOfBirth = new Date(parsedDob);
   user.gender = body.gender.trim();
   user.maritalStatus = body.maritalStatus.trim();

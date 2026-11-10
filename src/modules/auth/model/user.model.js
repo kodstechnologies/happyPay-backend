@@ -169,6 +169,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    lastName: {
+      type: String,
+      trim: true,
+    },
+
     fatherName: {
       type: String,
       trim: true,

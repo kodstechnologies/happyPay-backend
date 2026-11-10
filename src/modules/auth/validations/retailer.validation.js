@@ -53,6 +53,11 @@ export const registerRetailerSchema = Joi.object({
     "string.empty": "name is required",
   }),
 
+  lastName: Joi.string().trim().required().messages({
+    "any.required": "lastName is required",
+    "string.empty": "lastName is required",
+  }),
+
   gender: Joi.string().trim().required().messages({
     "any.required": "gender is required",
     "string.empty": "gender is required",
