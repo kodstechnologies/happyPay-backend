@@ -65,6 +65,11 @@ const mapStateToCode = (stateName = "") => {
   return STATE_CODE_MAP[cleaned] || "";
 };
 
+const lettersOnly = (str = "") => {
+  if (!str || typeof str !== "string") return "";
+  return str.replace(/[^a-zA-Z]/g, "");
+};
+
 const formatDateToDDMMYYYY = (value) => {
   if (!value) return "";
   if (typeof value === "string") {
@@ -174,10 +179,10 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
   // Build payload using strictly and exclusively the 24 required external fields
   const payload = {
     stateCode:       String(resolvedStateCode).trim(),
-    fathername:      String(overrides.fathername || retailer.fatherName || "").trim(),
-    mothername:      String(resolvedMothername).trim(),
-    firstname:       String(overrides.firstname || derivedFirstname || "").trim(),
-    lastname:        String(overrides.lastname  || derivedLastname  || "").trim(),
+    fathername:      lettersOnly(overrides.fathername || retailer.fatherName || ""),
+    mothername:      lettersOnly(resolvedMothername),
+    firstname:       lettersOnly(overrides.firstname || derivedFirstname || ""),
+    lastname:        lettersOnly(overrides.lastname  || derivedLastname  || ""),
     dob:             String(resolvedDob).trim(),
     email:           String(overrides.email  || retailer.email  || "").trim(),
     phone:           String(overrides.phone  || overrides.mobile || retailer.mobile || "").trim(),
