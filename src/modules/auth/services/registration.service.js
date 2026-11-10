@@ -47,8 +47,9 @@ const buildRetailerResponse = (user, ekycDoc = null) => {
   return {
     id: user._id,
     mobile: user.mobile,
-    fullName: user.fullName,
+    firstName: user.firstName || null,
     lastName: user.lastName || null,
+    fullName: user.fullName,
     email: user.email,
     isEmailVerified: user.isEmailVerified,
     isMobileVerified: user.isMobileVerified,
@@ -651,7 +652,9 @@ const updateAboutDetails = async (body = {}, files = {}) => {
   }
 
   // Process form data (all already validated by Joi)
-  const fullName = body.fullName || body.name;
+  const firstName = body.firstName;
+  const lastName = body.lastName;
+  const fullName = body.fullName || `${firstName} ${lastName}`.trim();
   const dob = body.dob || body.dateOfBirth;
   const parsedDob = toDateOnly(dob);
 
@@ -659,8 +662,9 @@ const updateAboutDetails = async (body = {}, files = {}) => {
   const selfie = files.selfie?.[0]?.path || body.selfie;
 
   // Update user data
+  user.firstName = firstName.trim();
+  user.lastName = lastName.trim();
   user.fullName = fullName.trim();
-  user.lastName = body.lastName ? body.lastName.trim() : "";
   user.dateOfBirth = new Date(parsedDob);
   user.gender = body.gender.trim();
   user.maritalStatus = body.maritalStatus.trim();
@@ -910,6 +914,8 @@ const getCurrentRegistrationStep = async (params = {}) => {
       businessProofDocument: user.businessProofDocument || null,
 
       // Personal/About details
+      firstName: user.firstName || null,
+      lastName: user.lastName || null,
       fullName: user.fullName || null,
       fatherName: user.fatherName || null,
       motherName: user.motherName || null,
@@ -935,7 +941,7 @@ const getCurrentRegistrationStep = async (params = {}) => {
     completedSteps: {
       account: user.isMobileVerified,
       shopDetails: !!(user.shop?.name && user.email),
-      about: !!(user.fullName && user.dateOfBirth && user.gender && user.maritalStatus && user.educationalQualification && user.selfie),
+      about: !!(user.firstName && user.lastName && user.dateOfBirth && user.gender && user.maritalStatus && user.educationalQualification && user.selfie),
       aadhaarDetails: !!user.aadhaarNumber,
       bankDetails: !!(user.banks && user.banks.length > 0),
       submitted: !!user.AepsEkyc,

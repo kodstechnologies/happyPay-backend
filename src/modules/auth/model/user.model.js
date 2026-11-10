@@ -169,6 +169,16 @@ const userSchema = new mongoose.Schema(
     // =========================
     // Retailer Details
     // =========================
+    firstName: {
+      type: String,
+      trim: true,
+    },
+
+    lastName: {
+      type: String,
+      trim: true,
+    },
+
     fullName: {
       type: String,
       trim: true,

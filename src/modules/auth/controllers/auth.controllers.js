@@ -639,6 +639,8 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
 
     return {
       id: u._id.toString(),
+      firstName: u.firstName || null,
+      lastName: u.lastName || null,
       name: u.fullName || u.shop?.name || "Retailer",
       mobile: u.mobile || "",
       email: u.email || "",

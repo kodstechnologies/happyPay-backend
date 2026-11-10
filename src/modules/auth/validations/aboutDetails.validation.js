@@ -21,16 +21,16 @@ const objectId = (label) =>
 const aboutDetailsSchema = Joi.object({
   userId: objectId("User ID"),
 
-  fullName: Joi.string()
+  firstName: Joi.string()
     .trim()
     .min(2)
     .max(100)
     .required()
     .messages({
-      "any.required": "Full name is required",
-      "string.empty": "Full name is required",
-      "string.min": "Full name must be at least 2 characters",
-      "string.max": "Full name must not exceed 100 characters",
+      "any.required": "First name is required",
+      "string.empty": "First name is required",
+      "string.min": "First name must be at least 2 characters",
+      "string.max": "First name must not exceed 100 characters",
     }),
 
   lastName: Joi.string()
@@ -43,6 +43,16 @@ const aboutDetailsSchema = Joi.object({
       "string.empty": "Last name is required",
       "string.min": "Last name must be at least 2 characters",
       "string.max": "Last name must not exceed 100 characters",
+    }),
+
+  fullName: Joi.string()
+    .trim()
+    .min(2)
+    .max(200)
+    .optional()
+    .messages({
+      "string.min": "Full name must be at least 2 characters",
+      "string.max": "Full name must not exceed 200 characters",
     }),
 
   dateOfBirth: Joi.string()

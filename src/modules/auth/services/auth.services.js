@@ -218,6 +218,8 @@ const sendRetailerLoginOtp = async ({ mobile }) => {
     // Include registration details for existing users
     user: {
       id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
       fullName: user.fullName,
       email: user.email,
       isEmailVerified: user.isEmailVerified,
@@ -472,6 +474,8 @@ const verifyRetailerLoginOtp = async ({
       _id: user._id,
       email: user.email,
       mobile: user.mobile,
+      firstName: user.firstName,
+      lastName: user.lastName,
       fullName: user.fullName,
       status: user.status,
       kycStatus: user.kycStatus,
@@ -662,8 +666,9 @@ const retailerRegister = async (data) => {
   // Map flat validation fields to Mongoose schema structure
   const mappedData = {
     ...data,
+    firstName: data.firstName || name.split(" ")[0] || name,
+    lastName: data.lastName || name.split(" ").slice(1).join(" ") || "",
     fullName: providerResult?.data?.name || name,
-    lastName: data.lastName || "",
     aadhaarNumber: data.aadhaar,
     dateOfBirth: providerResult?.data?.dateOfBirth
       ? new Date(providerResult.data.dateOfBirth)
@@ -744,6 +749,8 @@ const retailerRegister = async (data) => {
       id: user._id,
       email: user.email,
       mobile: user.mobile,
+      firstName: user.firstName,
+      lastName: user.lastName,
       fullName: user.fullName,
       outletId: ekycDoc.outletId,
       eKYCStatus: ekycDoc.eKYCStatus,
@@ -880,6 +887,8 @@ const refreshAccessToken = async (refreshToken) => {
       id: user._id,
       email: user.email,
       mobile: user.mobile,
+      firstName: user.firstName,
+      lastName: user.lastName,
       fullName: user.fullName,
       status: user.status,
       kycStatus: user.kycStatus,
@@ -981,8 +990,9 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     isEmailVerified: retailer.isEmailVerified,
     registrationStatus: retailer.registrationStatus,
     currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
-    fullName: retailer.fullName,
+    firstName: retailer.firstName,
     lastName: retailer.lastName,
+    fullName: retailer.fullName,
     fatherName: retailer.fatherName,
     motherName: retailer.motherName,
     gender: retailer.gender,
@@ -1086,6 +1096,8 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     _id: retailer._id,
     mobile: retailer.mobile,
     email: retailer.email || null,
+    firstName: retailer.firstName || null,
+    lastName: retailer.lastName || null,
     fullName: retailer.fullName || null,
     registrationStatus: retailer.registrationStatus,
     currentRegistrationStep: retailer.currentRegistrationStep || "ACCOUNT",
@@ -1131,8 +1143,9 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   }
 
   // Personal fields update
-  if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
+  if (body.firstName !== undefined) user.firstName = String(body.firstName).trim();
   if (body.lastName !== undefined) user.lastName = String(body.lastName).trim();
+  if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
   if (body.fatherName !== undefined) user.fatherName = String(body.fatherName).trim();
   if (body.motherName !== undefined) user.motherName = String(body.motherName).trim();
   if (body.gender !== undefined) user.gender = String(body.gender).trim();
@@ -1471,6 +1484,8 @@ const getRetailerKycDetailsService = async (retailerId) => {
 
   const personalDetails = {
     id: retailer._id,
+    firstName: retailer.firstName || null,
+    lastName: retailer.lastName || null,
     fullName: retailer.fullName || null,
     fatherName: retailer.fatherName || null,
     gender: retailer.gender || null,
