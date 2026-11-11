@@ -26,6 +26,7 @@ import sanitizePayload from "../../../utils/sanitizePayload.js";
 import {
   verifyWalletBalance,
   processServiceWalletTransaction,
+  getUserWalletBalance,
 } from "../../wallet/services/wallet.service.js";
 import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 
@@ -556,6 +557,49 @@ const verifyTfaController = async (req, res) => {
 
     // Step 5: Verify TFA only when actcode is LOGINREQUIRED
     const result = await verifyTfa(payload);
+
+    // Step 6: Deduct ₹1 from retailer wallet after successful TFA verification
+    const userId = req.user?.userId || req.user?._id || req.user?.id;
+    if (userId) {
+      try {
+        // Verify wallet has sufficient balance (at least ₹1)
+        await verifyWalletBalance(userId, 1);
+
+        // Process wallet transaction - debit ₹1 for TFA verification
+        const walletTxn = await processServiceWalletTransaction({
+          userId,
+          type: "debit",
+          amount: 1,
+          service: "AEPS_TFA",
+          transactionId: generate15CharTxnId("TFA"),
+          description: "Daily 2FA Authentication Fee",
+          status: "success",
+        });
+
+        // Get updated wallet balance
+        const walletData = await getUserWalletBalance(userId);
+
+        return res.status(200).json(
+          ApiResponse.success(
+            {
+              ...result,
+              wallet: walletData,
+              transaction: walletTxn.transaction,
+            },
+            "TFA verified successfully"
+          )
+        );
+      } catch (walletError) {
+        console.error("Wallet deduction failed after TFA:", walletError);
+        // Return TFA success even if wallet deduction fails (non-critical)
+        return res.status(200).json(
+          ApiResponse.success(
+            result,
+            "TFA verified successfully (wallet deduction skipped)"
+          )
+        );
+      }
+    }
 
     return res.status(200).json(
       ApiResponse.success(

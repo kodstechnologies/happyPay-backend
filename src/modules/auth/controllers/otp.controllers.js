@@ -167,6 +167,7 @@ const verifyOtp = async (req, res, next) => {
         fullName: result.user.fullName,
         roles: result.user.roles || [],
       } : null,
+      role: result.user?.roles?.[0]?.name || result.user?.roles?.[0]?.slug || null,
     };
 
     const response = ApiResponse.success(
