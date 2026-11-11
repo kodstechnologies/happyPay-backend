@@ -40,16 +40,16 @@ const initiateUpiCashpointController = asyncHandler(async (req, res) => {
       ],
     });
 
-    if (!upiEkyc || upiEkyc.eKYCStatus !== "COMPLETED") {
-      return res.status(403).json(
-        ApiResponse.error(
-          "Merchant eKYC verification is required before initiating payments.",
-          null,
-          null,
-          403
-        )
-      );
-    }
+    // if (!upiEkyc || upiEkyc.eKYCStatus !== "COMPLETED") {
+    //   return res.status(403).json(
+    //     ApiResponse.error(
+    //       "Merchant eKYC verification is required before initiating payments.",
+    //       null,
+    //       null,
+    //       403
+    //     )
+    //   );
+    // }
   }
 
   const txnid = req.body.txnid || generate15CharTxnId("TXN");
