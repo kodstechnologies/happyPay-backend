@@ -2,7 +2,7 @@ import User from "../model/user.model.js";
 import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
 
 const findByMobile = async (mobile) => {
-  return await User.findOne({ mobile });
+  return await User.findOne({ mobile }).populate("roles", "name slug isActive");
 };
 
 const createUser = async (mobile, distributorId = null, role = "retailer") => {

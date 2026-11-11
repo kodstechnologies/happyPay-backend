@@ -152,8 +152,25 @@ const verifyOtp = async (req, res, next) => {
 
     const result = await otpService.verifyOtp(mobile, otp, distributorId);
 
+    // Structure the response to include user data with roles
+    const responseData = {
+      user: result.user ? {
+        id: result.user._id,
+        mobile: result.user.mobile,
+        isMobileVerified: result.user.isMobileVerified,
+        email: result.user.email,
+        isEmailVerified: result.user.isEmailVerified,
+        registrationStatus: result.user.registrationStatus,
+        currentRegistrationStep: result.user.currentRegistrationStep,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        fullName: result.user.fullName,
+        roles: result.user.roles || [],
+      } : null,
+    };
+
     const response = ApiResponse.success(
-      result,
+      responseData,
       "OTP verified successfully",
       null,
       200
