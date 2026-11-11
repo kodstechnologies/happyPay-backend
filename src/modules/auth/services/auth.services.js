@@ -970,7 +970,8 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     .populate("shop.category", "name")
     .populate("shop.propertyType", "name")
     .populate("businessProofType", "name")
-    .populate("AepsEkyc");
+    .populate("AepsEkyc")
+    .populate("roles", "name slug isActive");
 
   if (!retailer) {
     const error = new Error(
@@ -1030,7 +1031,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     status: retailer.status,
     isActive: retailer.isActive,
     isMpinSet: Boolean(retailer.MPIN),
-    role: retailer.role,
+    roles: retailer.roles || [],
     lastLoginAt: retailer.lastLoginAt,
     createdAt: retailer.createdAt,
     updatedAt: retailer.updatedAt,
