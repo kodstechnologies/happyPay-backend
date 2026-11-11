@@ -1030,6 +1030,7 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
     status: retailer.status,
     isActive: retailer.isActive,
     isMpinSet: Boolean(retailer.MPIN),
+    role: retailer.role,
     lastLoginAt: retailer.lastLoginAt,
     createdAt: retailer.createdAt,
     updatedAt: retailer.updatedAt,

@@ -61,6 +61,12 @@ const initiateUpiCashpointController = asyncHandler(async (req, res) => {
 
   const result = await initiateUpiCashpointService(payload);
 
+  console.log("========== [UPI Cashpoint Provider Response] ==========");
+  console.log("Result type:", typeof result);
+  console.log("Result:", result);
+  console.log("Result keys:", typeof result === 'object' && result !== null ? Object.keys(result) : 'N/A');
+  console.log("========================================================");
+
   return res.status(200).json(
     ApiResponse.success(
       result,
