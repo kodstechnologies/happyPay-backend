@@ -173,7 +173,7 @@ const merchantRegistrationController = asyncHandler(async (req, res) => {
     const upiEkyc = await UpiEkyc.findOneAndUpdate(
       { userId },
       { merchantId: String(returnedMerchantId), eKYCStatus: "PENDING" },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
 
     // Link UpiEkyc doc back onto the User if not already linked
@@ -264,7 +264,7 @@ console.log("Merchant ID:", merchantId);
     await UpiEkyc.findOneAndUpdate(
       { merchantId: String(merchantId).trim() },
       { eKYCStatus: "COMPLETED", eKYCRejectionReason: null },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

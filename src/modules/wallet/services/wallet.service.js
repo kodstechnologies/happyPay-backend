@@ -149,7 +149,7 @@ export const getUserWalletBalance = async (userId) => {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: 'after',
         setDefaultsOnInsert: true,
         lean: true,
       }

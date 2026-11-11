@@ -52,7 +52,7 @@ const setEmailVerified = async (userId, email) => {
   return await User.findByIdAndUpdate(
     userId,
     { email, isEmailVerified: true },
-    { new: true }
+    { returnDocument: 'after' }
   );
 };
 
@@ -109,7 +109,7 @@ const updateRetailerReview = async (retailerId, payload) => {
       ...registeredOutletFilter,
     },
     payload,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   )
     .select("-refreshTokens -devices")
     .populate("AepsEkyc");
@@ -117,7 +117,7 @@ const updateRetailerReview = async (retailerId, payload) => {
 
 const saveRetailerRegistration = async (userId, payload) => {
   return await User.findByIdAndUpdate(userId, payload, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   }).select("-refreshTokens -devices");
 };
@@ -138,7 +138,7 @@ const updateEKYCStatus = async (userId, status, rejectionReason = null, extraEky
       eKYCRejectionReason: rejectionReason,
       ...extraEkycFields,
     },
-    { new: true, upsert: false }
+    { returnDocument: 'after', upsert: false }
   );
 };
 
