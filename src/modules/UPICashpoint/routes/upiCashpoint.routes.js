@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import {
@@ -21,6 +22,14 @@ import {
   paginationSchema,
   districtPaginationSchema,
 } from "../validations/upiCashpoint.validation.js";
+
+// Configure multer for handling multipart/form-data (text fields only, no file uploads)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 const router = Router();
 
@@ -58,6 +67,7 @@ router.post(
 router.post(
   "/ekyc",
   authMiddleware,
+  upload.none(), // Handle multipart/form-data without file uploads
   validate(merchantEkycSchema, "body"),
   merchantEkycController
 );
