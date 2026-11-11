@@ -420,6 +420,52 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     result = await doBioEkyc(payload);
   } catch (error) {
     console.log("doBioEkyc error:", error);
+
+    // Check for AEPS activation pending error
+    const providerData = error?.providerData || error?.response?.data;
+    let actualMessage =
+      error?.message ||
+      providerData?.msg ||
+      providerData?.message ||
+      providerData?.details?.msg ||
+      providerData?.details?.message;
+
+    if (typeof actualMessage === "object" && actualMessage !== null) {
+      try {
+        actualMessage = Object.values(actualMessage).flat().filter(Boolean).join(", ");
+      } catch {
+        actualMessage = JSON.stringify(actualMessage);
+      }
+    }
+
+    // Check if error is about AEPS activation pending
+    if (actualMessage && typeof actualMessage === "string") {
+      const lowerMessage = actualMessage.toLowerCase();
+      if (lowerMessage.includes("aeps activation pending") ||
+          lowerMessage.includes("activation is pending") ||
+          lowerMessage.includes("pending at the bank") ||
+          lowerMessage.includes("pending from the bank")) {
+        // Update status to PENDING activation
+        if (userId) {
+          await updateEKYCStatus(userId, "PENDING", actualMessage);
+        }
+
+        return res.status(400).json(
+          ApiResponse.error(
+            "AEPS activation is pending from the bank",
+            {
+              provider: providerData,
+              status: "PENDING",
+              eKYCStatus: "PENDING",
+              referenceKey: inputRefKey,
+            },
+            null,
+            400
+          )
+        );
+      }
+    }
+
     throw error;
   }
 
