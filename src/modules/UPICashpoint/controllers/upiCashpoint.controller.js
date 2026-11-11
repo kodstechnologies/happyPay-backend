@@ -224,7 +224,19 @@ const sellerOnboardingController = asyncHandler(async (req, res) => {
  */
 const merchantEkycController = asyncHandler(async (req, res) => {
   const { merchantId, pidData } = req.body;
+console.log("Merchant ID:", merchantId);
+  console.log("PID Data type:", typeof pidData);
+  console.log("PID Data length:", pidData?.length);
+  console.log(
+    "PID XML starts correctly:",
+    pidData?.trim().startsWith("<?xml")
+  );
 
+  if (!merchantId || !pidData) {
+    return res.status(400).json(
+      ApiResponse.error("Merchant ID or PID data is missing", null, null, 400)
+    );
+  }
   const result = await merchantEkycService({ merchantId, pidData });
 
   const msg = String(result?.msg || result?.message || "").trim();
