@@ -67,6 +67,7 @@ router.post(
 router.post(
   "/ekyc",
   authMiddleware,
+  upload.none(), // Handle multipart/form-data without file uploads
   validate(merchantEkycSchema, "body"),
   merchantEkycController
 );
