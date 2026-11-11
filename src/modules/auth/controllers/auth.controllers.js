@@ -171,7 +171,7 @@ const verifyRetailerLoginOtp = async (req, res) => {
 
     // Add role to the response data
     if (data?.user) {
-      data.role = data.user.roles?.[0] || null;
+      data.role = data.user.roles?.[0] ? { name: data.user.roles[0] } : null;
     }
 
     if (data?.accessToken) {
