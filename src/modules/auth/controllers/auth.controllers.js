@@ -169,6 +169,11 @@ const verifyRetailerLoginOtp = async (req, res) => {
       deviceName,
     });
 
+    // Add role to the response data
+    if (data?.user) {
+      data.role = data.user.roles?.[0]?.name || data.user.roles?.[0]?.slug || null;
+    }
+
     if (data?.accessToken) {
       const isProduction = process.env.NODE_ENV === "production";
       const cookieOptions = {
