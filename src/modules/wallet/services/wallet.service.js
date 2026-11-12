@@ -9,6 +9,7 @@ import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 import { payoutSettlement, getBankList, payoutSettlementBankList as fetchPayoutSettlementBankListProvider } from "../../external/services/provider.service.js";
 import { sendWalletTransferNotification } from "../../notifications/services/notification.services.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
+import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
 
 
 export const verifyUserTransactionMpin = async (user, rawMpin) => {
@@ -342,7 +343,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   const holdBalance = Number(wallet.holdBalance || 0);
   const availableBalance = Math.max(0, currentBalance - holdBalance);
 
-  if (numAmount > availableBalance) {
+  if (netDebitAmount > availableBalance) {
     throw ApiError.badRequest("Insufficient wallet balance for settlement");
   }
   const txnid = generate15CharTxnId("TXN");
@@ -364,6 +365,27 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     txnid: txnid,
   };
 
+  // 4. Calculate pricing/commission using pricing engine
+  console.log("===== PAYOUT PRICING CALCULATION START =====");
+  const pricingResult = await calculateTransactionPricing({
+    userId,
+    service: "PAYOUT",
+    category: "transfer to bank",
+    amount: numAmount,
+  });
+  console.log("Pricing calculation result:", pricingResult);
+  console.log("===== PAYOUT PRICING CALCULATION END =====");
+
+  const {
+    charges,
+    retailerCommission,
+    distributorCommission,
+    distributorId,
+    commissionBreakdown,
+  } = pricingResult;
+
+  // Net amount to debit (amount + charges - retailer commission)
+  const netDebitAmount = Math.round((numAmount + charges - retailerCommission) * 100) / 100;
 
   // 5. Call external payoutSettlement from external service
   const providerResponse = await payoutSettlement(providerPayload);
@@ -393,6 +415,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       transactionId: txnid,
       status: "pending",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Queued for processing`,
+      commissionEarned: retailerCommission,
+      charges,
+      commissionBreakdown,
     });
     await pendingTxn.save();
 
@@ -421,6 +446,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       transactionId: txnid,
       status: "failed",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Failed: ${providerResponse?.msg || providerResponse?.message || "Provider error"}`,
+      commissionEarned: retailerCommission,
+      charges,
+      commissionBreakdown,
     });
     await failedTxn.save();
 
@@ -431,7 +459,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
   // 7. Debit wallet balance and record Transaction atomically (only if provider succeeded)
   const session = await mongoose.startSession();
-  let balanceAfter = currentBalance - numAmount;
+  let balanceAfter = currentBalance - netDebitAmount;
 
   try {
     await session.withTransaction(async () => {
@@ -441,7 +469,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       }
 
       const balanceBefore = Number(activeWallet.balance || 0);
-      balanceAfter = balanceBefore - numAmount;
+      balanceAfter = balanceBefore - netDebitAmount;
       activeWallet.balance = balanceAfter;
       await activeWallet.save({ session });
 
@@ -471,9 +499,46 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
         transactionId: txnid,
         status: "success",
         description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)})`,
+        commissionEarned: retailerCommission,
+        charges,
+        commissionBreakdown,
       });
 
       await transaction.save({ session });
+
+      // 8. Credit distributor wallet if distributor exists and has commission
+      if (distributorId && distributorCommission > 0 && mongoose.Types.ObjectId.isValid(distributorId)) {
+        try {
+          let distWallet = await Wallet.findOne({ user: distributorId }).session(session);
+          if (!distWallet) {
+            distWallet = new Wallet({ user: distributorId, balance: 0, status: "active" });
+          }
+          const distBalBefore = Number(distWallet.balance || 0);
+          const distBalAfter = Math.round((distBalBefore + distributorCommission) * 100) / 100;
+          distWallet.balance = distBalAfter;
+          await distWallet.save({ session });
+
+          const distTxn = new Transaction({
+            wallet: distWallet._id,
+            type: "credit",
+            amount: distributorCommission,
+            balanceBefore: distBalBefore,
+            balanceAfter: distBalAfter,
+            service: "COMMISSION",
+            transactionId: generate15CharTxnId("DST"),
+            status: "success",
+            description: `Distributor Commission for PAYOUT (Retailer Ref: ${txnid})`,
+            payee: {
+              name: user.fullName,
+              mobile: user.mobile,
+            },
+            commissionEarned: distributorCommission,
+          });
+          await distTxn.save({ session });
+        } catch (distErr) {
+          console.error("[Distributor Commission Credit Error]:", distErr.message || distErr);
+        }
+      }
     });
   } finally {
     session.endSession();
@@ -491,6 +556,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     txnid,
     utr: finalUtr,
     amount: numAmount,
+    netDebitAmount,
     balanceBefore: currentBalance,
     balanceAfter,
     bankName: recordedBankName,
@@ -498,6 +564,12 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     mode: providerPayload.mode,
     status: "success",
     providerResponse,
+    commission: retailerCommission,
+    charges,
+    distributorCommission,
+    adminCommission: commissionBreakdown?.adminCommission || 0,
+    distributorId,
+    commissionBreakdown,
   };
 };
 
