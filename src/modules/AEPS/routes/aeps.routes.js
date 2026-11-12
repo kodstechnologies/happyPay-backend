@@ -80,6 +80,7 @@ router.post(
 // Mini Statement
 router.post(
   "/mini-statement",
+  authMiddleware,
   validate(miniStatementSchema, "body"),
   miniStatementController
 );
