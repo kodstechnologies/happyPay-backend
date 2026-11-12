@@ -169,6 +169,10 @@ const userSchema = new mongoose.Schema(
     // =========================
     // Retailer Details
     // =========================
+    retailerId:{
+      type: String,
+      trim: true,
+    },
     firstName: {
       type: String,
       trim: true,

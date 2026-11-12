@@ -560,11 +560,18 @@ const verifyTfaController = async (req, res) => {
 
     // Step 6: Deduct ₹1 from retailer wallet after successful TFA verification
     const userId = req.user?.userId || req.user?._id || req.user?.id;
+    console.log("===== TFA VERIFICATION WALLET DEDUCTION START =====");
+    console.log("User ID:", userId);
+    console.log("Auth User:", req.user);
+
     if (userId) {
       try {
+        console.log("Step 1: Checking wallet balance...");
         // Verify wallet has sufficient balance (at least ₹1)
-        await verifyWalletBalance(userId, 1);
+        const walletCheck = await verifyWalletBalance(userId, 1);
+        console.log("Wallet check passed:", walletCheck);
 
+        console.log("Step 2: Processing wallet transaction...");
         // Process wallet transaction - debit ₹1 for TFA verification
         const walletTxn = await processServiceWalletTransaction({
           userId,
@@ -575,9 +582,14 @@ const verifyTfaController = async (req, res) => {
           description: "Daily 2FA Authentication Fee",
           status: "success",
         });
+        console.log("Wallet transaction successful:", walletTxn);
 
+        console.log("Step 3: Getting updated wallet balance...");
         // Get updated wallet balance
         const walletData = await getUserWalletBalance(userId);
+        console.log("Updated wallet data:", walletData);
+
+        console.log("===== TFA VERIFICATION WALLET DEDUCTION SUCCESS =====");
 
         return res.status(200).json(
           ApiResponse.success(
@@ -590,7 +602,13 @@ const verifyTfaController = async (req, res) => {
           )
         );
       } catch (walletError) {
-        console.error("Wallet deduction failed after TFA:", walletError);
+        console.error("===== TFA VERIFICATION WALLET DEDUCTION FAILED =====");
+        console.error("Error details:", walletError);
+        console.error("Error message:", walletError.message);
+        console.error("Error statusCode:", walletError.statusCode);
+        console.error("Error stack:", walletError.stack);
+        console.error("=====================================================");
+
         // Return TFA success even if wallet deduction fails (non-critical)
         return res.status(200).json(
           ApiResponse.success(
@@ -822,21 +840,69 @@ const miniStatementController = async (req, res) => {
       ...(sysid && { sysid }),
     };
 
+    console.log("===== MINI STATEMENT START =====");
     console.log("Mini Statement Payload:", payload);
 
     // Call provider API
     const result = await miniStatement(payload);
 
     console.log("Mini Statement Response:", result);
+    console.log("Mini Statement Successful");
+
+    // Step: Credit ₹1 to retailer wallet after successful mini statement
+    const userId = req.user?.userId || req.user?._id || req.user?.id;
+    console.log("===== MINI STATEMENT WALLET CREDIT START =====");
+    console.log("User ID:", userId);
+
+    let walletData = null;
+    let walletTxn = null;
+
+    if (userId) {
+      try {
+        console.log("Step 1: Processing wallet credit transaction...");
+        // Process wallet transaction - credit ₹1 for mini statement
+        walletTxn = await processServiceWalletTransaction({
+          userId,
+          type: "credit",
+          amount: 1,
+          service: "AEPS_MINI_STATEMENT",
+          transactionId: generate15CharTxnId("MST"),
+          description: "Mini Statement Service Credit",
+          status: "success",
+        });
+        console.log("Wallet credit transaction successful:", walletTxn);
+
+        console.log("Step 2: Getting updated wallet balance...");
+        // Get updated wallet balance
+        walletData = await getUserWalletBalance(userId);
+        console.log("Updated wallet data:", walletData);
+
+        console.log("===== MINI STATEMENT WALLET CREDIT SUCCESS =====");
+      } catch (walletError) {
+        console.error("===== MINI STATEMENT WALLET CREDIT FAILED =====");
+        console.error("Error details:", walletError);
+        console.error("Error message:", walletError.message);
+        console.error("Error statusCode:", walletError.statusCode);
+        console.error("Error stack:", walletError.stack);
+        console.error("======================================================");
+        // Continue with response even if wallet credit fails (non-critical)
+      }
+    }
 
     return res.status(200).json(
       ApiResponse.success(
-        result,
+        {
+          ...result,
+          wallet: walletData,
+          transaction: walletTxn?.transaction,
+        },
         "Mini statement fetched successfully"
       )
     );
   } catch (error) {
+    console.error("===== MINI STATEMENT ERROR =====");
     console.error("Mini Statement Error:", error);
+    console.error("===============================");
 
     return res
       .status(error.statusCode || error.response?.status || 500)

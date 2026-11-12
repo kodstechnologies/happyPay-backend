@@ -152,6 +152,24 @@ const verifyOtp = async (req, res, next) => {
 
     const result = await otpService.verifyOtp(mobile, otp, distributorId);
 
+    // Generate retailer ID if user exists and doesn't have one
+    let retailerId = result.user?.retailerId || null;
+    if (result.user && !result.user.retailerId) {
+      try {
+        const { generateRetailerId } = await import("../../utils/generateTxnId.js");
+        retailerId = generateRetailerId(result.user._id);
+
+        // Save retailerId to user document
+        result.user.retailerId = retailerId;
+        await result.user.save();
+
+        console.log("Generated and saved retailer ID:", retailerId);
+      } catch (retailerIdError) {
+        console.error("Failed to generate retailer ID:", retailerIdError);
+        // Continue without retailerId if generation fails
+      }
+    }
+
     // Structure the response to include user data with roles
     const responseData = {
       user: result.user ? {
@@ -166,6 +184,7 @@ const verifyOtp = async (req, res, next) => {
         lastName: result.user.lastName,
         fullName: result.user.fullName,
         roles: result.user.roles || [],
+        retailerId: result.user.retailerId || retailerId,
       } : null,
       role: result.user?.roles?.[0]?.name || result.user?.roles?.[0]?.slug || null,
     };

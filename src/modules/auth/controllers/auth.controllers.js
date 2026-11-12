@@ -601,32 +601,80 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
 
   const andConditions = [{ $or: creatorConditions }];
 
+  // Filter options
   if (req.query.status) {
     andConditions.push({ status: req.query.status });
   }
   if (req.query.adminApproved) {
     andConditions.push({ adminApproved: req.query.adminApproved });
   }
+  if (req.query.registrationStatus) {
+    andConditions.push({ registrationStatus: req.query.registrationStatus });
+  }
+  if (req.query.currentRegistrationStep) {
+    andConditions.push({ currentRegistrationStep: req.query.currentRegistrationStep });
+  }
+  if (req.query.aadhaarVerified !== undefined) {
+    andConditions.push({ aadhaarVerified: req.query.aadhaarVerified === "true" });
+  }
+  if (req.query.isMobileVerified !== undefined) {
+    andConditions.push({ isMobileVerified: req.query.isMobileVerified === "true" });
+  }
+  if (req.query.isEmailVerified !== undefined) {
+    andConditions.push({ isEmailVerified: req.query.isEmailVerified === "true" });
+  }
 
+  // Search option - search across multiple fields
   if (req.query.search && String(req.query.search).trim()) {
     const escaped = escapeRegex(String(req.query.search).trim().slice(0, 100));
     const regex = { $regex: escaped, $options: "i" };
     andConditions.push({
       $or: [
         { fullName: regex },
+        { firstName: regex },
+        { lastName: regex },
         { email: regex },
         { mobile: regex },
         { "shop.name": regex },
+        { panNumber: regex },
+        { retailerId: regex },
       ],
     });
   }
 
   const query = andConditions.length > 1 ? { $and: andConditions } : andConditions[0];
 
+  // Sort options
+  let sortOption = { createdAt: -1 }; // Default sort
+  if (req.query.sortBy) {
+    const sortBy = req.query.sortBy;
+    const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+    const validSortFields = [
+      "fullName",
+      "firstName",
+      "lastName",
+      "mobile",
+      "email",
+      "createdAt",
+      "status",
+      "adminApproved",
+      "registrationStatus",
+      "currentRegistrationStep",
+      "aadhaarVerified",
+    ];
+
+    if (validSortFields.includes(sortBy)) {
+      sortOption = { [sortBy]: sortOrder };
+    }
+  }
+
   const [users, total] = await Promise.all([
     User.find(query)
-      .select("fullName email mobile panNumber status adminApproved registrationStatus shop createdAt aadhaarVerified")
-      .sort({ createdAt: -1 })
+      .select(
+        "fullName firstName lastName mobile email panNumber status adminApproved registrationStatus currentRegistrationStep shop createdAt aadhaarVerified aadhaarNumber isMobileVerified isEmailVerified selfie gender maritalStatus educationalQualification dateOfBirth fatherName motherName retailerId aadhaarConsent outletId"
+      )
+      .sort(sortOption)
       .skip(skip)
       .limit(limit)
       .lean(),
@@ -644,16 +692,34 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
 
     return {
       id: u._id.toString(),
+      retailerId: u.retailerId || null,
       firstName: u.firstName || null,
       lastName: u.lastName || null,
+      fullName: u.fullName || null,
       name: u.fullName || u.shop?.name || "Retailer",
       mobile: u.mobile || "",
       email: u.email || "",
       shopName: u.shop?.name || "",
+      shop: u.shop || null,
       panNumber: u.panNumber || "",
       status: statusLabel,
       rawStatus: u.status,
       adminApproved: u.adminApproved,
+      registrationStatus: u.registrationStatus || null,
+      currentRegistrationStep: u.currentRegistrationStep || null,
+      aadhaarVerified: u.aadhaarVerified || false,
+      aadhaarNumber: u.aadhaarNumber ? `${u.aadhaarNumber.slice(0, 4)}XXXX${u.aadhaarNumber.slice(-4)}` : null,
+      isMobileVerified: u.isMobileVerified || false,
+      isEmailVerified: u.isEmailVerified || false,
+      selfie: u.selfie || null,
+      gender: u.gender || null,
+      maritalStatus: u.maritalStatus || null,
+      educationalQualification: u.educationalQualification || null,
+      dateOfBirth: u.dateOfBirth || null,
+      fatherName: u.fatherName || null,
+      motherName: u.motherName || null,
+      aadhaarConsent: u.aadhaarConsent || false,
+      outletId: u.outletId || null,
       registeredAt: u.createdAt,
     };
   });
