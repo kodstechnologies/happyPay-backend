@@ -347,18 +347,36 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   const recordedBankName = String(
     payload.bank_name || payload.bankName || payload.name || "Bank Account"
   ).trim();
+
+  // Validate required fields
+  if (!payload.benMobile || !/^\d{10}$/.test(String(payload.benMobile).trim())) {
+    throw ApiError.badRequest("Beneficiary mobile number must be a valid 10-digit number");
+  }
+
+  if (!payload.beneficiary_name || String(payload.beneficiary_name).trim().length < 3) {
+    throw ApiError.badRequest("Beneficiary name is required and must be at least 3 characters");
+  }
+
+  if (!payload.account_number || String(payload.account_number).trim().length < 5) {
+    throw ApiError.badRequest("Account number is required and must be at least 5 digits");
+  }
+
+  if (!payload.ifsc || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(payload.ifsc).trim().toUpperCase())) {
+    throw ApiError.badRequest("IFSC code must be in valid format (e.g., SBIN0001234)");
+  }
+
   const providerPayload = {
     accountType:payload.accountType || "Savings Account",
-    branchName: payload.branchName,
-    benMobile: payload.benMobile,
-    bank_name: payload.bank_name,
-    beneficiary_name:payload.beneficiary_name,
+    branchName: payload.branchName || "",
+    benMobile: String(payload.benMobile).trim(),
+    bank_name: String(payload.bank_name || payload.bankName || "").trim(),
+    beneficiary_name: String(payload.beneficiary_name).trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
-    account_number:payload.account_number,
+    account_number: String(payload.account_number).trim(),
     amount: numAmount,
-    mode:payload.mode,
-    lat:payload.lat,
-    long:payload.long,
+    mode: payload.mode || "IMPS",
+    lat: payload.lat || "",
+    long: payload.long || "",
     txnid: txnid,
   };
 
