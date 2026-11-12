@@ -343,9 +343,6 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   const holdBalance = Number(wallet.holdBalance || 0);
   const availableBalance = Math.max(0, currentBalance - holdBalance);
 
-  if (netDebitAmount > availableBalance) {
-    throw ApiError.badRequest("Insufficient wallet balance for settlement");
-  }
   const txnid = generate15CharTxnId("TXN");
   const recordedBankName = String(
     payload.bank_name || payload.bankName || payload.name || "Bank Account"
@@ -386,6 +383,11 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
   // Net amount to debit (amount + charges - retailer commission)
   const netDebitAmount = Math.round((numAmount + charges - retailerCommission) * 100) / 100;
+
+  // Check if sufficient balance is available after calculating net debit amount
+  if (netDebitAmount > availableBalance) {
+    throw ApiError.badRequest("Insufficient wallet balance for settlement");
+  }
 
   // 5. Call external payoutSettlement from external service
   const providerResponse = await payoutSettlement(providerPayload);
