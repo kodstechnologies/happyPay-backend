@@ -6,6 +6,7 @@ import {
   getNotificationsController,
   markNotificationAsReadController,
   markAllNotificationsAsReadController,
+  sendCustomNotificationController,
 } from "../controller/notifications.controller.js";
 
 import { verifyToken } from "../../../middlewares/auth.middleware.js";
@@ -21,6 +22,12 @@ router.post(
   "/kyc-rejected",
   verifyToken,
   sendKycRejectedNotificationController
+);
+
+router.post(
+  "/custom",
+  verifyToken,
+  sendCustomNotificationController
 );
 
 router.get(

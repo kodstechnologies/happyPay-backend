@@ -14,6 +14,7 @@ import {
   getNotificationsController,
   markNotificationAsReadController,
   markAllNotificationsAsReadController,
+  sendCustomNotificationController,
 } from "../../notifications/controller/notifications.controller.js";
 import authMiddleware, { requireAdmin } from "../../../middlewares/auth.middleware.js";
 
@@ -122,6 +123,13 @@ router.patch(
   authMiddleware,
   requireAdmin,
   markAllNotificationsAsReadController
+);
+
+router.post(
+  "/notifications/custom",
+  authMiddleware,
+  requireAdmin,
+  sendCustomNotificationController
 );
 
 export default router;

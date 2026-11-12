@@ -1,6 +1,11 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 
-import { sendKycApprovedNotification, sendKycRejectedNotification } from "../services/notification.services.js";
+import {
+  sendKycApprovedNotification,
+  sendKycRejectedNotification,
+  sendCustomNotificationToRetailer,
+  sendCustomNotificationToAllRetailers,
+} from "../services/notification.services.js";
 import {
   findNotificationsByRecipient,
   markAsRead,
@@ -210,10 +215,75 @@ const markAllNotificationsAsReadController = async (req, res) => {
   }
 };
 
+const sendCustomNotificationController = async (req, res) => {
+  try {
+    const { retailerId, title, body, imageUrl } = req.body;
+
+    if (!retailerId) {
+      return res.status(400).json(
+        ApiResponse.error("retailerId is required")
+      );
+    }
+
+    if (!title?.trim()) {
+      return res.status(400).json(
+        ApiResponse.error("title is required")
+      );
+    }
+
+    if (!body?.trim()) {
+      return res.status(400).json(
+        ApiResponse.error("body is required")
+      );
+    }
+
+    let result;
+    if (retailerId === "ALL") {
+      result = await sendCustomNotificationToAllRetailers({
+        title: title.trim(),
+        body: body.trim(),
+        imageUrl: imageUrl?.trim() || null,
+      });
+    } else {
+      result = await sendCustomNotificationToRetailer({
+        retailerId,
+        title: title.trim(),
+        body: body.trim(),
+        imageUrl: imageUrl?.trim() || null,
+      });
+    }
+
+    return res
+      .status(result.statusCode)
+      .json(
+        result.success
+          ? ApiResponse.success(
+              result.data,
+              result.message
+            )
+          : ApiResponse.error(
+              result.message
+            )
+      );
+  } catch (error) {
+    console.error(
+      "Custom notification controller error:",
+      error
+    );
+
+    return res.status(500).json(
+      ApiResponse.error(
+        "Failed to send custom notification"
+      )
+    );
+  }
+};
+
 export {
   sendKycApprovedNotificationController,
   sendKycRejectedNotificationController,
   getNotificationsController,
   markNotificationAsReadController,
   markAllNotificationsAsReadController,
+  sendCustomNotificationController,
 };

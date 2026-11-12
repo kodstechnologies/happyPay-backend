@@ -540,10 +540,230 @@ const sendWalletTransferNotification = async ({
   }
 };
 
+const sendCustomNotificationToRetailer = async ({
+  retailerId,
+  title,
+  body,
+  imageUrl,
+}) => {
+  // 1. Find retailer
+  const retailer = await User.findById(retailerId)
+    .select("devices name fullName mobile");
+
+  if (!retailer) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Retailer not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "CUSTOM_NOTIFICATION",
+    title: title || "New Notification",
+    body: body || "You have a new notification.",
+    imageUrl: imageUrl || null,
+    data: {
+      type: "CUSTOM_NOTIFICATION",
+      screen: "NOTIFICATIONS",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    retailer.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Notification saved, but Firebase messaging is not configured."
+        : "Notification saved, but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification to all active devices
+  for (const device of devices) {
+    try {
+      const message = {
+        token: device.fcmToken,
+        notification: {
+          title: title || "New Notification",
+          body: body || "You have a new notification.",
+          ...(imageUrl && { image: imageUrl }),
+        },
+        data: {
+          type: "CUSTOM_NOTIFICATION",
+          screen: "NOTIFICATIONS",
+          ...(imageUrl && { imageUrl }),
+        },
+      };
+
+      await firebaseMessaging.send(message);
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Custom notification FCM error:",
+        error.message
+      );
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update notification delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Custom notification sent successfully."
+      : "Notification saved but delivery failed.",
+    data: notification,
+  };
+};
+
+const sendCustomNotificationToAllRetailers = async ({
+  title,
+  body,
+  imageUrl,
+}) => {
+  try {
+    // 1. Find all retailers with role 'retailer'
+    const retailers = await User.find({ role: "retailer" })
+      .select("devices name fullName mobile");
+
+    if (!retailers || retailers.length === 0) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "No retailers found",
+      };
+    }
+
+    // 2. Create notification in DB for each retailer
+    const notifications = [];
+    for (const retailer of retailers) {
+      const notification = await createNotification({
+        recipientId: retailer._id,
+        recipientType: "retailer",
+        type: "CUSTOM_NOTIFICATION",
+        title: title || "New Notification",
+        body: body || "You have a new notification.",
+        imageUrl: imageUrl || null,
+        data: {
+          type: "CUSTOM_NOTIFICATION",
+          screen: "NOTIFICATIONS",
+        },
+      });
+      notifications.push(notification);
+    }
+
+    // 3. Collect all active devices with valid tokens from all retailers
+    const allDevices = [];
+    for (const retailer of retailers) {
+      const devices =
+        retailer.devices?.filter(
+          (device) =>
+            device.isActive &&
+            device.fcmToken &&
+            device.fcmToken !== "dummy"
+        ) || [];
+      allDevices.push(...devices);
+    }
+
+    if (allDevices.length === 0 || !firebaseMessaging) {
+      return {
+        success: true,
+        statusCode: 200,
+        message: !firebaseMessaging
+          ? "Notifications saved, but Firebase messaging is not configured."
+          : "Notifications saved, but no active FCM device found.",
+        data: notifications,
+      };
+    }
+
+    let fcmSent = false;
+    let failureReason = null;
+
+    // 4. Send push notification to all active devices
+    for (const device of allDevices) {
+      try {
+        const message = {
+          token: device.fcmToken,
+          notification: {
+            title: title || "New Notification",
+            body: body || "You have a new notification.",
+            ...(imageUrl && { image: imageUrl }),
+          },
+          data: {
+            type: "CUSTOM_NOTIFICATION",
+            screen: "NOTIFICATIONS",
+            ...(imageUrl && { imageUrl }),
+          },
+        };
+
+        await firebaseMessaging.send(message);
+        fcmSent = true;
+      } catch (error) {
+        console.error(
+          "Custom notification FCM error:",
+          error.message
+        );
+        failureReason = error.message;
+      }
+    }
+
+    // 5. Update notification delivery status for all notifications
+    for (const notification of notifications) {
+      await updateFcmStatus({
+        notificationId: notification._id,
+        fcmSent,
+        fcmFailureReason: failureReason,
+      });
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: fcmSent
+        ? `Custom notification sent to ${retailers.length} retailers successfully.`
+        : `Notifications saved for ${retailers.length} retailers but delivery failed.`,
+      data: notifications,
+    };
+  } catch (error) {
+    console.error("Error in sendCustomNotificationToAllRetailers:", error.message);
+    return {
+      success: false,
+      statusCode: 500,
+      message: error.message,
+    };
+  }
+};
+
 export {
   sendKycApprovedNotification,
   sendKycRejectedNotification,
   sendRegistrationSuccessNotification,
   sendNewRetailerRegistrationNotification,
   sendWalletTransferNotification,
+  sendCustomNotificationToRetailer,
+  sendCustomNotificationToAllRetailers,
 };
