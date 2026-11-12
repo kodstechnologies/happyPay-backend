@@ -43,7 +43,7 @@ export const getS3ObjectBuffer = async (keyOrUrl) => {
     try {
         const response = await s3.send(
             new GetObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
+                Bucket: process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET_NAME,
                 Key: cleanKey,
             }),
         );
@@ -73,7 +73,7 @@ export const getFileUrl = async (key) => {
         const cleanKey = extractKey(key);
 
         const command = new GetObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
+            Bucket: process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET_NAME,
             Key: cleanKey,
         });
 

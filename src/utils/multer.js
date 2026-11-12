@@ -256,9 +256,28 @@ export const uploadRetailerDocuments = multer({
   { name: "businessProofDocument", maxCount: 1 },
 ]);
 
+const registrationMemoryStorage = multer.memoryStorage();
+
+export const uploadRetailerProfileDocuments = multer({
+  storage: registrationMemoryStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 7,
+  },
+  fileFilter: retailerFileFilter,
+}).fields([
+  { name: "selfie", maxCount: 1 },
+  { name: "panDocument", maxCount: 1 },
+  { name: "aadhaarDocument", maxCount: 1 },
+  { name: "shopInsidePhoto", maxCount: 1 },
+  { name: "shopOutsidePhoto", maxCount: 1 },
+  { name: "shopLocationPhoto", maxCount: 1 },
+  { name: "businessProofDocument", maxCount: 1 },
+]);
+
 // Specialized multer middleware for shop details with mandatory file validation
 export const uploadShopDetailsDocuments = multer({
-  storage: retailerStorage,
+  storage: registrationMemoryStorage,
   limits: {
     fileSize: 10 * 1024 * 1024,
     files: 5, // 5 mandatory files including panDocument
@@ -311,7 +330,7 @@ export const validateShopFiles = (req, res, next) => {
 
 // Specialized multer middleware for about details with mandatory selfie validation
 export const uploadAboutDetailsDocuments = multer({
-  storage: retailerStorage,
+  storage: registrationMemoryStorage,
   limits: {
     fileSize: 10 * 1024 * 1024,
     files: 1, // Only selfie is required
@@ -324,7 +343,7 @@ export const uploadAboutDetailsDocuments = multer({
 
 
 export const uploadAdharDetailsDocuments = multer({
-  storage: retailerStorage,
+  storage: registrationMemoryStorage,
   limits: {
     fileSize: 10 * 1024 * 1024,
     files: 1, // Only selfie is required

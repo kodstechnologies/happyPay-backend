@@ -24,6 +24,7 @@ import {
 
 import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
+import { deleteObject } from "../../../utils/s3/putObject.js";
 import logger from "../../../utils/logger.js";
 import { getBankList } from "../../external/services/provider.service.js";
 import { validatePincode } from "../services/pincode.service.js";
@@ -52,6 +53,15 @@ const cloudinaryResourceType = (fileUrl = "") =>
 const removeUploadedRetailerFiles = async (files = []) => {
   await Promise.all(
     files.map(async (file) => {
+      if (file?.key) {
+        try {
+          await deleteObject(file.key);
+        } catch (cleanupError) {
+          logger.error(`S3 cleanup failed for ${file.key}`, cleanupError);
+        }
+        return;
+      }
+
       if (!file?.filename) {
         return;
       }
@@ -468,10 +478,16 @@ const updateShopDetailsController = asyncHandler(async (req, res) => {
 });
 
 const updateAboutDetailsController = asyncHandler(async (req, res) => {
-  const data = await updateAboutDetails(req.body, req.files || {});
-  return res.status(200).json(
-    ApiResponse.success(data, "About details updated successfully", null, 200)
-  );
+  const files = uploadedRetailerFiles(req.files);
+  try {
+    const data = await updateAboutDetails(req.body, req.files || {});
+    return res.status(200).json(
+      ApiResponse.success(data, "About details updated successfully", null, 200)
+    );
+  } catch (error) {
+    await removeUploadedRetailerFiles(files);
+    throw error;
+  }
 });
 
 const updateAadhaarDetailsController = asyncHandler(async (req, res) => {
@@ -530,20 +546,26 @@ const updateRetailerProfileController = asyncHandler(async (req, res) => {
     );
   }
 
-  const updatedRetailer = await updateRetailerProfileService(
-    retailerId,
-    req.body,
-    req.files || {}
-  );
+  const files = uploadedRetailerFiles(req.files);
+  try {
+    const updatedRetailer = await updateRetailerProfileService(
+      retailerId,
+      req.body,
+      req.files || {}
+    );
 
-  return res.status(200).json(
-    ApiResponse.success(
-      updatedRetailer,
-      "Retailer profile updated successfully",
-      null,
-      200
-    )
-  );
+    return res.status(200).json(
+      ApiResponse.success(
+        updatedRetailer,
+        "Retailer profile updated successfully",
+        null,
+        200
+      )
+    );
+  } catch (error) {
+    await removeUploadedRetailerFiles(files);
+    throw error;
+  }
 });
 
 const validatePincodeController = asyncHandler(async (req, res) => {
@@ -887,15 +909,21 @@ const reuploadRetailerKycDocumentsController = asyncHandler(async (req, res) => 
     );
   }
 
-  const data = await reuploadRetailerKycDocumentsService(retailerId, req.files || {});
-  return res.status(200).json(
-    ApiResponse.success(
-      data,
-      "KYC documents re-uploaded successfully",
-      null,
-      200
-    )
-  );
+  const files = uploadedRetailerFiles(req.files);
+  try {
+    const data = await reuploadRetailerKycDocumentsService(retailerId, req.files || {});
+    return res.status(200).json(
+      ApiResponse.success(
+        data,
+        "KYC documents re-uploaded successfully",
+        null,
+        200
+      )
+    );
+  } catch (error) {
+    await removeUploadedRetailerFiles(files);
+    throw error;
+  }
 });
 
 export {

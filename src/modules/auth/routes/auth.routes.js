@@ -25,7 +25,8 @@ import {
   getRetailerKycDetailsController,
   reuploadRetailerKycDocumentsController,
 } from "../controllers/auth.controllers.js";
-import { uploadRetailerDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
+import { uploadRetailerDocuments, uploadRetailerProfileDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
+import { uploadRegistrationFilesToS3 } from "../../../utils/s3/uploadRegistrationFiles.js";
 import { validateRegisterRetailer } from "../validations/retailer.validation.js";
 import { validateShopDetails } from "../validations/shopDetails.validation.js";
 import { validateAboutDetails } from "../validations/aboutDetails.validation.js";
@@ -62,9 +63,9 @@ router.post("/registration/current-step", getCurrentRegistrationStepController);
 
 
 // Step-by-step registration endpoints with validations
-router.patch("/registration/shop-details", uploadShopDetailsDocuments, validateShopFiles, validateShopDetails, updateShopDetailsController);
-router.patch("/registration/about", uploadAboutDetailsDocuments, validateAboutFiles, validateAboutDetails, updateAboutDetailsController);
-router.patch("/registration/adhaar-details", uploadAdharDetailsDocuments, validateAadhaarDetails, updateAadhaarDetailsController);
+router.patch("/registration/shop-details", uploadShopDetailsDocuments, validateShopFiles, validateShopDetails, uploadRegistrationFilesToS3("happypay/retailers/shop-details"), updateShopDetailsController);
+router.patch("/registration/about", uploadAboutDetailsDocuments, validateAboutFiles, validateAboutDetails, uploadRegistrationFilesToS3("happypay/retailers/about"), updateAboutDetailsController);
+router.patch("/registration/adhaar-details", uploadAdharDetailsDocuments, validateAadhaarDetails, uploadRegistrationFilesToS3("happypay/retailers/aadhaar"), updateAadhaarDetailsController);
 router.patch("/registration/bank-details", validateBankDetails, updateBankDetailsController);
 
 // Pincode validation endpoint
@@ -77,9 +78,9 @@ router.get("/pincode/validate/:pincode", validatePincodeController);
 router.get("/retailer/details/:retailerId", getRetailerDetails);
 router.get("/retailer/auth/me", authMiddleware, getAuthenticatedRetailer);
 router.get("/retailer/profile", authMiddleware, getRetailerProfileController);
-router.patch("/retailer/profile", authMiddleware, uploadRetailerDocuments, updateRetailerProfileController);
+router.patch("/retailer/profile", authMiddleware, uploadRetailerProfileDocuments, uploadRegistrationFilesToS3("happypay/retailers/profile"), updateRetailerProfileController);
 router.get("/retailer/kyc-details", authMiddleware, getRetailerKycDetailsController);
-router.post("/retailer/kyc/reupload", authMiddleware, uploadRetailerDocuments, reuploadRetailerKycDocumentsController);
+router.post("/retailer/kyc/reupload", authMiddleware, uploadRetailerProfileDocuments, uploadRegistrationFilesToS3("happypay/retailers/kyc"), reuploadRetailerKycDocumentsController);
 
 // MPIN routes for retailer profile security
 router.post("/retailer/mpin/send-otp", authMiddleware, sendMpinOtpController);

@@ -16,18 +16,19 @@ export const uploadToS3 = async (file) => {
 
     await s3.send(
         new PutObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
+            Bucket: process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET_NAME,
             Key: key,
             Body: file.buffer,
             ContentType: file.mimetype,
         })
     );
-    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const bucket = process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET_NAME;
+    const url = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
     return { key, url };
 };
 export const getS3SignedUrl = async (key, expiresIn = 3600) => {
     const command = new GetObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET_NAME,
         Key: key,
     });
     return await getSignedUrl(s3, command, { expiresIn }); // default 1 hour
