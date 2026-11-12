@@ -42,8 +42,6 @@ export const payoutSettlementBankLists = asyncHandler(async (req, res) => {
       "Bank list fetched successfully",
       result.meta
 
-
-
     )
   );
 });

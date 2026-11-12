@@ -60,6 +60,9 @@ const getBankList = async ({ page = 1, limit = 50, search = "" } = {}) => {
     );
   }
 
+  // Sort banks alphabetically by name
+  banks = banks.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
   const effectiveLimit = Math.max(Number(limit) || 50, 1);
   const effectivePage = Math.max(Number(page) || 1, 1);
   const total = banks.length;

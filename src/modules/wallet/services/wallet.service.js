@@ -61,7 +61,7 @@ export const payoutSettlementBankList = async ({ page = 1, limit = 50, search = 
     activeFlag: b.activeFlag ?? 1,
     aeps_enabled: b.aeps_enabled ?? 1,
     aadhaarpay_enabled: b.aadhaarpay_enabled ?? 1,
-  }));
+  })).sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     data,
