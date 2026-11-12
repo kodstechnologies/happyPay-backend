@@ -1,5 +1,5 @@
 import { putObject } from "./putObject.js";
-import ApiError from "./ApiError.js";
+import ApiError from "../apiError.js";
 
 export const uploadToS3 =
   (folder = "uploads", fieldMap = { img: "img" }, options = {}) =>

@@ -39,6 +39,8 @@ const notificationSchema = new mongoose.Schema(
 
         "REGISTRATION_SUCCESS",
         "NEW_RETAILER_REGISTRATION",
+
+        "CUSTOM_NOTIFICATION",
       ],
       required: true,
       index: true,
@@ -53,6 +55,12 @@ const notificationSchema = new mongoose.Schema(
     body: {
       type: String,
       required: true,
+      trim: true,
+    },
+
+    imageUrl: {
+      type: String,
+      default: null,
       trim: true,
     },
 

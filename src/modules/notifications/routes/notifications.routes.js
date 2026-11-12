@@ -10,6 +10,8 @@ import {
 } from "../controller/notifications.controller.js";
 
 import { verifyToken } from "../../../middlewares/auth.middleware.js";
+import upload from "../../../middlewares/upload.middleware.js";
+import { uploadToS3 } from "../../../utils/s3/uploadToS3.js";
 
 const router = Router();
 
@@ -27,6 +29,8 @@ router.post(
 router.post(
   "/custom",
   verifyToken,
+  upload.single("image"),
+  uploadToS3("notifications", { image: "imageUrl" }),
   sendCustomNotificationController
 );
 
