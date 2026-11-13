@@ -384,8 +384,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   console.log("===== PAYOUT PRICING CALCULATION START =====");
   const pricingResult = await calculateTransactionPricing({
     userId,
-    service: "payout",
-    category: "transfer to bank",
+    service: "PAYOUT",
+    category: "Transfer To Bank",
     amount: numAmount,
   });
   console.log("Pricing calculation result:", pricingResult);
@@ -477,91 +477,57 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     );
   }
 
-  // 7. Debit wallet balance and record Transaction atomically (only if provider succeeded)
-  const session = await mongoose.startSession();
-  let balanceAfter = currentBalance - netDebitAmount;
-
+  // 7. Debit wallet balance and record Transaction using processServiceWalletTransaction (similar to AEPS)
+  let balanceAfter = currentBalance;
   try {
-    await session.withTransaction(async () => {
-      const activeWallet = await Wallet.findOne({ user: userId }).session(session);
-      if (!activeWallet) {
-        throw ApiError.notFound("Wallet record not found during deduction");
-      }
-
-      const balanceBefore = Number(activeWallet.balance || 0);
-      balanceAfter = balanceBefore - netDebitAmount;
-      activeWallet.balance = balanceAfter;
-      await activeWallet.save({ session });
-
-      const finalUtr =
-        providerResponse?.utr ||
-        providerResponse?.rrn ||
-        providerResponse?.data?.utr ||
-        providerResponse?.data?.rrn ||
-        providerResponse?.bank_ref_num ||
-        txnid;
-
-      const transaction = new Transaction({
-        wallet: activeWallet._id,
-        type: "debit",
-        amount: numAmount,
-        balanceBefore,
-        balanceAfter,
-        payee: {
-          name: providerPayload.beneficiary_name || user.fullName,
-          mobile: user.mobile,
-          bankName: recordedBankName,
-          accountNumber: providerPayload.account_number,
-          ifscCode: providerPayload.ifsc,
-          accountHolderName: providerPayload.beneficiary_name || user.fullName,
-        },
-        service: "PAYOUT",
-        transactionId: txnid,
-        status: "success",
-        description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)})`,
-        commissionEarned: retailerCommission,
-        charges,
-        commissionBreakdown,
-      });
-
-      await transaction.save({ session });
-
-      // 8. Credit distributor wallet if distributor exists and has commission
-      if (distributorId && distributorCommission > 0 && mongoose.Types.ObjectId.isValid(distributorId)) {
-        try {
-          let distWallet = await Wallet.findOne({ user: distributorId }).session(session);
-          if (!distWallet) {
-            distWallet = new Wallet({ user: distributorId, balance: 0, status: "active" });
-          }
-          const distBalBefore = Number(distWallet.balance || 0);
-          const distBalAfter = Math.round((distBalBefore + distributorCommission) * 100) / 100;
-          distWallet.balance = distBalAfter;
-          await distWallet.save({ session });
-
-          const distTxn = new Transaction({
-            wallet: distWallet._id,
-            type: "credit",
-            amount: distributorCommission,
-            balanceBefore: distBalBefore,
-            balanceAfter: distBalAfter,
-            service: "COMMISSION",
-            transactionId: generate15CharTxnId("DST"),
-            status: "success",
-            description: `Distributor Commission for PAYOUT (Retailer Ref: ${txnid})`,
-            payee: {
-              name: user.fullName,
-              mobile: user.mobile,
-            },
-            commissionEarned: distributorCommission,
-          });
-          await distTxn.save({ session });
-        } catch (distErr) {
-          console.error("[Distributor Commission Credit Error]:", distErr.message || distErr);
-        }
-      }
+    const walletTxn = await processServiceWalletTransaction({
+      userId,
+      type: "debit",
+      amount: numAmount,
+      service: "PAYOUT",
+      transactionId: txnid,
+      commissionEarned: retailerCommission,
+      charges: charges,
+      distributorCommission: distributorCommission,
+      distributorId: distributorId,
+      commissionBreakdown: commissionBreakdown,
+      payee: {
+        name: providerPayload.beneficiary_name || user.fullName,
+        mobile: user.mobile,
+        bankName: recordedBankName,
+        accountNumber: providerPayload.account_number,
+        ifscCode: providerPayload.ifsc,
+        accountHolderName: providerPayload.beneficiary_name || user.fullName,
+      },
+      description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)})`,
+      status: "success",
     });
-  } finally {
-    session.endSession();
+
+    // Send notification about commission earned (if any)
+    if (retailerCommission > 0) {
+      const { sendWalletTransferNotification } = await import("../../notifications/services/notification.services.js");
+      sendWalletTransferNotification({
+        recipientId: userId,
+        type: "WALLET_CREDIT",
+        title: "Commission Earned",
+        body: `You earned ₹${retailerCommission.toFixed(2)} commission for PAYOUT service.`,
+        data: {
+          service: "PAYOUT",
+          serviceName: "Bank Settlement",
+          amount: String(retailerCommission),
+          transactionId: txnid,
+        },
+      }).catch((err) => console.error("Failed to send commission notification:", err));
+    }
+
+    // Get updated wallet balance
+    const updatedWallet = await Wallet.findOne({ user: userId });
+    balanceAfter = Number(updatedWallet?.balance || 0);
+  } catch (walletErr) {
+    console.error("[PAYOUT] Wallet ledger debit error:", walletErr?.message || walletErr);
+    if (!walletErr?.message?.includes("duplicate")) {
+      throw walletErr;
+    }
   }
 
   const finalUtr =
@@ -572,13 +538,17 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     providerResponse?.bank_ref_num ||
     txnid;
 
+  // Get final wallet balance after transaction
+  const finalWallet = await Wallet.findOne({ user: userId });
+  const finalBalanceAfter = Number(finalWallet?.balance || 0);
+
   return {
     txnid,
     utr: finalUtr,
     amount: numAmount,
     netDebitAmount,
     balanceBefore: currentBalance,
-    balanceAfter,
+    balanceAfter: finalBalanceAfter,
     bankName: recordedBankName,
     accountNumber: providerPayload.account_number,
     mode: providerPayload.mode,
