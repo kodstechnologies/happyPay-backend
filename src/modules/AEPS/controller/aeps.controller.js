@@ -860,41 +860,80 @@ const miniStatementController = async (req, res) => {
 
     if (userId) {
       try {
-        console.log("Step 1: Processing wallet credit transaction...");
-        // Process wallet transaction - credit ₹1 for mini statement
-        walletTxn = await processServiceWalletTransaction({
-          userId,
-          type: "credit",
-          amount: 1,
-          service: "AEPS",
-          transactionId: generate15CharTxnId("MST"),
-          description: "Mini Statement Service Credit",
-          status: "success",
-        });
-        console.log("Wallet credit transaction successful:", walletTxn);
+        console.log("Step 1: Checking cashback eligibility...");
+        // Check if customer already received cashback today for mini statement
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-        console.log("Step 2: Getting updated wallet balance...");
-        // Get updated wallet balance
-        walletData = await getUserWalletBalance(userId);
-        console.log("Updated wallet data:", walletData);
+        const Transaction = require("../../transaction/model/transaction.model").default;
+        const Wallet = require("../../wallet/model/wallet.model").default;
 
-        console.log("Step 3: Sending cashback notification to retailer...");
-        // Send notification to retailer about cashback
-        sendWalletTransferNotification({
-          recipientId: userId,
-          type: "WALLET_CREDIT",
-          title: "Cashback Received",
-          body: "You received ₹1 cashback for Mini Statement service.",
-          data: {
+        // Get retailer's wallet
+        const wallet = await Wallet.findOne({ user: userId });
+        if (!wallet) {
+          console.log("Wallet not found for retailer, skipping cashback");
+        } else {
+          // Check if cashback already given today for this customer
+          const existingCashback = await Transaction.findOne({
+            wallet: wallet._id,
+            type: "credit",
             service: "AEPS",
-            serviceName: "Mini Statement",
-            amount: "1",
-            transactionId: walletTxn?.transaction?.transactionId || "",
-          },
-        }).catch((err) => console.error("Failed to send cashback notification:", err));
-        console.log("Cashback notification sent successfully");
+            status: "success",
+            description: "Mini Statement Service Credit",
+            "payee.mobile": mobile,
+            createdAt: {
+              $gte: today,
+              $lt: tomorrow,
+            },
+          });
 
-        console.log("===== MINI STATEMENT WALLET CREDIT SUCCESS =====");
+          if (existingCashback) {
+            console.log("Cashback already given today for this customer. Skipping cashback.");
+            console.log("Existing cashback transaction:", existingCashback.transactionId);
+          } else {
+            console.log("Step 2: Processing wallet credit transaction...");
+            // Process wallet transaction - credit ₹1 for mini statement
+            walletTxn = await processServiceWalletTransaction({
+              userId,
+              type: "credit",
+              amount: 1,
+              service: "AEPS",
+              transactionId: generate15CharTxnId("MST"),
+              description: "Mini Statement Service Credit",
+              status: "success",
+              payee: {
+                mobile: mobile,
+                aadharNumber: aadhaar,
+              },
+            });
+            console.log("Wallet credit transaction successful:", walletTxn);
+
+            console.log("Step 3: Getting updated wallet balance...");
+            // Get updated wallet balance
+            walletData = await getUserWalletBalance(userId);
+            console.log("Updated wallet data:", walletData);
+
+            console.log("Step 4: Sending cashback notification to retailer...");
+            // Send notification to retailer about cashback
+            sendWalletTransferNotification({
+              recipientId: userId,
+              type: "WALLET_CREDIT",
+              title: "Cashback Received",
+              body: "You received ₹1 cashback for Mini Statement service.",
+              data: {
+                service: "AEPS",
+                serviceName: "Mini Statement",
+                amount: "1",
+                transactionId: walletTxn?.transaction?.transactionId || "",
+              },
+            }).catch((err) => console.error("Failed to send cashback notification:", err));
+            console.log("Cashback notification sent successfully");
+
+            console.log("===== MINI STATEMENT WALLET CREDIT SUCCESS =====");
+          }
+        }
       } catch (walletError) {
         console.error("===== MINI STATEMENT WALLET CREDIT FAILED =====");
         console.error("Error details:", walletError);
