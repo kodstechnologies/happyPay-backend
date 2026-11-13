@@ -119,60 +119,143 @@ const subscribeToPlan = async (planId, userId) => {
     throw ApiError.badRequest("Cannot subscribe to an inactive plan");
   }
 
-  // 1. Capture subscription start date & time (subscribedAt)
-  const subscribedAt = new Date();
+  const subscriptionAmount = Number(plan.subscriptionAmount) || 0;
 
-  // 2. Extract validity period & unit from the plan
-  const validityPeriod = Number(plan.validityPeriod) || 1;
-  const validityUnit = String(plan.validityUnit || "MONTHS").toUpperCase();
-
-  // 3. Calculate when the plan expires (expiresAt)
-  const expiresAt = new Date(subscribedAt);
-  if (validityUnit === "DAYS") {
-    expiresAt.setDate(expiresAt.getDate() + validityPeriod);
-  } else if (validityUnit === "YEARS") {
-    expiresAt.setFullYear(expiresAt.getFullYear() + validityPeriod);
-  } else {
-    // Default: MONTHS
-    expiresAt.setMonth(expiresAt.getMonth() + validityPeriod);
+  // Check if wallet has sufficient balance for subscription
+  const Wallet = (await import("../wallet/model/wallet.model.js")).default;
+  const wallet = await Wallet.findOne({ user: userId });
+  
+  if (!wallet) {
+    throw ApiError.badRequest("Wallet not found. Please create a wallet first.");
   }
 
-  // Deactivate any existing active subscriptions for this user
-  await Subscription.updateMany(
-    { userId, isExpired: false, cancelledAt: null },
-    { $set: { isExpired: true, cancelledAt: subscribedAt } }
-  );
+  const availableBalance = Number(wallet.balance || 0) - Number(wallet.holdBalance || 0);
+  
+  if (availableBalance < subscriptionAmount) {
+    throw ApiError.badRequest(
+      `Insufficient wallet balance. Required: ₹${subscriptionAmount.toFixed(2)}, Available: ₹${availableBalance.toFixed(2)}`
+    );
+  }
 
-  // 4. Create new subscription with captured subscribedAt and calculated expiresAt
-  const subscription = await Subscription.create({
-    planId: plan._id,
+  // Check if user already has an active subscription
+  const existingSubscription = await Subscription.findOne({
     userId,
-    subscribedAt,
-    expiresAt,
     isExpired: false,
-  });
+    cancelledAt: null,
+  }).populate("planId");
 
-  // Update user's active subscription reference
-  user.subscription = subscription._id;
-  await user.save();
+  const session = await mongoose.startSession();
+  let subscription;
 
-  // Populate plan details for the response
-  await subscription.populate("planId");
+  try {
+    await session.withTransaction(async () => {
+      // 1. Capture subscription start date & time (subscribedAt)
+      const subscribedAt = new Date();
 
-  // 5. Backend console logging
-  console.log("=================================================");
-  console.log("🎉 [PLAN SUBSCRIPTION SUCCESS]");
-  console.log(`👤 User ID       : ${userId}`);
-  console.log(`📧 User Email    : ${user.email || "N/A"}`);
-  console.log(`📦 Plan Name     : ${plan.name} (ID: ${plan._id})`);
-  console.log(`⏱️ Validity      : ${validityPeriod} ${validityUnit}`);
-  console.log(`💰 Amount        : ${plan.subscriptionAmount ?? "N/A"}`);
-  console.log(`📅 Subscribed At : ${subscribedAt.toISOString()}`);
-  console.log(`⏳ Expires At    : ${expiresAt.toISOString()}`);
-  console.log(`🆔 Subscription  : ${subscription._id}`);
-  console.log("=================================================");
+      // 2. Extract validity period & unit from the plan
+      const validityPeriod = Number(plan.validityPeriod) || 1;
+      const validityUnit = String(plan.validityUnit || "MONTHS").toUpperCase();
 
-  return subscription;
+      // 3. Calculate when the plan expires (expiresAt)
+      const expiresAt = new Date(subscribedAt);
+      if (validityUnit === "DAYS") {
+        expiresAt.setDate(expiresAt.getDate() + validityPeriod);
+      } else if (validityUnit === "YEARS") {
+        expiresAt.setFullYear(expiresAt.getFullYear() + validityPeriod);
+      } else {
+        // Default: MONTHS
+        expiresAt.setMonth(expiresAt.getMonth() + validityPeriod);
+      }
+
+      // 4. Deactivate any existing active subscriptions for this user (overwrite)
+      await Subscription.updateMany(
+        { userId, isExpired: false, cancelledAt: null },
+        { $set: { isExpired: true, cancelledAt: subscribedAt } },
+        { session }
+      );
+
+      // 5. Create new subscription with captured subscribedAt and calculated expiresAt
+      subscription = await Subscription.create(
+        [
+          {
+            planId: plan._id,
+            userId,
+            subscribedAt,
+            expiresAt,
+            isExpired: false,
+          },
+        ],
+        { session }
+      );
+      subscription = subscription[0];
+
+      // 6. Update user's active subscription reference
+      user.subscription = subscription._id;
+      await user.save({ session });
+
+      // 7. Deduct subscription amount from wallet
+      const activeWallet = await Wallet.findOne({ user: userId }).session(session);
+      if (!activeWallet) {
+        throw ApiError.notFound("Wallet not found during transaction");
+      }
+
+      const balanceBefore = Number(activeWallet.balance || 0);
+      const balanceAfter = balanceBefore - subscriptionAmount;
+
+      activeWallet.balance = balanceAfter;
+      await activeWallet.save({ session });
+
+      // 8. Create transaction record for subscription payment
+      const Transaction = (await import("../../transaction/model/transaction.model.js")).default;
+      const { generate15CharTxnId } = await import("../../../utils/generateTxnId.js");
+
+      await Transaction.create(
+        [
+          {
+            transactionId: generate15CharTxnId("SUB"),
+            user: userId,
+            wallet: activeWallet._id,
+            type: "debit",
+            amount: subscriptionAmount,
+            balanceBefore,
+            balanceAfter,
+            service: "PLAN_SUBSCRIPTION",
+            description: `Subscription payment for ${plan.name}`,
+            status: "success",
+            commissionEarned: 0,
+            charges: 0,
+          },
+        ],
+        { session }
+      );
+
+      // Populate plan details for the response
+      await subscription.populate("planId");
+    });
+
+    // 9. Backend console logging
+    console.log("=================================================");
+    console.log("🎉 [PLAN SUBSCRIPTION SUCCESS]");
+    console.log(`👤 User ID       : ${userId}`);
+    console.log(`📧 User Email    : ${user.email || "N/A"}`);
+    console.log(`📦 Plan Name     : ${plan.name} (ID: ${plan._id})`);
+    console.log(`⏱️ Validity      : ${validityPeriod} ${validityUnit}`);
+    console.log(`💰 Amount        : ₹${subscriptionAmount.toFixed(2)}`);
+    console.log(`💳 Wallet Before : ₹${availableBalance.toFixed(2)}`);
+    console.log(`💳 Wallet After  : ₹${(availableBalance - subscriptionAmount).toFixed(2)}`);
+    console.log(`🔄 Overwritten    : ${existingSubscription ? `Yes (from ${existingSubscription.planId?.name})` : "No"}`);
+    console.log(`📅 Subscribed At : ${subscription.subscribedAt.toISOString()}`);
+    console.log(`⏳ Expires At    : ${subscription.expiresAt.toISOString()}`);
+    console.log(`🆔 Subscription  : ${subscription._id}`);
+    console.log("=================================================");
+
+    return subscription;
+  } catch (error) {
+    console.error("[subscribeToPlan] Transaction failed:", error);
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };
 
 const getSubscribedPlans = async (userId, options = {}) => {
