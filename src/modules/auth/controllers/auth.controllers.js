@@ -528,9 +528,15 @@ const getRetailerProfileController = asyncHandler(async (req, res) => {
 
   const retailer = await getRetailerDetailsService(retailerId);
 
+  // Ensure retailerId is included in the response
+  const retailerWithId = {
+    ...retailer,
+    retailerId: retailerId || retailer?._id || retailer?.id || null
+  };
+
   return res.status(200).json(
     ApiResponse.success(
-      retailer,
+      retailerWithId,
       "Retailer profile retrieved successfully",
       null,
       200

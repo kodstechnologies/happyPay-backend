@@ -68,8 +68,8 @@ const multerOptions = {
   storage,
 
   limits: {
-    // Maximum size per file = 10 MB
-    fileSize: 10 * 1024 * 1024,
+    // Maximum size per file = 5 MB
+    fileSize: 5 * 1024 * 1024,
 
     // Maximum number of files
     files: 25,
@@ -242,7 +242,7 @@ const retailerFileFilter = (req, file, cb) => {
 export const uploadRetailerDocuments = multer({
   storage: retailerStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
     files: 7,
   },
   fileFilter: retailerFileFilter,
@@ -261,7 +261,7 @@ const registrationMemoryStorage = multer.memoryStorage();
 export const uploadRetailerProfileDocuments = multer({
   storage: registrationMemoryStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
     files: 7,
   },
   fileFilter: retailerFileFilter,
@@ -279,7 +279,7 @@ export const uploadRetailerProfileDocuments = multer({
 export const uploadShopDetailsDocuments = multer({
   storage: registrationMemoryStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
     files: 5, // 5 mandatory files including panDocument
   },
   fileFilter: retailerFileFilter,
@@ -332,7 +332,7 @@ export const validateShopFiles = (req, res, next) => {
 export const uploadAboutDetailsDocuments = multer({
   storage: registrationMemoryStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
     files: 1, // Only selfie is required
   },
   fileFilter: retailerFileFilter,
@@ -345,7 +345,7 @@ export const uploadAboutDetailsDocuments = multer({
 export const uploadAdharDetailsDocuments = multer({
   storage: registrationMemoryStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
     files: 1, // Only selfie is required
   },
   fileFilter: retailerFileFilter,
