@@ -125,6 +125,8 @@ const payBillController = asyncHandler(async (req, res) => {
   };
   const result = await payBillService(payload);
 
+  console.log("[BBPS] Provider response:", JSON.stringify(result));
+
   // 2. Determine provider success based on live gateway response structure
   // Live response: { status: "SUCCESS", data: { STATUSCODE: "0", STATUSMSG: "Success", REFNO: "...", TRNID: ... } }
   const isSuccess =
@@ -134,8 +136,11 @@ const payBillController = asyncHandler(async (req, res) => {
       String(result?.data?.STATUSMSG).toLowerCase() === "success" ||
       result?.data?.STATUSCODE === undefined);
 
+  console.log("[BBPS] isSuccess:", isSuccess, "userId:", userId, "billAmount:", billAmount);
+
   // 3. Atomically debit wallet and record ledger entry upon success
   if (isSuccess && userId && billAmount > 0) {
+    console.log("[BBPS] Initiating wallet debit...");
     const trnId = String(
       result?.data?.REFNO ||
       result?.data?.TRNID ||
@@ -156,8 +161,11 @@ const payBillController = asyncHandler(async (req, res) => {
       amount: billAmount,
     });
 
+    console.log("[BBPS] Pricing calculated:", JSON.stringify(pricing));
+    console.log("[BBPS] Calling processServiceWalletTransaction with trnId:", trnId);
+
     try {
-      await processServiceWalletTransaction({
+      const walletResult = await processServiceWalletTransaction({
         userId,
         type: "debit",
         amount: billAmount,
@@ -176,12 +184,16 @@ const payBillController = asyncHandler(async (req, res) => {
         description: `BBPS bill payment of ₹${billAmount.toFixed(2)} for ${operatorName}${consumerNo ? ` (Consumer No: ${consumerNo})` : ""}`,
         status: "success",
       });
+      console.log("[BBPS] Wallet transaction completed successfully:", JSON.stringify(walletResult));
     } catch (walletErr) {
       console.error("[BBPS] Wallet ledger debit error:", walletErr?.message || walletErr);
+      console.error("[BBPS] Full error details:", JSON.stringify(walletErr, Object.getOwnPropertyNames(walletErr)));
       if (!walletErr?.message?.includes("duplicate")) {
         throw walletErr;
       }
     }
+  } else {
+    console.log("[BBPS] Wallet debit SKIPPED - isSuccess:", isSuccess, "userId:", !!userId, "billAmount:", billAmount);
   }
 
   return res.status(200).json(
