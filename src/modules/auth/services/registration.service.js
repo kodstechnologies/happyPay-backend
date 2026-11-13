@@ -799,7 +799,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
       await DistributorMapping.findOneAndUpdate(
         { retailerId: user._id },
         { retailerId: user._id, distributorId: parentDistId, isActive: true },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     } catch (mappingErr) {
       console.warn("Distributor mapping error:", mappingErr?.message);

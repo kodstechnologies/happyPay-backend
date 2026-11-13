@@ -766,7 +766,7 @@ export const processServiceWalletTransaction = async ({
       const result = await Wallet.findOneAndUpdate(
         { user: userId, balance: { $gte: netDebitAmount } },
         { $inc: { balance: -netDebitAmount } },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!result) {
         throw ApiError.badRequest("Insufficient wallet balance for debit transaction");
@@ -778,7 +778,7 @@ export const processServiceWalletTransaction = async ({
       const result = await Wallet.findOneAndUpdate(
         { user: userId },
         { $inc: { balance: netCreditAmount } },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
       balanceBefore = result.balance - netCreditAmount;
       balanceAfter = result.balance;
@@ -817,7 +817,7 @@ export const processServiceWalletTransaction = async ({
         const distWallet = await Wallet.findOneAndUpdate(
           { user: distributorId },
           { $inc: { balance: numDistributorComm } },
-          { new: true, upsert: true }
+          { returnDocument: 'after', upsert: true }
         );
         const distBalAfter = distWallet.balance;
         const distBalBefore = Math.round((distBalAfter - numDistributorComm) * 100) / 100;
@@ -1493,7 +1493,7 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
     const sWallet = await Wallet.findOneAndUpdate(
       { user: sender._id, balance: { $gte: numAmount } },
       { $inc: { balance: -numAmount } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!sWallet) {
       throw ApiError.badRequest("Insufficient wallet balance for distributor settlement");
@@ -1502,7 +1502,7 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
     const dWallet = await Wallet.findOneAndUpdate(
       { user: distributor._id },
       { $inc: { balance: numAmount } },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     const senderBalanceBefore = sWallet.balance + numAmount;
