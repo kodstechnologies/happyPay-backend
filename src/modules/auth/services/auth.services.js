@@ -1150,6 +1150,8 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   if (body.fullName !== undefined) user.fullName = String(body.fullName).trim();
   if (body.fatherName !== undefined) user.fatherName = String(body.fatherName).trim();
   if (body.motherName !== undefined) user.motherName = String(body.motherName).trim();
+  if (body.mobile !== undefined) user.mobile = String(body.mobile).trim();
+  if (body.email !== undefined) user.email = String(body.email).trim();
   if (body.gender !== undefined) user.gender = String(body.gender).trim();
   if (body.maritalStatus !== undefined) user.maritalStatus = String(body.maritalStatus).trim();
   if (body.educationalQualification !== undefined) {
