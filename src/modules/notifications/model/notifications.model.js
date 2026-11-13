@@ -40,6 +40,8 @@ const notificationSchema = new mongoose.Schema(
         "REGISTRATION_SUCCESS",
         "NEW_RETAILER_REGISTRATION",
 
+        "BANK_PENDING_APPROVAL",
+
         "CUSTOM_NOTIFICATION",
       ],
       required: true,

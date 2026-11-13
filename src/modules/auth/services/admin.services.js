@@ -503,6 +503,271 @@ const rejectRetailerDocumentService = async (retailerId, documentField, adminId,
   });
 };
 
+// ============================================================
+// BANK APPROVAL SERVICES
+// ============================================================
+
+/**
+ * Get all pending banks across all retailers for admin review
+ */
+const getPendingBanksService = async ({ page = 1, limit = 10 } = {}) => {
+  const User = (await import("../model/user.model.js")).default;
+
+  const skip = (page - 1) * limit;
+
+  const retailers = await User.find({
+    "pendingBanks.approvalStatus": "pending",
+  })
+    .select("mobile fullName email _id pendingBanks")
+    .skip(skip)
+    .limit(limit)
+    .sort({ "pendingBanks.submittedAt": -1 });
+
+  const total = await User.countDocuments({
+    "pendingBanks.approvalStatus": "pending",
+  });
+
+  const pendingBanks = [];
+  retailers.forEach((retailer) => {
+    if (retailer.pendingBanks) {
+      retailer.pendingBanks.forEach((bank, index) => {
+        if (bank.approvalStatus === "pending") {
+          pendingBanks.push({
+            bankId: bank._id,
+            retailerId: retailer._id,
+            retailerMobile: retailer.mobile,
+            retailerEmail: retailer.email,
+            retailerName: retailer.fullName,
+            bankIndex: index,
+            name: bank.name,
+            bank_code: bank.bank_code,
+            ifscCode: bank.ifscCode,
+            accountNumber: bank.accountNumber,
+            branchName: bank.branchName,
+            isPrimary: bank.isPrimary,
+            submittedAt: bank.submittedAt,
+          });
+        }
+      });
+    }
+  });
+
+  return {
+    data: pendingBanks,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Approve a pending bank account
+ */
+const approveBankService = async (retailerId, pendingBankId, adminId) => {
+  assertRetailerId(retailerId);
+
+  const User = (await import("../model/user.model.js")).default;
+  const retailer = await User.findById(retailerId);
+
+  if (!retailer) {
+    throw fail(404, "Retailer not found");
+  }
+
+  if (!retailer.pendingBanks || retailer.pendingBanks.length === 0) {
+    throw fail(404, "No pending banks found for this retailer");
+  }
+
+  const pendingBankIndex = retailer.pendingBanks.findIndex(
+    (b) => b._id && b._id.toString() === pendingBankId
+  );
+
+  if (pendingBankIndex === -1) {
+    throw fail(404, "Pending bank not found");
+  }
+
+  const pendingBank = retailer.pendingBanks[pendingBankIndex];
+
+  if (pendingBank.approvalStatus !== "pending") {
+    throw fail(409, "Bank is not in pending status");
+  }
+
+  // Create approved bank object
+  const approvedBank = {
+    name: pendingBank.name,
+    bank_code: pendingBank.bank_code,
+    ifscCode: pendingBank.ifscCode,
+    accountNumber: pendingBank.accountNumber,
+    confirmAccountNumber: pendingBank.confirmAccountNumber,
+    branchName: pendingBank.branchName,
+    isPrimary: pendingBank.isPrimary,
+    isActive: true,
+  };
+
+  // Handle primary bank logic
+  if (approvedBank.isPrimary && retailer.banks && retailer.banks.length > 0) {
+    retailer.banks.forEach((b) => {
+      b.isPrimary = false;
+    });
+  }
+
+  // Add to active banks
+  if (!retailer.banks) retailer.banks = [];
+  retailer.banks.push(approvedBank);
+
+  // Remove from pending banks
+  retailer.pendingBanks.splice(pendingBankIndex, 1);
+  retailer.markModified("banks");
+  retailer.markModified("pendingBanks");
+
+  await retailer.save();
+
+  // Send notification to retailer (non-blocking)
+  const { sendBankApprovedNotification } = await import("../../notifications/services/notification.services.js");
+  sendBankApprovedNotification({
+    retailerId,
+    bankName: pendingBank.name,
+  }).catch((err) => console.error("Failed to send bank approval notification:", err));
+
+  // Return updated retailer profile
+  const buildRetailerReview = (user) => ({
+    id: user._id,
+    mobile: user.mobile,
+    fullName: user.fullName,
+    banks: user.banks || [],
+    pendingBanks: user.pendingBanks || [],
+  });
+
+  return buildRetailerReview(retailer);
+};
+
+/**
+ * Reject a pending bank account
+ */
+const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionReason) => {
+  assertRetailerId(retailerId);
+
+  const reason = String(rejectionReason || "").trim();
+  if (!reason) {
+    throw fail(400, "Rejection reason is required");
+  }
+
+  const User = (await import("../model/user.model.js")).default;
+  const retailer = await User.findById(retailerId);
+
+  if (!retailer) {
+    throw fail(404, "Retailer not found");
+  }
+
+  if (!retailer.pendingBanks || retailer.pendingBanks.length === 0) {
+    throw fail(404, "No pending banks found for this retailer");
+  }
+
+  const pendingBankIndex = retailer.pendingBanks.findIndex(
+    (b) => b._id && b._id.toString() === pendingBankId
+  );
+
+  if (pendingBankIndex === -1) {
+    throw fail(404, "Pending bank not found");
+  }
+
+  const pendingBank = retailer.pendingBanks[pendingBankIndex];
+
+  if (pendingBank.approvalStatus !== "pending") {
+    throw fail(409, "Bank is not in pending status");
+  }
+
+  // Update pending bank with rejection details
+  retailer.pendingBanks[pendingBankIndex].approvalStatus = "rejected";
+  retailer.pendingBanks[pendingBankIndex].rejectionReason = reason;
+  retailer.pendingBanks[pendingBankIndex].reviewedAt = new Date();
+  retailer.pendingBanks[pendingBankIndex].reviewedBy = adminId;
+
+  retailer.markModified("pendingBanks");
+  await retailer.save();
+
+  // Send notification to retailer (non-blocking)
+  const { sendBankRejectedNotification } = await import("../../notifications/services/notification.services.js");
+  sendBankRejectedNotification({
+    retailerId,
+    bankName: pendingBank.name,
+    rejectionReason: reason,
+  }).catch((err) => console.error("Failed to send bank rejection notification:", err));
+
+  const buildRetailerReview = (user) => ({
+    id: user._id,
+    mobile: user.mobile,
+    fullName: user.fullName,
+    banks: user.banks || [],
+    pendingBanks: user.pendingBanks || [],
+  });
+
+  return buildRetailerReview(retailer);
+};
+
+/**
+ * Allow retailer to resubmit a rejected bank
+ */
+const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) => {
+  assertRetailerId(retailerId);
+
+  const User = (await import("../model/user.model.js")).default;
+  const retailer = await User.findById(retailerId);
+
+  if (!retailer) {
+    throw fail(404, "Retailer not found");
+  }
+
+  if (!retailer.pendingBanks || retailer.pendingBanks.length === 0) {
+    throw fail(404, "No pending banks found for this retailer");
+  }
+
+  const pendingBankIndex = retailer.pendingBanks.findIndex(
+    (b) => b._id && b._id.toString() === pendingBankId
+  );
+
+  if (pendingBankIndex === -1) {
+    throw fail(404, "Pending bank not found");
+  }
+
+  const pendingBank = retailer.pendingBanks[pendingBankIndex];
+
+  if (pendingBank.approvalStatus !== "rejected") {
+    throw fail(409, "Only rejected banks can be resubmitted");
+  }
+
+  // Update bank details and reset to pending
+  retailer.pendingBanks[pendingBankIndex] = {
+    ...retailer.pendingBanks[pendingBankIndex],
+    name: (newBankDetails.bankName || pendingBank.name).trim(),
+    bank_code: newBankDetails.bank_code ? String(newBankDetails.bank_code).trim() : pendingBank.bank_code,
+    ifscCode: (newBankDetails.ifscCode || pendingBank.ifscCode).trim().toUpperCase(),
+    accountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
+    confirmAccountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
+    branchName: (newBankDetails.branchName || pendingBank.branchName).trim(),
+    approvalStatus: "pending",
+    rejectionReason: null,
+    submittedAt: new Date(),
+    reviewedAt: null,
+    reviewedBy: null,
+  };
+
+  retailer.markModified("pendingBanks");
+  await retailer.save();
+
+  const buildRetailerReview = (user) => ({
+    id: user._id,
+    mobile: user.mobile,
+    fullName: user.fullName,
+    banks: user.banks || [],
+    pendingBanks: user.pendingBanks || [],
+  });
+
+  return buildRetailerReview(retailer);
+};
+
 export {
   createAdminService,
   loginAdminService,
@@ -514,4 +779,8 @@ export {
   approveRetailerDocumentService,
   rejectRetailerDocumentService,
   reviewRetailerDocumentService,
+  approveBankService,
+  rejectBankService,
+  resubmitBankService,
+  getPendingBanksService
 };

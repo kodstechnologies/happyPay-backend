@@ -1230,13 +1230,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
       const shouldBePrimary =
         Boolean(body.isPrimary) || (!user.banks || user.banks.length === 0);
 
-      if (shouldBePrimary && user.banks && user.banks.length > 0) {
-        user.banks.forEach((b) => {
-          b.isPrimary = false;
-        });
-      }
-
-      const newBank = {
+      const newPendingBank = {
         name: (body.bankName || "Bank Account").trim(),
         bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
 
@@ -1245,12 +1239,16 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
         confirmAccountNumber: String(body.accountNumber).trim(),
         branchName: (body.branchName || "").trim(),
         isPrimary: shouldBePrimary,
-        isActive: true,
+        approvalStatus: "pending",
+        rejectionReason: null,
+        submittedAt: new Date(),
+        reviewedAt: null,
+        reviewedBy: null,
       };
 
-      if (!user.banks) user.banks = [];
-      user.banks.push(newBank);
-      user.markModified("banks");
+      if (!user.pendingBanks) user.pendingBanks = [];
+      user.pendingBanks.push(newPendingBank);
+      user.markModified("pendingBanks");
     }
   } else if (body.action === "EDIT_BANK" || body.bankId) {
     if (body.accountNumber && body.ifscCode && user.banks && user.banks.length > 0) {
@@ -1343,6 +1341,17 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
   }
 
   await user.save();
+
+  // Send admin notification when a new bank is submitted for approval (non-blocking)
+  if (body.action === "ADD_BANK" || body.isNewBank) {
+    const { sendBankPendingApprovalNotification } = await import("../../notifications/services/notification.services.js");
+    sendBankPendingApprovalNotification({
+      retailerId: user._id,
+      retailerName: user.fullName || user.name,
+      retailerMobile: user.mobile,
+      bankName: body.bankName,
+    }).catch((err) => console.warn("[Bank notification] Failed:", err?.message));
+  }
 
   // Return full canonical retailer profile with populated relations
   const fullProfile = await getRetailerDetailsService(user._id);

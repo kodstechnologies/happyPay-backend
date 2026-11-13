@@ -10,6 +10,10 @@ import {
   approveRetailerDocumentService,
   rejectRetailerDocumentService,
   reviewRetailerDocumentService,
+  getPendingBanksService,
+  approveBankService,
+  rejectBankService,
+  resubmitBankService,
 } from "../services/admin.services.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 
@@ -183,5 +187,60 @@ export const reviewRetailerDocument = asyncHandler(async (req, res) => {
         `Document '${documentField}' ${isApprove ? "approved" : "rejected"} successfully`
       )
     );
+});
+
+// ============================================================
+// BANK APPROVAL CONTROLLERS
+// ============================================================
+
+export const getPendingBanks = asyncHandler(async (req, res) => {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
+
+  const result = await getPendingBanksService({ page, limit });
+
+  return res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        result.data,
+        "Pending banks fetched successfully",
+        result.meta
+      )
+    );
+});
+
+export const approveBank = asyncHandler(async (req, res) => {
+  const adminId = req.user?.userId;
+  const { retailerId, pendingBankId } = req.params;
+
+  const data = await approveBankService(retailerId, pendingBankId, adminId);
+
+  return res
+    .status(200)
+    .json(ApiResponse.success(data, "Bank account approved successfully"));
+});
+
+export const rejectBank = asyncHandler(async (req, res) => {
+  const adminId = req.user?.userId;
+  const { retailerId, pendingBankId } = req.params;
+  const { reasonOfRejection } = req.body;
+
+  const data = await rejectBankService(retailerId, pendingBankId, adminId, reasonOfRejection);
+
+  return res
+    .status(200)
+    .json(ApiResponse.success(data, "Bank account rejected successfully"));
+});
+
+export const resubmitBank = asyncHandler(async (req, res) => {
+  const { retailerId, pendingBankId } = req.params;
+  const newBankDetails = req.body;
+
+  const data = await resubmitBankService(retailerId, pendingBankId, newBankDetails);
+
+  return res
+    .status(200)
+    .json(ApiResponse.success(data, "Bank account resubmitted successfully"));
 });
 

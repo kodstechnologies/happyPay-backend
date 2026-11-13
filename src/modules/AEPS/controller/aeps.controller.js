@@ -29,6 +29,7 @@ import {
   getUserWalletBalance,
 } from "../../wallet/services/wallet.service.js";
 import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
+import { sendWalletTransferNotification } from "../../notifications/services/notification.services.js";
 
 /* ==============================
    Get Retailer KYC Details Controller
@@ -877,6 +878,22 @@ const miniStatementController = async (req, res) => {
         walletData = await getUserWalletBalance(userId);
         console.log("Updated wallet data:", walletData);
 
+        console.log("Step 3: Sending cashback notification to retailer...");
+        // Send notification to retailer about cashback
+        sendWalletTransferNotification({
+          recipientId: userId,
+          type: "WALLET_CREDIT",
+          title: "Cashback Received",
+          body: "You received ₹1 cashback for Mini Statement service.",
+          data: {
+            service: "AEPS",
+            serviceName: "Mini Statement",
+            amount: "1",
+            transactionId: walletTxn?.transaction?.transactionId || "",
+          },
+        }).catch((err) => console.error("Failed to send cashback notification:", err));
+        console.log("Cashback notification sent successfully");
+
         console.log("===== MINI STATEMENT WALLET CREDIT SUCCESS =====");
       } catch (walletError) {
         console.error("===== MINI STATEMENT WALLET CREDIT FAILED =====");
@@ -1028,7 +1045,7 @@ const cashWithdrawController = async (req, res) => {
       });
 
       try {
-        await processServiceWalletTransaction({
+        const walletTxn = await processServiceWalletTransaction({
           userId,
           type: "credit",
           amount: withdrawAmount,
@@ -1047,6 +1064,22 @@ const cashWithdrawController = async (req, res) => {
           description: `AEPS Cash Withdrawal of ₹${withdrawAmount.toFixed(2)} from ${bankName}${aadharMasked ? ` (${aadharMasked})` : ""}`,
           status: "success",
         });
+
+        // Send notification about commission earned
+        if (pricing.retailerCommission > 0) {
+          sendWalletTransferNotification({
+            recipientId: userId,
+            type: "WALLET_CREDIT",
+            title: "Commission Earned",
+            body: `You earned ₹${pricing.retailerCommission.toFixed(2)} commission for Cash Withdrawal service.`,
+            data: {
+              service: "AEPS",
+              serviceName: "Cash Withdrawal",
+              amount: String(pricing.retailerCommission),
+              transactionId: aepsTxnId,
+            },
+          }).catch((err) => console.error("Failed to send commission notification:", err));
+        }
       } catch (walletErr) {
         console.error("[AEPS] Wallet ledger credit error:", walletErr?.message || walletErr);
         if (!walletErr?.message?.includes("duplicate")) {
@@ -1254,7 +1287,7 @@ const cashDepositController = async (req, res) => {
       });
 
       try {
-        await processServiceWalletTransaction({
+        const walletTxn = await processServiceWalletTransaction({
           userId,
           type: "debit",
           amount: Number(result?.amount || depositAmount),
@@ -1273,6 +1306,22 @@ const cashDepositController = async (req, res) => {
           description: `AEPS Cash Deposit of ₹${depositAmount.toFixed(2)} to ${bankName}${aadharMasked ? ` (${aadharMasked})` : ""}`,
           status: "success",
         });
+
+        // Send notification about commission earned (if any)
+        if (pricing.retailerCommission > 0) {
+          sendWalletTransferNotification({
+            recipientId: userId,
+            type: "WALLET_CREDIT",
+            title: "Commission Earned",
+            body: `You earned ₹${pricing.retailerCommission.toFixed(2)} commission for Cash Deposit service.`,
+            data: {
+              service: "AEPS",
+              serviceName: "Cash Deposit",
+              amount: String(pricing.retailerCommission),
+              transactionId: aepsTxnId,
+            },
+          }).catch((err) => console.error("Failed to send commission notification:", err));
+        }
       } catch (walletErr) {
         console.error("[AEPS] Wallet ledger debit error:", walletErr?.message || walletErr);
         if (!walletErr?.message?.includes("duplicate")) {

@@ -9,6 +9,10 @@ import {
   approveRetailerDocument,
   rejectRetailerDocument,
   reviewRetailerDocument,
+  getPendingBanks,
+  approveBank,
+  rejectBank,
+  resubmitBank,
 } from "../controllers/admin.controller.js";
 import {
   getNotificationsController,
@@ -130,6 +134,37 @@ router.post(
   authMiddleware,
   requireAdmin,
   sendCustomNotificationController
+);
+
+// =========================================
+// Bank Approval Routes
+// =========================================
+
+router.get(
+  "/banks/pending",
+  authMiddleware,
+  requireAdmin,
+  getPendingBanks
+);  
+
+router.patch(
+  "/retailers/:retailerId/banks/:pendingBankId/approve",
+  authMiddleware,
+  requireAdmin,
+  approveBank
+);
+
+router.patch(
+  "/retailers/:retailerId/banks/:pendingBankId/reject",
+  authMiddleware,
+  requireAdmin,
+  rejectBank
+);
+
+router.patch(
+  "/retailers/:retailerId/banks/:pendingBankId/resubmit",
+  authMiddleware,
+  resubmitBank
 );
 
 export default router;

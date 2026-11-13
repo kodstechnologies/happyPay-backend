@@ -336,6 +336,76 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    // =========================
+    // Pending Bank Details (Awaiting Admin Approval)
+    // =========================
+    pendingBanks: [
+      {
+        name: {
+          type: String,
+          trim: true,
+        },
+
+        ifscCode: {
+          type: String,
+          trim: true,
+          uppercase: true,
+        },
+
+        accountNumber: {
+          type: String,
+          trim: true,
+        },
+
+        confirmAccountNumber: {
+          type: String,
+          trim: true,
+        },
+
+        bank_code: {
+          type: String,
+          trim: true
+        },
+        branchName: {
+          type: String,
+          trim: true,
+        },
+
+        isPrimary: {
+          type: Boolean,
+          default: false,
+        },
+
+        approvalStatus: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+
+        rejectionReason: {
+          type: String,
+          trim: true,
+          default: null,
+        },
+
+        submittedAt: {
+          type: Date,
+          default: Date.now,
+        },
+
+        reviewedAt: {
+          type: Date,
+          default: null,
+        },
+
+        reviewedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          default: null,
+        },
+      },
+    ],
+
     AepsEkyc: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AepsEkyc",

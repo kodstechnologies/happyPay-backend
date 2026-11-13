@@ -758,6 +758,292 @@ const sendCustomNotificationToAllRetailers = async ({
   }
 };
 
+/**
+ * Notify all active admins when a retailer submits a bank account for approval.
+ * Non-blocking — always fire-and-forget in callers.
+ */
+const sendBankPendingApprovalNotification = async ({
+  retailerId,
+  retailerName,
+  retailerMobile,
+  bankName,
+}) => {
+  const admins = await Admin.find({ status: "active" }).select("devices email");
+
+  if (admins.length === 0) return { success: false, message: "No active admins found" };
+
+  const notifications = [];
+  for (const admin of admins) {
+    const notification = await createNotification({
+      recipientId: admin._id,
+      recipientType: "admin",
+      type: "BANK_PENDING_APPROVAL",
+      title: "Bank Account Pending Approval",
+      body: `${retailerName || "A retailer"} (${retailerMobile || ""}) has submitted a bank account${bankName ? ` (${bankName})` : ""} for approval.`,
+      data: {
+        type: "BANK_PENDING_APPROVAL",
+        screen: "ADMIN_RETAILER_DETAILS",
+        retailerId: String(retailerId || ""),
+        retailerName: String(retailerName || ""),
+        retailerMobile: String(retailerMobile || ""),
+        bankName: String(bankName || ""),
+      },
+    });
+    notifications.push(notification);
+  }
+
+  // Best-effort FCM push
+  const allDevices = admins.flatMap(
+    (a) => (a.devices || []).filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy")
+  );
+
+  if (allDevices.length === 0 || !firebaseMessaging) {
+    return { success: true, message: "Notification saved", data: notifications };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  for (const device of allDevices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Bank Account Pending Approval",
+          body: `${retailerName || "A retailer"} submitted a bank account for approval.`,
+        },
+        data: {
+          type: "BANK_PENDING_APPROVAL",
+          screen: "ADMIN_RETAILER_DETAILS",
+          retailerId: String(retailerId || ""),
+        },
+      });
+      fcmSent = true;
+    } catch (err) {
+      failureReason = err.message;
+    }
+  }
+
+  for (const n of notifications) {
+    await updateFcmStatus({ notificationId: n._id, fcmSent, fcmFailureReason: failureReason });
+  }
+
+  return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notifications };
+};
+
+/**
+ * Notify retailer when their bank account is approved
+ */
+const sendBankApprovedNotification = async ({
+  retailerId,
+  bankName,
+}) => {
+  // 1. Find retailer
+  const retailer = await User.findById(retailerId)
+    .select("devices name fullName");
+
+  if (!retailer) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Retailer not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "BANK_APPROVED",
+    title: "Bank Account Approved",
+    body: bankName
+      ? `Your bank account with ${bankName} has been approved successfully.`
+      : "Your bank account has been approved successfully.",
+    data: {
+      type: "BANK_APPROVED",
+      screen: "BANK_DETAILS",
+      bankName: bankName || "",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    retailer.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Bank approved and notification saved, but Firebase messaging is not configured."
+        : "Bank approved and notification saved, but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send notification to all active devices
+  for (const device of devices) {
+    try {
+      const message = {
+        token: device.fcmToken,
+        notification: {
+          title: "Bank Account Approved",
+          body: bankName
+            ? `Your bank account with ${bankName} has been approved successfully.`
+            : "Your bank account has been approved successfully.",
+        },
+        data: {
+          type: "BANK_APPROVED",
+          screen: "BANK_DETAILS",
+          bankName: bankName || "",
+        },
+      };
+
+      await firebaseMessaging.send(message);
+
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Bank approval FCM notification error:",
+        error.message
+      );
+
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update notification delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Bank approval notification sent successfully."
+      : "Bank approved but notification delivery failed.",
+    data: notification,
+  };
+};
+
+/**
+ * Notify retailer when their bank account is rejected
+ */
+const sendBankRejectedNotification = async ({
+  retailerId,
+  bankName,
+  rejectionReason,
+}) => {
+  // 1. Find retailer
+  const retailer = await User.findById(retailerId)
+    .select("devices name fullName");
+
+  if (!retailer) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Retailer not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "BANK_REJECTED",
+    title: "Bank Account Rejected",
+    body: rejectionReason
+      ? `Your bank account${bankName ? ` with ${bankName}` : ""} has been rejected. Reason: ${rejectionReason}`
+      : `Your bank account${bankName ? ` with ${bankName}` : ""} has been rejected. Please check the reason and resubmit.`,
+    data: {
+      type: "BANK_REJECTED",
+      screen: "BANK_DETAILS",
+      bankName: bankName || "",
+      rejectionReason: rejectionReason || "",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    retailer.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Bank rejection saved, but Firebase messaging is not configured."
+        : "Bank rejection saved but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification
+  for (const device of devices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Bank Account Rejected",
+          body: rejectionReason
+            ? `Your bank account${bankName ? ` with ${bankName}` : ""} has been rejected. Reason: ${rejectionReason}`
+            : `Your bank account${bankName ? ` with ${bankName}` : ""} has been rejected. Please check the reason and resubmit.`,
+        },
+        data: {
+          type: "BANK_REJECTED",
+          screen: "BANK_DETAILS",
+          bankName: bankName || "",
+          rejectionReason: rejectionReason || "",
+        },
+      });
+
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Bank rejection FCM error:",
+        error.message
+      );
+
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Bank rejection notification sent successfully."
+      : "Bank rejected but notification delivery failed.",
+    data: notification,
+  };
+};
+
 export {
   sendKycApprovedNotification,
   sendKycRejectedNotification,
@@ -766,4 +1052,7 @@ export {
   sendWalletTransferNotification,
   sendCustomNotificationToRetailer,
   sendCustomNotificationToAllRetailers,
+  sendBankPendingApprovalNotification,
+  sendBankApprovedNotification,
+  sendBankRejectedNotification,
 };
