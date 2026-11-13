@@ -139,6 +139,10 @@ const planSchema = new mongoose.Schema(
       enum: ["ACTIVE", "INACTIVE"],
       default: "INACTIVE",
     },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

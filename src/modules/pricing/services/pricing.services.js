@@ -594,8 +594,8 @@ async function subscribeToDefaultPlan(userId) {
   try {
     if (!userId || !mongoose.Types.ObjectId.isValid(String(userId))) return;
 
-    // 1. Find the Default Plan (must be ACTIVE)
-    const defaultPlan = await findOnePlan({ name: "Default Plan", status: "ACTIVE" });
+    // 1. Find the Default Plan (must be ACTIVE and marked as isDefault)
+    const defaultPlan = await findOnePlan({ isDefault: true, status: "ACTIVE" });
     if (!defaultPlan) {
       console.warn("[subscribeToDefaultPlan] No active Default Plan found — skipping auto-subscribe.");
       return;
@@ -622,10 +622,13 @@ async function subscribeToDefaultPlan(userId) {
       isExpired: false,
     });
 
-    // 4. Link subscription ID onto the user document
-    await User.findByIdAndUpdate(userId, { subscription: subscription._id });
+    // 4. Link subscription ID and planId onto the user document
+    await User.findByIdAndUpdate(userId, { 
+      subscription: subscription._id,
+      planId: defaultPlan._id
+    });
 
-    console.log(`[subscribeToDefaultPlan] User ${userId} auto-subscribed to Default Plan (sub: ${subscription._id})`);
+    console.log(`[subscribeToDefaultPlan] User ${userId} auto-subscribed to Default Plan (sub: ${subscription._id}, plan: ${defaultPlan._id})`);
   } catch (err) {
     // Non-blocking — log and continue so registration is never interrupted
     console.error("[subscribeToDefaultPlan] Failed (non-fatal):", err?.message || err);

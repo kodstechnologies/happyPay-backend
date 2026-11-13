@@ -173,6 +173,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    planId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Plan",
+      default: null,
+    },
     firstName: {
       type: String,
       trim: true,

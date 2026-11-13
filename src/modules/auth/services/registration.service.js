@@ -782,6 +782,15 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
 
   await user.save();
 
+  // Auto-subscribe retailer to default plan after registration completion
+  try {
+    await subscribeToDefaultPlan(user._id);
+    // Refresh user to get the planId after subscription
+    await user.populate("planId");
+  } catch (planError) {
+    console.warn("Default plan subscription failed (non-fatal):", planError?.message);
+  }
+
   // Handle distributor mapping (for sub-retailers under a distributor)
   // Note: Automatic distributor role upgrade removed - distributors are now explicitly created
   const parentDistId = user.ditributor || user.distributor;

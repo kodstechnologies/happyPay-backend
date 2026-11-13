@@ -61,7 +61,6 @@ router.post(
 // Get current registration step with all filled data
 router.post("/registration/current-step", getCurrentRegistrationStepController);
 
-
 // Step-by-step registration endpoints with validations
 router.patch("/registration/shop-details", uploadShopDetailsDocuments, validateShopFiles, validateShopDetails, uploadRegistrationFilesToS3("happypay/retailers/shop-details"), updateShopDetailsController);
 router.patch("/registration/about", uploadAboutDetailsDocuments, validateAboutFiles, validateAboutDetails, uploadRegistrationFilesToS3("happypay/retailers/about"), updateAboutDetailsController);

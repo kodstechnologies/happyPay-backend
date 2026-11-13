@@ -384,7 +384,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   console.log("===== PAYOUT PRICING CALCULATION START =====");
   const pricingResult = await calculateTransactionPricing({
     userId,
-    service: "PAYOUT",
+    service: "payout",
     category: "transfer to bank",
     amount: numAmount,
   });
