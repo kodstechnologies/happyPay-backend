@@ -528,10 +528,10 @@ const getRetailerProfileController = asyncHandler(async (req, res) => {
 
   const retailer = await getRetailerDetailsService(retailerId);
 
-  // Ensure retailerId is included in the response
+  // Ensure retailerId field from the model is included in the response, not the MongoDB _id
   const retailerWithId = {
     ...retailer,
-    retailerId: retailerId || retailer?._id || retailer?.id || null
+    retailerId: retailer?.retailerId || null
   };
 
   return res.status(200).json(
