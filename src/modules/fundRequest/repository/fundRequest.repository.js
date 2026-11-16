@@ -14,7 +14,7 @@ class FundRequestRepository {
    */
   async findById(id) {
     return await FundRequest.findById(id)
-      .populate("userId", "firstName lastName email mobile retailerId")
+      .populate("userId", "firstName lastName email mobile retailerId selfie")
       .populate("reviewedBy", "firstName lastName email");
   }
 
@@ -94,7 +94,7 @@ class FundRequestRepository {
 
     return await FundRequest.find(query)
       .sort({ createdAt: -1 })
-      .populate("userId", "firstName lastName email mobile retailerId")
+      .populate("userId", "firstName lastName email mobile retailerId selfie")
       .populate("reviewedBy", "firstName lastName email");
   }
 
@@ -104,7 +104,7 @@ class FundRequestRepository {
   async findPending() {
     return await FundRequest.find({ status: "PENDING" })
       .sort({ createdAt: -1 })
-      .populate("userId", "firstName lastName email mobile retailerId");
+      .populate("userId", "firstName lastName email mobile retailerId selfie");
   }
 
   /**
@@ -116,7 +116,7 @@ class FundRequestRepository {
       { $set: updateData },
       { new: true, runValidators: true }
     )
-      .populate("userId", "firstName lastName email mobile retailerId")
+      .populate("userId", "firstName lastName email mobile retailerId selfie")
       .populate("reviewedBy", "firstName lastName email");
   }
 

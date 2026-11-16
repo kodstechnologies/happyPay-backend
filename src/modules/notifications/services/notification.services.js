@@ -1050,6 +1050,281 @@ const sendBankPendingApprovalNotification = async ({
 };
 
 /**
+ * Notify all active admins when a retailer submits a fund request.
+ * Non-blocking — always fire-and-forget in callers.
+ */
+const sendFundRequestNotification = async ({
+  retailerId,
+  retailerName,
+  retailerMobile,
+  amount,
+  paymentMode,
+}) => {
+  const admins = await Admin.find({ status: "active" }).select("devices email");
+
+  if (admins.length === 0) return { success: false, message: "No active admins found" };
+
+  const notifications = [];
+  for (const admin of admins) {
+    const notification = await createNotification({
+      recipientId: admin._id,
+      recipientType: "admin",
+      type: "NEW_FUND_REQUEST",
+      title: "New Fund Request",
+      body: `${retailerName || "A retailer"} (${retailerMobile || ""}) has submitted a fund request of ₹${amount} via ${paymentMode}.`,
+      data: {
+        type: "NEW_FUND_REQUEST",
+        screen: "ADMIN_FUND_REQUESTS",
+        retailerId: String(retailerId || ""),
+        retailerName: String(retailerName || ""),
+        retailerMobile: String(retailerMobile || ""),
+        amount: String(amount || ""),
+        paymentMode: String(paymentMode || ""),
+      },
+    });
+    notifications.push(notification);
+  }
+
+  // Best-effort FCM push
+  const allDevices = admins.flatMap(
+    (a) => (a.devices || []).filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy")
+  );
+
+  if (allDevices.length === 0 || !firebaseMessaging) {
+    return { success: true, message: "Notification saved", data: notifications };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  for (const device of allDevices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "New Fund Request",
+          body: `${retailerName || "A retailer"} submitted a fund request of ₹${amount} via ${paymentMode}.`,
+        },
+        data: {
+          type: "NEW_FUND_REQUEST",
+          screen: "ADMIN_FUND_REQUESTS",
+          retailerId: String(retailerId || ""),
+        },
+      });
+      fcmSent = true;
+    } catch (err) {
+      failureReason = err.message;
+    }
+  }
+
+  for (const n of notifications) {
+    await updateFcmStatus({ notificationId: n._id, fcmSent, fcmFailureReason: failureReason });
+  }
+
+  return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notifications };
+};
+
+/**
+ * Notify retailer when their fund request is approved
+ */
+const sendFundRequestApprovedNotification = async ({
+  retailerId,
+  amount,
+}) => {
+  const retailer = await User.findById(retailerId).select("devices name fullName mobile");
+
+  if (!retailer) {
+    return { success: false, message: "Retailer not found" };
+  }
+
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "FUND_REQUEST_APPROVED",
+    title: "Fund Request Approved",
+    body: `Your fund request of ₹${amount} has been approved and credited to your wallet.`,
+    data: {
+      type: "FUND_REQUEST_APPROVED",
+      screen: "FUND_REQUEST",
+      amount: String(amount || ""),
+    },
+  });
+
+  const devices = retailer.devices?.filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy") || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return { success: true, message: "Notification saved", data: notification };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  for (const device of devices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Fund Request Approved",
+          body: `Your fund request of ₹${amount} has been approved and credited to your wallet.`,
+        },
+        data: {
+          type: "FUND_REQUEST_APPROVED",
+          screen: "FUND_REQUEST",
+          amount: String(amount || ""),
+        },
+      });
+      fcmSent = true;
+    } catch (err) {
+      failureReason = err.message;
+    }
+  }
+
+  await updateFcmStatus({ notificationId: notification._id, fcmSent, fcmFailureReason: failureReason });
+
+  return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notification };
+};
+
+/**
+ * Notify retailer when their fund request is rejected
+ */
+const sendFundRequestRejectedNotification = async ({
+  retailerId,
+  amount,
+  rejectionReason,
+}) => {
+  const retailer = await User.findById(retailerId).select("devices name fullName mobile");
+
+  if (!retailer) {
+    return { success: false, message: "Retailer not found" };
+  }
+
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "FUND_REQUEST_REJECTED",
+    title: "Fund Request Rejected",
+    body: rejectionReason
+      ? `Your fund request of ₹${amount} has been rejected. Reason: ${rejectionReason}`
+      : `Your fund request of ₹${amount} has been rejected. Please check the reason and resubmit.`,
+    data: {
+      type: "FUND_REQUEST_REJECTED",
+      screen: "FUND_REQUEST",
+      amount: String(amount || ""),
+      rejectionReason: rejectionReason || "",
+    },
+  });
+
+  const devices = retailer.devices?.filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy") || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return { success: true, message: "Notification saved", data: notification };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  for (const device of devices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Fund Request Rejected",
+          body: rejectionReason
+            ? `Your fund request of ₹${amount} has been rejected. Reason: ${rejectionReason}`
+            : `Your fund request of ₹${amount} has been rejected.`,
+        },
+        data: {
+          type: "FUND_REQUEST_REJECTED",
+          screen: "FUND_REQUEST",
+          amount: String(amount || ""),
+          rejectionReason: rejectionReason || "",
+        },
+      });
+      fcmSent = true;
+    } catch (err) {
+      failureReason = err.message;
+    }
+  }
+
+  await updateFcmStatus({ notificationId: notification._id, fcmSent, fcmFailureReason: failureReason });
+
+  return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notification };
+};
+
+/**
+ * Notify all active admins when a retailer resubmits a fund request
+ */
+const sendFundRequestResubmittedNotification = async ({
+  retailerId,
+  retailerName,
+  retailerMobile,
+  amount,
+  paymentMode,
+}) => {
+  const admins = await Admin.find({ status: "active" }).select("devices email");
+
+  if (admins.length === 0) return { success: false, message: "No active admins found" };
+
+  const notifications = [];
+  for (const admin of admins) {
+    const notification = await createNotification({
+      recipientId: admin._id,
+      recipientType: "admin",
+      type: "FUND_REQUEST_RESUBMITTED",
+      title: "Fund Request Resubmitted",
+      body: `${retailerName || "A retailer"} (${retailerMobile || ""}) has resubmitted a fund request of ₹${amount} via ${paymentMode}.`,
+      data: {
+        type: "FUND_REQUEST_RESUBMITTED",
+        screen: "ADMIN_FUND_REQUESTS",
+        retailerId: String(retailerId || ""),
+        retailerName: String(retailerName || ""),
+        retailerMobile: String(retailerMobile || ""),
+        amount: String(amount || ""),
+        paymentMode: String(paymentMode || ""),
+      },
+    });
+    notifications.push(notification);
+  }
+
+  const allDevices = admins.flatMap(
+    (a) => (a.devices || []).filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy")
+  );
+
+  if (allDevices.length === 0 || !firebaseMessaging) {
+    return { success: true, message: "Notification saved", data: notifications };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  for (const device of allDevices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Fund Request Resubmitted",
+          body: `${retailerName || "A retailer"} has resubmitted a fund request of ₹${amount} via ${paymentMode}.`,
+        },
+        data: {
+          type: "FUND_REQUEST_RESUBMITTED",
+          screen: "ADMIN_FUND_REQUESTS",
+          retailerId: String(retailerId || ""),
+        },
+      });
+      fcmSent = true;
+    } catch (err) {
+      failureReason = err.message;
+    }
+  }
+
+  for (const n of notifications) {
+    await updateFcmStatus({ notificationId: n._id, fcmSent, fcmFailureReason: failureReason });
+  }
+
+  return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notifications };
+};
+
+/**
  * Notify retailer when their bank account is approved
  */
 const sendBankApprovedNotification = async ({
@@ -1373,4 +1648,8 @@ export {
   sendBankApprovedNotification,
   sendBankRejectedNotification,
   sendConvertedToDistributorNotification,
+  sendFundRequestNotification,
+  sendFundRequestApprovedNotification,
+  sendFundRequestRejectedNotification,
+  sendFundRequestResubmittedNotification,
 };

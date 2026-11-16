@@ -1,6 +1,14 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import fundRequestRepository from "../repository/fundRequest.repository.js";
 import { findById } from "../../auth/repository/user.repository.js";
+import {
+  sendFundRequestNotification,
+  sendFundRequestApprovedNotification,
+  sendFundRequestRejectedNotification,
+  sendFundRequestResubmittedNotification,
+  sendWalletTransferNotification,
+} from "../../notifications/services/notification.services.js";
+import { addAmountToWallet } from "../../wallet/services/wallet.service.js";
 
 /**
  * Create a new fund request
@@ -19,6 +27,17 @@ export const createFundRequest = async (data) => {
     }
 
     const fundRequest = await fundRequestRepository.create(data);
+
+    // Send notification to admins (non-blocking)
+    sendFundRequestNotification({
+      retailerId: user._id,
+      retailerName: user.fullName || user.name,
+      retailerMobile: user.mobile,
+      amount: data.amount,
+      paymentMode: data.paymentMode,
+    }).catch((err) => {
+      console.error("Failed to send fund request notification:", err);
+    });
 
     return ApiResponse.success(
       "Fund request created successfully",
@@ -184,13 +203,50 @@ export const approveFundRequest = async (id, adminId, adminNotes = null) => {
       );
     }
 
+    // Credit the retailer's wallet with the approved amount
+    try {
+      await addAmountToWallet(
+        fundRequest.userId,
+        fundRequest.amount,
+        null, // razorpay_order_id
+        null, // razorpay_payment_id
+        fundRequest._id, // referenceKey - use fund request ID
+        `Fund Request Approval - ${fundRequest.paymentMode} payment via ${fundRequest.bank}`
+      );
+
+      // Send wallet credit notification (non-blocking)
+      sendWalletTransferNotification({
+        recipientId: fundRequest.userId,
+        type: "WALLET_CREDIT",
+        title: "Wallet Credited",
+        body: `₹${fundRequest.amount} has been credited to your wallet from approved fund request.`,
+        data: {
+          amount: fundRequest.amount,
+          reference: fundRequest._id,
+        },
+      }).catch((err) => {
+        console.error("Failed to send wallet credit notification:", err);
+      });
+    } catch (walletError) {
+      console.error("Failed to credit wallet:", walletError);
+      // Continue with approval even if wallet credit fails (log the error)
+    }
+
     const updatedRequest = await fundRequestRepository.updateStatus(id, "APPROVED", {
       reviewedBy: adminId,
       adminNotes,
     });
 
+    // Send notification to retailer (non-blocking)
+    sendFundRequestApprovedNotification({
+      retailerId: fundRequest.userId,
+      amount: fundRequest.amount,
+    }).catch((err) => {
+      console.error("Failed to send fund request approved notification:", err);
+    });
+
     return ApiResponse.success(
-      "Fund request approved successfully",
+      "Fund request approved successfully and amount credited to wallet",
       updatedRequest
     );
   } catch (error) {
@@ -228,6 +284,15 @@ export const rejectFundRequest = async (id, adminId, rejectionReason, adminNotes
       reviewedBy: adminId,
       rejectionReason: rejectionReason.trim(),
       adminNotes,
+    });
+
+    // Send notification to retailer (non-blocking)
+    sendFundRequestRejectedNotification({
+      retailerId: fundRequest.userId,
+      amount: fundRequest.amount,
+      rejectionReason: rejectionReason.trim(),
+    }).catch((err) => {
+      console.error("Failed to send fund request rejected notification:", err);
     });
 
     return ApiResponse.success(
@@ -272,6 +337,18 @@ export const resubmitFundRequest = async (id, updateData) => {
     };
 
     const updatedRequest = await fundRequestRepository.updateById(id, updateFields);
+
+    // Send notification to admins (non-blocking)
+    const user = await findById(fundRequest.userId);
+    sendFundRequestResubmittedNotification({
+      retailerId: user._id,
+      retailerName: user.fullName || user.name,
+      retailerMobile: user.mobile,
+      amount: updateFields.amount || fundRequest.amount,
+      paymentMode: updateFields.paymentMode || fundRequest.paymentMode,
+    }).catch((err) => {
+      console.error("Failed to send fund request resubmitted notification:", err);
+    });
 
     return ApiResponse.success(
       "Fund request resubmitted successfully",
