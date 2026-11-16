@@ -87,8 +87,16 @@ const createFundRequestSchema = Joi.object({
       "string.max": "Branch name must not exceed 100 characters",
     }),
 
-  // Note: receiptSlip is handled by multer middleware as a file upload
-  // It will be available in req.file, not req.body
+  // receiptSlip is uploaded to S3 by multer middleware and added to req.body
+  receiptSlip: Joi.string()
+    .trim()
+    .uri()
+    .required()
+    .messages({
+      "any.required": "Receipt slip is required",
+      "string.empty": "Receipt slip is required",
+      "string.uri": "Receipt slip must be a valid URL",
+    }),
 
   notes: Joi.string()
     .trim()
@@ -214,8 +222,15 @@ const resubmitFundRequestSchema = Joi.object({
       "string.max": "Branch name must not exceed 100 characters",
     }),
 
-  // Note: receiptSlip is handled by multer middleware as a file upload
-  // It will be available in req.file, not req.body
+  // receiptSlip is uploaded to S3 by multer middleware and added to req.body
+  receiptSlip: Joi.string()
+    .trim()
+    .uri()
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.uri": "Receipt slip must be a valid URL",
+    }),
 
   notes: Joi.string()
     .trim()
