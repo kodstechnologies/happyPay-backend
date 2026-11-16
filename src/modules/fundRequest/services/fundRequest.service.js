@@ -40,8 +40,9 @@ export const createFundRequest = async (data) => {
     });
 
     return ApiResponse.success(
-      "Fund request created successfully",
       fundRequest,
+      "Fund request created successfully",
+      null,
       201
     );
   } catch (error) {
@@ -65,8 +66,8 @@ export const getFundRequestById = async (id) => {
     }
 
     return ApiResponse.success(
-      "Fund request retrieved successfully",
-      fundRequest
+      fundRequest,
+      "Fund request retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund request:", error);
@@ -101,7 +102,6 @@ export const getFundRequestsByUserId = async (userId, filters = {}) => {
     ]);
 
     return ApiResponse.success(
-      "Fund requests retrieved successfully",
       {
         requests: result.requests,
         pagination: result.pagination,
@@ -111,7 +111,8 @@ export const getFundRequestsByUserId = async (userId, filters = {}) => {
           rejected,
           total: pending + approved + rejected,
         },
-      }
+      },
+      "Fund requests retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund requests:", error);
@@ -133,8 +134,8 @@ export const getFundRequestsByRetailerId = async (retailerId, filters = {}) => {
     );
 
     return ApiResponse.success(
-      "Fund requests retrieved successfully",
-      fundRequests
+      fundRequests,
+      "Fund requests retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund requests:", error);
@@ -153,8 +154,8 @@ export const getAllFundRequests = async (filters = {}) => {
     const fundRequests = await fundRequestRepository.findAll(filters);
 
     return ApiResponse.success(
-      "Fund requests retrieved successfully",
-      fundRequests
+      fundRequests,
+      "Fund requests retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund requests:", error);
@@ -173,8 +174,8 @@ export const getPendingFundRequests = async () => {
     const fundRequests = await fundRequestRepository.findPending();
 
     return ApiResponse.success(
-      "Pending fund requests retrieved successfully",
-      fundRequests
+      fundRequests,
+      "Pending fund requests retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching pending fund requests:", error);
@@ -246,8 +247,8 @@ export const approveFundRequest = async (id, adminId, adminNotes = null) => {
     });
 
     return ApiResponse.success(
-      "Fund request approved successfully and amount credited to wallet",
-      updatedRequest
+      updatedRequest,
+      "Fund request approved successfully and amount credited to wallet"
     );
   } catch (error) {
     console.error("Error approving fund request:", error);
@@ -296,8 +297,8 @@ export const rejectFundRequest = async (id, adminId, rejectionReason, adminNotes
     });
 
     return ApiResponse.success(
-      "Fund request rejected successfully",
-      updatedRequest
+      updatedRequest,
+      "Fund request rejected successfully"
     );
   } catch (error) {
     console.error("Error rejecting fund request:", error);
@@ -351,8 +352,8 @@ export const resubmitFundRequest = async (id, updateData) => {
     });
 
     return ApiResponse.success(
-      "Fund request resubmitted successfully",
-      updatedRequest
+      updatedRequest,
+      "Fund request resubmitted successfully"
     );
   } catch (error) {
     console.error("Error resubmitting fund request:", error);
@@ -384,8 +385,8 @@ export const deleteFundRequest = async (id) => {
     await fundRequestRepository.deleteById(id);
 
     return ApiResponse.success(
-      "Fund request deleted successfully",
-      null
+      null,
+      "Fund request deleted successfully"
     );
   } catch (error) {
     console.error("Error deleting fund request:", error);
@@ -406,8 +407,8 @@ export const getFundRequestStats = async (userId) => {
     const rejected = await fundRequestRepository.countByUserIdAndStatus(userId, "REJECTED");
 
     return ApiResponse.success(
-      "Fund request statistics retrieved successfully",
-      { pending, approved, rejected }
+      { pending, approved, rejected },
+      "Fund request statistics retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund request stats:", error);
@@ -428,8 +429,8 @@ export const getAdminFundRequestStats = async () => {
     const rejected = await fundRequestRepository.countByStatus("REJECTED");
 
     return ApiResponse.success(
-      "Fund request statistics retrieved successfully",
-      { pending, approved, rejected }
+      { pending, approved, rejected },
+      "Fund request statistics retrieved successfully"
     );
   } catch (error) {
     console.error("Error fetching fund request stats:", error);
