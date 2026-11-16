@@ -12,7 +12,6 @@ import {
   deleteFundRequest,
   getFundRequestStats,
   getAdminFundRequestStats,
-  verifyBiometricAndCreditWallet,
 } from "../services/fundRequest.service.js";
 
 /**
@@ -175,18 +174,6 @@ export const getMyFundRequestStatsController = asyncHandler(async (req, res) => 
  */
 export const getAdminFundRequestStatsController = asyncHandler(async (req, res) => {
   const result = await getAdminFundRequestStats();
-
-  return res.status(result.statusCode).json(result);
-});
-
-/**
- * Verify biometric and credit wallet for approved fund request (Retailer)
- */
-export const verifyBiometricAndCreditWalletController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const withdrawalData = req.body;
-
-  const result = await verifyBiometricAndCreditWallet(id, withdrawalData);
 
   return res.status(result.statusCode).json(result);
 });

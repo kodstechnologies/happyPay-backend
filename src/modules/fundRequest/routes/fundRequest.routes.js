@@ -7,7 +7,6 @@ import {
   resubmitFundRequestController,
   deleteFundRequestController,
   getMyFundRequestStatsController,
-  verifyBiometricAndCreditWalletController,
 } from "../controller/fundRequest.controller.js";
 import {
   validateCreateFundRequest,
@@ -84,12 +83,5 @@ router.patch(
  * @access  Private (Retailer)
  */
 router.delete("/:id", deleteFundRequestController);
-
-/**
- * @route   POST /api/v1/fund-requests/:id/verify-biometric
- * @desc    Verify biometric and credit wallet for approved fund request
- * @access  Private (Retailer)
- */
-router.post("/:id/verify-biometric", verifyBiometricAndCreditWalletController);
 
 export default router;

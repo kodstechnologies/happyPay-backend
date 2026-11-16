@@ -95,16 +95,6 @@ const fundRequestSchema = new mongoose.Schema(
       default: "PENDING",
     },
 
-    isBiometricVerified: {
-      type: Boolean,
-      default: false,
-    },
-
-    withdrawalDetails: {
-      type: mongoose.Schema.Types.Mixed,
-      default: null,
-    },
-
     rejectionReason: {
       type: String,
       trim: true,
