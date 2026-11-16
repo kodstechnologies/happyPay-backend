@@ -41,18 +41,17 @@ const sendEmailOtpSchema = Joi.object({
       "string.empty": "Email is required",
       "string.email": "Please enter a valid email address",
     }),
+  isUpdate: Joi.boolean().optional(),
 });
 
 const verifyEmailOtpSchema = Joi.object({
-  userId: objectId("User ID"),
+  userId: objectId("User ID").optional(),
   email: Joi.string()
     .trim()
     .lowercase()
     .email({ tlds: { allow: false } })
-    .required()
+    .optional()
     .messages({
-      "any.required": "Email is required",
-      "string.empty": "Email is required",
       "string.email": "Please enter a valid email address",
     }),
   otp: Joi.string()
@@ -64,6 +63,7 @@ const verifyEmailOtpSchema = Joi.object({
       "string.empty": "OTP is required",
       "string.pattern.base": "OTP must be 4 digits",
     }),
+  isUpdate: Joi.boolean().optional(),
 });
 
 export const validateSendEmailOtp = validate(sendEmailOtpSchema);

@@ -73,8 +73,24 @@ export const findRemitterByMobile = async (mobile) => {
   return await Remitter.findOne({ mobile: String(mobile).trim() }).lean();
 };
 
+/**
+  * Find remitter by mobile and validate Aadhaar match
+  * Returns remitter if found and Aadhaar matches, null if not found, and false if Aadhaar doesn't match
+  */
+export const validateRemitterAadhaar = async (mobile, aadhaar) => {
+  if (!mobile || !aadhaar) return null;
+  
+  const remitter = await Remitter.findOne({ mobile: String(mobile).trim() }).lean();
+  
+  if (!remitter) return null; // Remitter not found
+  if (remitter.aadhar !== String(aadhaar).trim()) return false; // Aadhaar mismatch
+  
+  return remitter; // Remitter found and Aadhaar matches
+};
+
 export default {
   upsertRemitter,
   updateRemitterEkycStatus,
   findRemitterByMobile,
+  validateRemitterAadhaar,
 };

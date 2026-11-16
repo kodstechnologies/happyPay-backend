@@ -15,7 +15,7 @@ const sendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const { mobile, role } = req.body;
+    const { mobile, role, userId, isUpdate } = req.body;
 
     // Check if mobile is present
     if (!mobile) {
@@ -28,7 +28,22 @@ const sendOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    // Check if mobile number is already registered
+    // If this is an update request (for existing user changing mobile)
+    if (isUpdate && userId) {
+      // For profile update flow - send OTP to update mobile
+      const { sendRetailerMobileUpdateOtp } = await import("../services/auth.services.js");
+      const result = await sendRetailerMobileUpdateOtp({ userId, newMobile: mobile, currentMobile: req.body.currentMobile });
+      
+      const response = ApiResponse.success(
+        result,
+        "OTP sent successfully",
+        null,
+        200
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    // For registration flow - check if mobile is already registered
     const existingUser = await findByMobile(mobile);
     if (existingUser) {
       const response = ApiResponse.error(
@@ -127,9 +142,34 @@ const verifyOtp = async (req, res, next) => {
       return res.status(response.statusCode).json(response);
     }
 
-    const { mobile, otp, distributorId } = req.body;
+    const { mobile, otp, distributorId, userId, isUpdate } = req.body;
 
-    // Check if required fields are present
+    // If this is an update request (for existing user changing mobile)
+    if (isUpdate && userId) {
+      // For profile update flow - verify OTP to update mobile
+      if (!otp) {
+        const response = ApiResponse.error(
+          "OTP is required",
+          null,
+          null,
+          400
+        );
+        return res.status(response.statusCode).json(response);
+      }
+      
+      const { verifyRetailerMobileUpdateOtp } = await import("../services/auth.services.js");
+      const result = await verifyRetailerMobileUpdateOtp({ userId, otp });
+      
+      const response = ApiResponse.success(
+        result,
+        "Mobile number updated successfully",
+        null,
+        200
+      );
+      return res.status(response.statusCode).json(response);
+    }
+
+    // For registration flow - check if required fields are present
     if (!mobile) {
       const response = ApiResponse.error(
         "Mobile number is required",

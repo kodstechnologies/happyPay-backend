@@ -12,6 +12,11 @@ import {
   getRetailerAadhaarAndMobile,
   getRetailerKycDetailsService,
   reuploadRetailerKycDocumentsService,
+  sendRetailerMobileUpdateOtp,
+  verifyRetailerMobileUpdateOtp,
+  sendRetailerEmailUpdateOtp,
+  verifyRetailerEmailUpdateOtp,
+  resubmitBankService,
 } from "../services/auth.services.js";
 
 import {
@@ -932,6 +937,34 @@ const reuploadRetailerKycDocumentsController = asyncHandler(async (req, res) => 
   }
 });
 
+const resubmitBankController = asyncHandler(async (req, res) => {
+  const retailerId = req.user?.userId;
+  const { pendingBankId } = req.params;
+  const newBankDetails = req.body;
+
+  if (!retailerId) {
+    return res.status(401).json(
+      ApiResponse.error("User not authenticated", null, null, 401)
+    );
+  }
+
+  if (!pendingBankId) {
+    return res.status(400).json(
+      ApiResponse.error("Pending bank ID is required", null, null, 400)
+    );
+  }
+
+  const data = await resubmitBankService(retailerId, pendingBankId, newBankDetails);
+  return res.status(200).json(
+    ApiResponse.success(
+      data,
+      "Bank account resubmitted for approval",
+      null,
+      200
+    )
+  );
+});
+
 export {
   sendRetailerLoginOtp,
   resendRetailerLoginOtp,
@@ -952,6 +985,7 @@ export {
   getCurrentRegistrationStepController,
   validatePincodeController,
   getDownlineRetailersController,
+  resubmitBankController,
   getDownlineRetailerTransactionsController,
   getDownlineRetailerDetailsController,
   getRetailerKycDetailsController,

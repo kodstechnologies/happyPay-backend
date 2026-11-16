@@ -15,6 +15,7 @@ import {
   updateRetailerReview,
 } from "../repository/user.repository.js";
 import { createWallet } from "../../wallet/services/wallet.service.js";
+import { logAdminAction } from "./auditLog.services.js";
 
 const createAdminService = async ({
   firstName,
@@ -60,6 +61,8 @@ const createAdminService = async ({
 const loginAdminService = async ({
   email,
   password,
+  ipAddress = null,
+  userAgent = null,
 }) => {
   if (!email?.trim() || !password) {
     const error = new Error("Email and password are required");
@@ -93,6 +96,18 @@ const loginAdminService = async ({
     userId: admin._id.toString(),
     email: admin.email,
     userType: "admin",
+  });
+
+  // Log admin login action
+  await logAdminAction({
+    adminId: admin._id,
+    userName: `${admin.firstName} ${admin.lastName || ""}`.trim(),
+    role: "Admin",
+    action: "Admin Login",
+    entity: "Auth",
+    description: "Successful login from admin panel",
+    ipAddress,
+    userAgent,
   });
 
   return {
@@ -214,7 +229,7 @@ const getPendingRetailersService = async ({
   };
 };
 
-const approveRetailerService = async (retailerId) => {
+const approveRetailerService = async (retailerId, adminId = null, adminName = null, adminRole = null) => {
   await getPendingRetailerReview(retailerId);
 
   const retailer = await updateRetailerReview(retailerId, {
@@ -229,10 +244,21 @@ const approveRetailerService = async (retailerId) => {
   // Create wallet for the approved retailer
   await createWallet(retailerId);
 
+  // Log audit action
+  await logAdminAction({
+    adminId: adminId,
+    userName: adminName || "Admin",
+    role: adminRole || "Admin",
+    action: "KYC Approved",
+    entity: "Retailer",
+    entityId: retailerId,
+    description: `Approved KYC for retailer ${retailer.fullName || retailerId}`,
+  });
+
   return buildRetailerReview(retailer);
 };
 
-const rejectRetailerService = async (retailerId, reasonOfRejection) => {
+const rejectRetailerService = async (retailerId, reasonOfRejection, adminId = null, adminName = null, adminRole = null) => {
   const reason = String(reasonOfRejection || "").trim();
 
   if (!reason) {
@@ -249,6 +275,17 @@ const rejectRetailerService = async (retailerId, reasonOfRejection) => {
   if (!retailer) {
     throw fail(409, "Retailer is no longer pending");
   }
+
+  // Log audit action
+  await logAdminAction({
+    adminId,
+    userName: adminName || "Admin",
+    role: adminRole || "Admin",
+    action: "KYC Rejected",
+    entity: "Retailer",
+    entityId: retailerId,
+    description: `Rejected KYC for retailer ${retailer.fullName || retailerId}. Reason: ${reason}`,
+  });
 
   return buildRetailerReview(retailer);
 };
@@ -566,7 +603,7 @@ const getPendingBanksService = async ({ page = 1, limit = 10 } = {}) => {
 /**
  * Approve a pending bank account
  */
-const approveBankService = async (retailerId, pendingBankId, adminId) => {
+const approveBankService = async (retailerId, pendingBankId, adminId, adminName = null, adminRole = null) => {
   assertRetailerId(retailerId);
 
   const User = (await import("../model/user.model.js")).default;
@@ -624,6 +661,17 @@ const approveBankService = async (retailerId, pendingBankId, adminId) => {
 
   await retailer.save();
 
+  // Log audit action
+  await logAdminAction({
+    adminId,
+    userName: adminName || "Admin",
+    role: adminRole || "Admin",
+    action: "Bank Approved",
+    entity: "Bank",
+    entityId: pendingBankId,
+    description: `Approved bank account ${pendingBank.name} for retailer ${retailer.fullName || retailerId}`,
+  });
+
   // Send notification to retailer (non-blocking)
   const { sendBankApprovedNotification } = await import("../../notifications/services/notification.services.js");
   sendBankApprovedNotification({
@@ -646,7 +694,7 @@ const approveBankService = async (retailerId, pendingBankId, adminId) => {
 /**
  * Reject a pending bank account
  */
-const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionReason) => {
+const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionReason, adminName = null, adminRole = null) => {
   assertRetailerId(retailerId);
 
   const reason = String(rejectionReason || "").trim();
@@ -687,6 +735,17 @@ const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionRe
 
   retailer.markModified("pendingBanks");
   await retailer.save();
+
+  // Log audit action
+  await logAdminAction({
+    adminId,
+    userName: adminName || "Admin",
+    role: adminRole || "Admin",
+    action: "Bank Rejected",
+    entity: "Bank",
+    entityId: pendingBankId,
+    description: `Rejected bank account ${pendingBank.name} for retailer ${retailer.fullName || retailerId}. Reason: ${reason}`,
+  });
 
   // Send notification to retailer (non-blocking)
   const { sendBankRejectedNotification } = await import("../../notifications/services/notification.services.js");
@@ -768,6 +827,54 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
   return buildRetailerReview(retailer);
 };
 
+/**
+ * Convert a retailer to distributor by adding distributor role
+ */
+const convertToDistributorService = async (retailerId, adminId = null, adminName = null, adminRole = null) => {
+  assertRetailerId(retailerId);
+
+  const User = (await import("../model/user.model.js")).default;
+  const retailer = await User.findById(retailerId);
+
+  if (!retailer) {
+    throw fail(404, "Retailer not found");
+  }
+
+  // Assign distributor role using the model method
+  await retailer.assignRole("distributor");
+
+  retailer.markModified("roles");
+  await retailer.save();
+
+  // Log audit action
+  await logAdminAction({
+    adminId,
+    userName: adminName || "Admin",
+    role: adminRole || "Admin",
+    action: "Converted to Distributor",
+    entity: "Retailer",
+    entityId: retailerId,
+    description: `Converted retailer ${retailer.fullName || retailerId} to distributor`,
+  });
+
+  // Send notification to retailer (non-blocking)
+  const { sendConvertedToDistributorNotification } = await import("../../notifications/services/notification.services.js");
+  sendConvertedToDistributorNotification({
+    retailerId,
+  }).catch((err) => console.error("Failed to send converted to distributor notification:", err));
+
+  const buildRetailerReview = (user) => ({
+    id: user._id,
+    mobile: user.mobile,
+    fullName: user.fullName,
+    banks: user.banks || [],
+    pendingBanks: user.pendingBanks || [],
+    roles: user.roles || [],
+  });
+
+  return buildRetailerReview(retailer);
+};
+
 export {
   createAdminService,
   loginAdminService,
@@ -775,6 +882,7 @@ export {
   approveRetailerService,
   rejectRetailerService,
   approveRetailerDocumentsService,
+  convertToDistributorService,
   rejectRetailerDocumentsService,
   approveRetailerDocumentService,
   rejectRetailerDocumentService,

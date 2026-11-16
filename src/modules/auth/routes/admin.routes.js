@@ -13,7 +13,14 @@ import {
   approveBank,
   rejectBank,
   resubmitBank,
+  convertToDistributor,
 } from "../controllers/admin.controller.js";
+import {
+  getAuditLogs,
+  getAuditLogById,
+  deleteAuditLog,
+  deleteAuditLogsByDateRange,
+} from "../controllers/auditLog.controller.js";
 import {
   getNotificationsController,
   markNotificationAsReadController,
@@ -165,6 +172,45 @@ router.patch(
   "/retailers/:retailerId/banks/:pendingBankId/resubmit",
   authMiddleware,
   resubmitBank
+);
+
+router.patch(
+  "/retailers/:retailerId/convert-distributor",
+  authMiddleware,
+  requireAdmin,
+  convertToDistributor
+);
+
+// =========================================
+// Audit Logs
+// =========================================
+
+router.get(
+  "/audit-logs",
+  authMiddleware,
+  requireAdmin,
+  getAuditLogs
+);
+
+router.get(
+  "/audit-logs/:id",
+  authMiddleware,
+  requireAdmin,
+  getAuditLogById
+);
+
+router.delete(
+  "/audit-logs/:id",
+  authMiddleware,
+  requireAdmin,
+  deleteAuditLog
+);
+
+router.delete(
+  "/audit-logs/bulk",
+  authMiddleware,
+  requireAdmin,
+  deleteAuditLogsByDateRange
 );
 
 export default router;

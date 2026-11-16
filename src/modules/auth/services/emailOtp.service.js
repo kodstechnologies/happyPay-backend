@@ -26,6 +26,8 @@ const sendEmailOtp = async (email) => {
     throw error;
   }
 
+
+
   email = email.trim().toLowerCase();
 
   const otp = generateOtp();
@@ -43,6 +45,13 @@ const sendEmailOtp = async (email) => {
     expiresAt,
   });
 
+  // Log email and OTP for all requests (for testing/debugging)
+  console.log(`\n======================================================`);
+  console.log(`[EMAIL OTP] Email: ${email}`);
+  console.log(`[EMAIL OTP] OTP: ${otp}`);
+  console.log(`[EMAIL OTP] Expires at: ${expiresAt.toISOString()}`);
+  console.log(`======================================================\n`);
+
   try {
     await transporter.sendMail({
       from: env.SMTP_FROM || `"HappyPay" <${env.SMTP_USER}>`,
@@ -50,34 +59,69 @@ const sendEmailOtp = async (email) => {
       subject: "HappyPay Email Verification OTP",
 
       html: `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>HappyPay Email Verification</h2>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HappyPay - Email Verification</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: 1px;">HappyPay</h1>
+          </div>
 
-        <p>Your verification OTP is:</p>
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">Email Verification</h2>
+            <p style="margin: 0 0 30px 0; color: #666666; font-size: 16px; line-height: 1.6;">
+              Thank you for choosing HappyPay! Please use the following One-Time Password (OTP) to verify your email address:
+            </p>
 
-        <h1 style="letter-spacing: 5px;">
-          ${otp}
-        </h1>
+            <!-- OTP Box -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+              <p style="margin: 0 0 10px 0; color: #e0e0e0; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">Your Verification Code</p>
+              <h1 style="margin: 0; color: #ffffff; font-size: 48px; font-weight: 700; letter-spacing: 8px;">${otp}</h1>
+            </div>
 
-        <p>
-          This OTP will expire in
-          <strong>5 minutes</strong>.
-        </p>
+            <p style="margin: 30px 0; color: #666666; font-size: 16px; line-height: 1.6;">
+              This OTP will expire in <strong style="color: #667eea;">5 minutes</strong> for your security.
+            </p>
 
-        <p>
-          If you did not request this OTP,
-          please ignore this email.
-        </p>
-      </div>
+            <!-- Security Notice -->
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 30px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.5;">
+                <strong>⚠️ Security Notice:</strong> If you did not request this OTP, please ignore this email and ensure your account is secure.
+              </p>
+            </div>
+
+            <p style="margin: 30px 0 0 0; color: #666666; font-size: 14px; line-height: 1.6;">
+              For assistance, please contact our support team.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+            <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px;">
+              © 2026 HappyPay. All rights reserved.
+            </p>
+            <p style="margin: 0; color: #999999; font-size: 12px;">
+              This is an automated email. Please do not reply.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
     `,
     });
+    console.log(`[EMAIL OTP] Email sent successfully to ${email}`);
   } catch (mailError) {
-    console.error("Failed to send OTP email via SMTP:", mailError.message);
+    console.error("[EMAIL OTP] Failed to send OTP email via SMTP:", mailError.message);
 
     if (env.NODE_ENV !== "production") {
-      console.log(`\n======================================================`);
-      console.log(`[DEV-MODE] Email OTP for ${email}: ${otp}`);
-      console.log(`======================================================\n`);
+      console.log(`[EMAIL OTP] Development mode: Email delivery failed, OTP already logged above`);
       return {
         email,
         expiresAt,

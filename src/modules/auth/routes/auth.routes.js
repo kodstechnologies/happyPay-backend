@@ -24,6 +24,7 @@ import {
   getDownlineRetailerDetailsController,
   getRetailerKycDetailsController,
   reuploadRetailerKycDocumentsController,
+  resubmitBankController,
 } from "../controllers/auth.controllers.js";
 import { uploadRetailerDocuments, uploadRetailerProfileDocuments, uploadShopDetailsDocuments, validateShopFiles, uploadAboutDetailsDocuments, validateAboutFiles, uploadAdharDetailsDocuments } from "../../../utils/multer.js";
 import { uploadRegistrationFilesToS3 } from "../../../utils/s3/uploadRegistrationFiles.js";
@@ -91,6 +92,9 @@ router.post("/retailer/mpin/verify", authMiddleware, validateVerifyMpin, verifyM
 router.get("/retailer/downline-retailers", authMiddleware, getDownlineRetailersController);
 router.get("/retailer/downline-retailers/:id", authMiddleware, getDownlineRetailerDetailsController);
 router.get("/retailer/downline-retailers/:id/transactions", authMiddleware, getDownlineRetailerTransactionsController);
+
+// Bank resubmission route for retailers
+router.patch("/retailer/banks/:pendingBankId/resubmit", authMiddleware, resubmitBankController);
 
 router.post(
   "/retailer/login/send-otp",

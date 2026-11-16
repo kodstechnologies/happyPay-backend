@@ -1,4 +1,5 @@
 import { verifyAccessToken } from "../utils/jwt.js";
+import User from "../modules/auth/model/user.model.js";
 
 const parseCookieToken = (req) => {
   if (!req.headers.cookie) return null;
@@ -15,7 +16,7 @@ const parseCookieToken = (req) => {
   }
 };
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     let token = null;
@@ -46,6 +47,36 @@ const authMiddleware = (req, res, next) => {
     const decoded = verifyAccessToken(token);
 
     req.user = decoded;
+
+    // Check if user is blocked or suspended
+    if (decoded.userId) {
+      const user = await User.findById(decoded.userId);
+      if (user) {
+        if (user.status === "blocked") {
+          return res.status(403).json({
+            success: false,
+            statusCode: 403,
+            message: "Your account has been blocked. Please contact support.",
+          });
+        }
+
+        if (user.status === "suspended") {
+          return res.status(403).json({
+            success: false,
+            statusCode: 403,
+            message: "Your account has been suspended. Please contact support.",
+          });
+        }
+
+        if (!user.isActive) {
+          return res.status(403).json({
+            success: false,
+            statusCode: 403,
+            message: "Your account is inactive. Please contact support.",
+          });
+        }
+      }
+    }
 
     next();
   } catch (error) {

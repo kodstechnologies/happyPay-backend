@@ -21,29 +21,20 @@ process.on("uncaughtException", (error) => {
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB
     await connectDB();
 
     const PORT = env.PORT;
-
-    // Create HTTP server using Express app
     const httpServer = http.createServer(app);
 
-    // Initialize Socket.IO
     initializeSocket(httpServer);
 
-    // Start HTTP + Socket.IO server
     server = httpServer.listen(PORT, () => {
-      logger.info(`Server is running on port ${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ Environment: ${env.NODE_ENV}`);
     });
-  } catch (error) {
-    logger.error(
-      {
-        error,
-      },
-      "Failed to start server"
-    );
 
+  } catch (error) {
+    console.error("❌ Server startup failed:", error);
     process.exit(1);
   }
 };

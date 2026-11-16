@@ -20,16 +20,17 @@ const sendOtpSchema = Joi.object({
       "any.only": "Role must be either 'retailer' or 'distributor'",
     }),
   distributorId: Joi.string().trim().allow("", null).optional(),
+  userId: Joi.string().trim().allow("", null).optional(),
+  isUpdate: Joi.boolean().optional(),
+  currentMobile: Joi.string().trim().pattern(/^[6-9]\d{9}$/).optional(),
 });
 
 const verifyOtpSchema = Joi.object({
   mobile: Joi.string()
     .trim()
     .pattern(/^[6-9]\d{9}$/)
-    .required()
+    .optional()
     .messages({
-      "any.required": "Mobile number is required",
-      "string.empty": "Mobile number is required",
       "string.pattern.base": "Please enter a valid 10-digit mobile number",
     }),
   otp: Joi.string()
@@ -50,6 +51,8 @@ const verifyOtpSchema = Joi.object({
       "any.only": "Role must be either 'retailer' or 'distributor'",
     }),
   distributorId: Joi.string().trim().allow("", null).optional(),
+  userId: Joi.string().trim().allow("", null).optional(),
+  isUpdate: Joi.boolean().optional(),
 });
 
 export const validateSendOtp = validate(sendOtpSchema);

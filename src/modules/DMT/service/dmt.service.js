@@ -18,6 +18,7 @@ import {
 import {
   upsertRemitter,
   updateRemitterEkycStatus,
+  validateRemitterAadhaar,
 } from "../repository/remitter.repository.js";
 import {
   upsertBeneficiary,
@@ -31,6 +32,19 @@ import {
 // =============================================================
 
 export const getRemitterDetailsService = async (payload = {}) => {
+  // Validate Aadhaar if both mobile and Aadhaar are provided
+  if (payload.mobile && payload.aadhaar) {
+    const aadhaarValidation = await validateRemitterAadhaar(payload.mobile, payload.aadhaar);
+    
+    if (aadhaarValidation === false) {
+      return {
+        status: "FAILED",
+        msg: "Mobile number is already registered with a different Aadhaar number. Please use the registered Aadhaar or contact support.",
+        data: null,
+      };
+    }
+  }
+
   const loginResult = await loginRemitter(payload);
 console.log("loginResult", loginResult);
   const msg = String(loginResult?.msg || loginResult?.message || "").toLowerCase();

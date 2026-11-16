@@ -14,6 +14,7 @@ import {
   approveBankService,
   rejectBankService,
   resubmitBankService,
+  convertToDistributorService,
 } from "../services/admin.services.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 
@@ -37,11 +38,15 @@ export const createAdminController = asyncHandler(async (req, res) => {
 
 export const loginAdmin = asyncHandler(async (req, res) => {
   const { email, mobile, password } = req.body;
+  const ipAddress = req.ip || req.connection.remoteAddress || null;
+  const userAgent = req.get("user-agent") || null;
 
   const data = await loginAdminService({
     email,
     mobile,
     password,
+    ipAddress,
+    userAgent,
   });
 
   return res
@@ -77,7 +82,13 @@ export const getPendingRetailers = asyncHandler(async (req, res) => {
 });
 
 export const approveRetailer = asyncHandler(async (req, res) => {
-  const data = await approveRetailerService(req.params.retailerId);
+  const adminId = req.user?.userId;
+  const adminName = req.user?.firstName && req.user?.lastName
+    ? `${req.user.firstName} ${req.user.lastName}`
+    : req.user?.firstName || "Admin";
+  const adminRole = req.user?.role || "Admin";
+
+  const data = await approveRetailerService(req.params.retailerId, adminId, adminName, adminRole);
 
   return res
     .status(200)
@@ -85,9 +96,18 @@ export const approveRetailer = asyncHandler(async (req, res) => {
 });
 
 export const rejectRetailer = asyncHandler(async (req, res) => {
+  const adminId = req.user?.userId;
+  const adminName = req.user?.firstName && req.user?.lastName
+    ? `${req.user.firstName} ${req.user.lastName}`
+    : req.user?.firstName || "Admin";
+  const adminRole = req.user?.role || "Admin";
+
   const data = await rejectRetailerService(
     req.params.retailerId,
-    req.body.reasonOfRejection
+    req.body.reasonOfRejection,
+    adminId,
+    adminName,
+    adminRole
   );
 
   return res
@@ -212,9 +232,13 @@ export const getPendingBanks = asyncHandler(async (req, res) => {
 
 export const approveBank = asyncHandler(async (req, res) => {
   const adminId = req.user?.userId;
+  const adminName = req.user?.firstName && req.user?.lastName
+    ? `${req.user.firstName} ${req.user.lastName}`
+    : req.user?.firstName || "Admin";
+  const adminRole = req.user?.role || "Admin";
   const { retailerId, pendingBankId } = req.params;
 
-  const data = await approveBankService(retailerId, pendingBankId, adminId);
+  const data = await approveBankService(retailerId, pendingBankId, adminId, adminName, adminRole);
 
   return res
     .status(200)
@@ -223,10 +247,14 @@ export const approveBank = asyncHandler(async (req, res) => {
 
 export const rejectBank = asyncHandler(async (req, res) => {
   const adminId = req.user?.userId;
+  const adminName = req.user?.firstName && req.user?.lastName
+    ? `${req.user.firstName} ${req.user.lastName}`
+    : req.user?.firstName || "Admin";
+  const adminRole = req.user?.role || "Admin";
   const { retailerId, pendingBankId } = req.params;
   const { reasonOfRejection } = req.body;
 
-  const data = await rejectBankService(retailerId, pendingBankId, adminId, reasonOfRejection);
+  const data = await rejectBankService(retailerId, pendingBankId, adminId, reasonOfRejection, adminName, adminRole);
 
   return res
     .status(200)
@@ -242,5 +270,20 @@ export const resubmitBank = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(ApiResponse.success(data, "Bank account resubmitted successfully"));
+});
+
+export const convertToDistributor = asyncHandler(async (req, res) => {
+  const { retailerId } = req.params;
+  const adminId = req.user?.userId;
+  const adminName = req.user?.firstName && req.user?.lastName
+    ? `${req.user.firstName} ${req.user.lastName}`
+    : req.user?.firstName || "Admin";
+  const adminRole = req.user?.role || "Admin";
+
+  const data = await convertToDistributorService(retailerId, adminId, adminName, adminRole);
+
+  return res
+    .status(200)
+    .json(ApiResponse.success(data, "Retailer converted to distributor successfully"));
 });
 

@@ -28,6 +28,8 @@ const env = {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+    SMS_AUTH_KEY: process.env.SMS_AUTH_KEY,
+    SMS_SENDERID: process.env.SMS_SENDERID,
 }
 
 export default env;

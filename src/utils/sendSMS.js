@@ -4,6 +4,11 @@ import { SMS_AUTH_KEY, SMS_SENDERID } from "../config/index.js";
 // templateId = "1707175101642561256
 const sendSMS = async (mobileNumber, message, templateId = "1707175101642561256") => {
     try {
+        // Check if SMS credentials are configured
+        if (!SMS_AUTH_KEY || !SMS_SENDERID) {
+            throw new Error("SMS credentials not configured. Please set SMS_AUTH_KEY and SMS_SENDERID in environment variables.");
+        }
+
         console.log("🚀 ~ SMS_SENDERID:", SMS_SENDERID)
         console.log("🚀 ~ SMS_AUTH_KEY:", SMS_AUTH_KEY)
         if (!mobileNumber || !message) {

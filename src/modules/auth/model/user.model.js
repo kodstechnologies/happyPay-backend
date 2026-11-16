@@ -500,6 +500,38 @@ const userSchema = new mongoose.Schema(
     devices: [deviceSchema],
 
     // =========================
+    // Pending Contact Updates (OTP Verification)
+    // =========================
+    pendingMobileUpdate: {
+      newMobile: {
+        type: String,
+        trim: true,
+      },
+      otp: {
+        type: String,
+        trim: true,
+      },
+      expiresAt: {
+        type: Date,
+      },
+    },
+
+    pendingEmailUpdate: {
+      newEmail: {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+      otp: {
+        type: String,
+        trim: true,
+      },
+      expiresAt: {
+        type: Date,
+      },
+    },
+
+    // =========================
     // Account Status
     // =========================
     status: {

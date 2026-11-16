@@ -128,7 +128,8 @@ const payBillController = asyncHandler(async (req, res) => {
   console.log("[BBPS] Provider response:", JSON.stringify(result));
 
   // 2. Determine provider success based on live gateway response structure
-  // Live response: { status: "SUCCESS", data: { STATUSCODE: "0", STATUSMSG: "Success", REFNO: "...", TRNID: ... } }
+  // Only debit wallet when status is explicitly "SUCCESS" with successful indicators
+  // For "PENDING" status, do NOT debit wallet - wait for final confirmation
   const isSuccess =
     result?.status === "SUCCESS" &&
     (String(result?.data?.STATUSCODE) === "0" ||
@@ -138,7 +139,7 @@ const payBillController = asyncHandler(async (req, res) => {
 
   console.log("[BBPS] isSuccess:", isSuccess, "userId:", userId, "billAmount:", billAmount);
 
-  // 3. Atomically debit wallet and record ledger entry upon success
+  // 3. Atomically debit wallet and record ledger entry only on SUCCESS status
   if (isSuccess && userId && billAmount > 0) {
     console.log("[BBPS] Initiating wallet debit...");
     const trnId = String(
@@ -196,10 +197,15 @@ const payBillController = asyncHandler(async (req, res) => {
     console.log("[BBPS] Wallet debit SKIPPED - isSuccess:", isSuccess, "userId:", !!userId, "billAmount:", billAmount);
   }
 
+  // Return the actual provider status in the response
+  const responseMessage = result?.status === "PENDING"
+    ? "Bill payment is pending confirmation"
+    : "Bill payment processed successfully";
+
   return res.status(200).json(
     ApiResponse.success(
       result,
-      "Bill payment processed successfully"
+      responseMessage
     )
   );
 });

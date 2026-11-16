@@ -758,6 +758,224 @@ const sendCustomNotificationToAllRetailers = async ({
   }
 };
 
+const sendCustomNotificationToDistributor = async ({
+  distributorId,
+  title,
+  body,
+  imageUrl,
+}) => {
+  // 1. Find distributor
+  const distributor = await User.findById(distributorId)
+    .select("devices name fullName mobile");
+
+  if (!distributor) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Distributor not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: distributorId,
+    recipientType: "distributor",
+    type: "CUSTOM_NOTIFICATION",
+    title: title || "New Notification",
+    body: body || "You have a new notification.",
+    imageUrl: imageUrl || null,
+    data: {
+      type: "CUSTOM_NOTIFICATION",
+      screen: "NOTIFICATIONS",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    distributor.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Notification saved, but Firebase messaging is not configured."
+        : "Notification saved, but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification to all active devices
+  for (const device of devices) {
+    try {
+      const message = {
+        token: device.fcmToken,
+        notification: {
+          title: title || "New Notification",
+          body: body || "You have a new notification.",
+          ...(imageUrl && { image: imageUrl }),
+        },
+        data: {
+          type: "CUSTOM_NOTIFICATION",
+          screen: "NOTIFICATIONS",
+          ...(imageUrl && { imageUrl }),
+        },
+      };
+
+      await firebaseMessaging.send(message);
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Custom notification FCM error:",
+        error.message
+      );
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update notification delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Custom notification sent successfully."
+      : "Notification saved but delivery failed.",
+    data: notification,
+  };
+};
+
+const sendCustomNotificationToAllDistributors = async ({
+  title,
+  body,
+  imageUrl,
+}) => {
+  try {
+    // 1. Find all distributors with role 'distributor'
+    const distributors = await User.find({ role: "distributor" })
+      .select("devices name fullName mobile");
+
+    if (!distributors || distributors.length === 0) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "No distributors found",
+      };
+    }
+
+    // 2. Create notification in DB for each distributor
+    const notifications = [];
+    for (const distributor of distributors) {
+      const notification = await createNotification({
+        recipientId: distributor._id,
+        recipientType: "distributor",
+        type: "CUSTOM_NOTIFICATION",
+        title: title || "New Notification",
+        body: body || "You have a new notification.",
+        imageUrl: imageUrl || null,
+        data: {
+          type: "CUSTOM_NOTIFICATION",
+          screen: "NOTIFICATIONS",
+        },
+      });
+      notifications.push(notification);
+    }
+
+    // 3. Collect all active devices with valid tokens from all distributors
+    const allDevices = [];
+    for (const distributor of distributors) {
+      const devices =
+        distributor.devices?.filter(
+          (device) =>
+            device.isActive &&
+            device.fcmToken &&
+            device.fcmToken !== "dummy"
+        ) || [];
+      allDevices.push(...devices);
+    }
+
+    if (allDevices.length === 0 || !firebaseMessaging) {
+      return {
+        success: true,
+        statusCode: 200,
+        message: !firebaseMessaging
+          ? "Notifications saved, but Firebase messaging is not configured."
+          : "Notifications saved, but no active FCM device found.",
+        data: notifications,
+      };
+    }
+
+    let fcmSent = false;
+    let failureReason = null;
+
+    // 4. Send push notification to all active devices
+    for (const device of allDevices) {
+      try {
+        const message = {
+          token: device.fcmToken,
+          notification: {
+            title: title || "New Notification",
+            body: body || "You have a new notification.",
+            ...(imageUrl && { image: imageUrl }),
+          },
+          data: {
+            type: "CUSTOM_NOTIFICATION",
+            screen: "NOTIFICATIONS",
+            ...(imageUrl && { imageUrl }),
+          },
+        };
+
+        await firebaseMessaging.send(message);
+        fcmSent = true;
+      } catch (error) {
+        console.error(
+          "Custom notification FCM error:",
+          error.message
+        );
+        failureReason = error.message;
+      }
+    }
+
+    // 5. Update notification delivery status for all notifications
+    for (const notification of notifications) {
+      await updateFcmStatus({
+        notificationId: notification._id,
+        fcmSent,
+        fcmFailureReason: failureReason,
+      });
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: fcmSent
+        ? `Custom notification sent to ${distributors.length} distributors successfully.`
+        : `Notifications saved for ${distributors.length} distributors but delivery failed.`,
+      data: notifications,
+    };
+  } catch (error) {
+    console.error("Error in sendCustomNotificationToAllDistributors:", error.message);
+    return {
+      success: false,
+      statusCode: 500,
+      message: error.message,
+    };
+  }
+};
+
 /**
  * Notify all active admins when a retailer submits a bank account for approval.
  * Non-blocking — always fire-and-forget in callers.
@@ -1044,6 +1262,103 @@ const sendBankRejectedNotification = async ({
   };
 };
 
+/**
+ * Notify retailer when they are converted to a distributor
+ */
+const sendConvertedToDistributorNotification = async ({
+  retailerId,
+}) => {
+  // 1. Find retailer
+  const retailer = await User.findById(retailerId)
+    .select("devices name fullName");
+
+  if (!retailer) {
+    return {
+      success: false,
+      statusCode: 404,
+      message: "Retailer not found",
+    };
+  }
+
+  // 2. Create notification in DB
+  const notification = await createNotification({
+    recipientId: retailerId,
+    recipientType: "retailer",
+    type: "CONVERTED_TO_DISTRIBUTOR",
+    title: "Congratulations! You are now a Distributor",
+    body: `Congratulations ${retailer.fullName || retailer.name}! You have been upgraded to a Distributor. You can now add retailers under you.`,
+    data: {
+      type: "CONVERTED_TO_DISTRIBUTOR",
+      screen: "DASHBOARD",
+    },
+  });
+
+  // 3. Get active devices with valid tokens
+  const devices =
+    retailer.devices?.filter(
+      (device) =>
+        device.isActive &&
+        device.fcmToken &&
+        device.fcmToken !== "dummy"
+    ) || [];
+
+  if (devices.length === 0 || !firebaseMessaging) {
+    return {
+      success: true,
+      statusCode: 200,
+      message: !firebaseMessaging
+        ? "Conversion notification saved, but Firebase messaging is not configured."
+        : "Conversion notification saved, but no active FCM device found.",
+      data: notification,
+    };
+  }
+
+  let fcmSent = false;
+  let failureReason = null;
+
+  // 4. Send push notification
+  for (const device of devices) {
+    try {
+      await firebaseMessaging.send({
+        token: device.fcmToken,
+        notification: {
+          title: "Congratulations! You are now a Distributor",
+          body: `Congratulations ${retailer.fullName || retailer.name}! You have been upgraded to a Distributor. You can now add retailers under you.`,
+        },
+        data: {
+          type: "CONVERTED_TO_DISTRIBUTOR",
+          screen: "DASHBOARD",
+        },
+      });
+
+      fcmSent = true;
+    } catch (error) {
+      console.error(
+        "Converted to distributor FCM error:",
+        error.message
+      );
+
+      failureReason = error.message;
+    }
+  }
+
+  // 5. Update delivery status
+  await updateFcmStatus({
+    notificationId: notification._id,
+    fcmSent,
+    fcmFailureReason: failureReason,
+  });
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: fcmSent
+      ? "Converted to distributor notification sent successfully."
+      : "Conversion notification saved but delivery failed.",
+    data: notification,
+  };
+};
+
 export {
   sendKycApprovedNotification,
   sendKycRejectedNotification,
@@ -1052,7 +1367,10 @@ export {
   sendWalletTransferNotification,
   sendCustomNotificationToRetailer,
   sendCustomNotificationToAllRetailers,
+  sendCustomNotificationToDistributor,
+  sendCustomNotificationToAllDistributors,
   sendBankPendingApprovalNotification,
   sendBankApprovedNotification,
   sendBankRejectedNotification,
+  sendConvertedToDistributorNotification,
 };

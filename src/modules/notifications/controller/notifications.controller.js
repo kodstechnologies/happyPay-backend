@@ -5,6 +5,8 @@ import {
   sendKycRejectedNotification,
   sendCustomNotificationToRetailer,
   sendCustomNotificationToAllRetailers,
+  sendCustomNotificationToDistributor,
+  sendCustomNotificationToAllDistributors,
 } from "../services/notification.services.js";
 import {
   findNotificationsByRecipient,
@@ -217,13 +219,7 @@ const markAllNotificationsAsReadController = async (req, res) => {
 
 const sendCustomNotificationController = async (req, res) => {
   try {
-    const { retailerId, title, body, imageUrl } = req.body;
-
-    if (!retailerId) {
-      return res.status(400).json(
-        ApiResponse.error("retailerId is required")
-      );
-    }
+    const { targetType, retailerId, distributorId, title, body, imageUrl } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json(
@@ -237,20 +233,63 @@ const sendCustomNotificationController = async (req, res) => {
       );
     }
 
+    if (!targetType) {
+      return res.status(400).json(
+        ApiResponse.error("targetType is required (ALL_RETAILERS, ALL_DISTRIBUTORS, SPECIFIC_RETAILER, or SPECIFIC_DISTRIBUTOR)")
+      );
+    }
+
     let result;
-    if (retailerId === "ALL") {
-      result = await sendCustomNotificationToAllRetailers({
-        title: title.trim(),
-        body: body.trim(),
-        imageUrl: imageUrl?.trim() || null,
-      });
-    } else {
-      result = await sendCustomNotificationToRetailer({
-        retailerId,
-        title: title.trim(),
-        body: body.trim(),
-        imageUrl: imageUrl?.trim() || null,
-      });
+
+    switch (targetType) {
+      case "ALL_RETAILERS":
+        result = await sendCustomNotificationToAllRetailers({
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: imageUrl?.trim() || null,
+        });
+        break;
+
+      case "ALL_DISTRIBUTORS":
+        result = await sendCustomNotificationToAllDistributors({
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: imageUrl?.trim() || null,
+        });
+        break;
+
+      case "SPECIFIC_RETAILER":
+        if (!retailerId) {
+          return res.status(400).json(
+            ApiResponse.error("retailerId is required for SPECIFIC_RETAILER targetType")
+          );
+        }
+        result = await sendCustomNotificationToRetailer({
+          retailerId,
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: imageUrl?.trim() || null,
+        });
+        break;
+
+      case "SPECIFIC_DISTRIBUTOR":
+        if (!distributorId) {
+          return res.status(400).json(
+            ApiResponse.error("distributorId is required for SPECIFIC_DISTRIBUTOR targetType")
+          );
+        }
+        result = await sendCustomNotificationToDistributor({
+          distributorId,
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: imageUrl?.trim() || null,
+        });
+        break;
+
+      default:
+        return res.status(400).json(
+          ApiResponse.error("Invalid targetType. Must be one of: ALL_RETAILERS, ALL_DISTRIBUTORS, SPECIFIC_RETAILER, SPECIFIC_DISTRIBUTOR")
+        );
     }
 
     return res
