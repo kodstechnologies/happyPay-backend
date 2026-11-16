@@ -21,6 +21,9 @@ import walletRoutes from "../modules/wallet/routes/wallet.routes.js";
 import transactionRoutes from "../modules/transaction/routes/transaction.routes.js";
 import fundRequestRoutes from "../modules/fundRequest/routes/fundRequest.routes.js";
 import fundRequestAdminRoutes from "../modules/fundRequest/routes/fundRequest.admin.routes.js";
+import walletLockRequestRoutes from "../modules/walletLockRequest/routes/walletLockRequest.routes.js";
+import walletLockRequestAdminRoutes from "../modules/walletLockRequest/routes/walletLockRequest.admin.routes.js";
+import adminWalletLockRoutes from "../modules/walletLockRequest/routes/adminWalletLock.routes.js";
 
 import dashboardRoutes from "../modules/dashboard/routes/dashboard.routes.js";
 import pricingRoutes from "../modules/pricing/routes/pricing.routes.js";
@@ -44,6 +47,9 @@ router.use("/api/v1/wallet", walletRoutes);
 router.use("/api/v1/transactions", transactionRoutes);
 router.use("/api/v1/fund-requests", fundRequestRoutes);
 router.use("/api/v1/admin/fund-requests", fundRequestAdminRoutes);
+router.use("/api/v1/wallet-lock-requests", walletLockRequestRoutes);
+router.use("/api/v1/admin/wallet-lock-requests", walletLockRequestAdminRoutes);
+router.use("/api/v1/admin", adminWalletLockRoutes);
 router.use("/api/v1/dashboard", dashboardRoutes);
 router.use("/api/v1/pricing", pricingRoutes);
 

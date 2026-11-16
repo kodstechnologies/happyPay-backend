@@ -546,6 +546,12 @@ const userSchema = new mongoose.Schema(
       ],
       default: "active",
     },
+
+    isWalletLocked: {
+      type: Boolean,
+      default: false,
+    },
+
     MPIN: {
       type: String,
       trim: true

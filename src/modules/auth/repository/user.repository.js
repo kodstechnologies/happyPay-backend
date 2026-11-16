@@ -126,6 +126,14 @@ const findById = async (userId) => {
   return await User.findById(userId).select("aadhaarNumber mobile");
 };
 
+const updateUser = async (userId, updateData) => {
+  return await User.findByIdAndUpdate(
+    userId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+};
+
 /* ==============================
    Update eKYC Status — writes to AepsEkyc document, not User.
    Accepts optional extraEkycFields to allow atomic multi-field updates.
@@ -147,6 +155,7 @@ export {
   createUser,
   verifyMobile,
   findById,
+  updateUser,
   findByEmail,
   findByPan,
   findByAadhaar,
