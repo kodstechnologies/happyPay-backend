@@ -98,6 +98,15 @@ const createFundRequestSchema = Joi.object({
       "string.uri": "Receipt slip must be a valid URL",
     }),
 
+  // receiptSlipKey is the S3 key for the uploaded file (added by uploadToS3 middleware)
+  receiptSlipKey: Joi.string()
+    .trim()
+    .required()
+    .messages({
+      "any.required": "Receipt slip key is required",
+      "string.empty": "Receipt slip key is required",
+    }),
+
   notes: Joi.string()
     .trim()
     .max(500)
@@ -230,6 +239,15 @@ const resubmitFundRequestSchema = Joi.object({
     .allow("", null)
     .messages({
       "string.uri": "Receipt slip must be a valid URL",
+    }),
+
+  // receiptSlipKey is the S3 key for the uploaded file (added by uploadToS3 middleware)
+  receiptSlipKey: Joi.string()
+    .trim()
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.empty": "Receipt slip key cannot be empty",
     }),
 
   notes: Joi.string()
