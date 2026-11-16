@@ -466,6 +466,64 @@ export const uploadPricingImage = multer({
   fileFilter: pricingFileFilter,
 }).single("image");
 
+// Fund Request Storage
+const fundRequestStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "happypay/fund-requests",
+    resource_type: "auto",
+  },
+});
+
+const fundRequestFileFilter = (req, file, cb) => {
+  if (file.fieldname !== "receiptSlip") {
+    return cb(
+      new ApiError(400, `Unexpected file field: ${file.fieldname}`),
+      false
+    );
+  }
+
+  // Allow images and documents for receipt
+  const allowedMimes = [
+    ...imageMimeTypes,
+    "application/pdf",
+  ];
+
+  const allowedExts = [
+    ...imageExtensions,
+    ".pdf",
+  ];
+
+  if (allowedMimes.includes(file.mimetype)) {
+    return cb(null, true);
+  }
+
+  if (
+    file.mimetype === "application/octet-stream" ||
+    file.mimetype === "application/x-octet-stream"
+  ) {
+    const extension = path.extname(file.originalname || "").toLowerCase();
+
+    if (allowedExts.includes(extension)) {
+      return cb(null, true);
+    }
+  }
+
+  return cb(
+    new ApiError(400, `File type ${file.mimetype} is not allowed for receipt`),
+    false
+  );
+};
+
+export const uploadFundRequestDocument = multer({
+  storage: fundRequestStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1,
+  },
+  fileFilter: fundRequestFileFilter,
+}).single("receiptSlip");
+
 export const upload = multer(multerOptions);
 
 /**
