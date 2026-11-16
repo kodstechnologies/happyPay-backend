@@ -1142,7 +1142,7 @@ const sendFundRequestApprovedNotification = async ({
     recipientType: "retailer",
     type: "FUND_REQUEST_APPROVED",
     title: "Fund Request Approved",
-    body: `Your fund request of ₹${amount} has been approved and credited to your wallet.`,
+    body: `Your fund request of ₹${amount} has been approved. Please complete biometric verification to credit the amount to your wallet.`,
     data: {
       type: "FUND_REQUEST_APPROVED",
       screen: "FUND_REQUEST",
@@ -1153,6 +1153,7 @@ const sendFundRequestApprovedNotification = async ({
   const devices = retailer.devices?.filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy") || [];
 
   if (devices.length === 0 || !firebaseMessaging) {
+    console.log(`[FundRequestApproved] Notification saved. Devices: ${devices.length}, Firebase: ${!!firebaseMessaging}`);
     return { success: true, message: "Notification saved", data: notification };
   }
 
@@ -1165,7 +1166,7 @@ const sendFundRequestApprovedNotification = async ({
         token: device.fcmToken,
         notification: {
           title: "Fund Request Approved",
-          body: `Your fund request of ₹${amount} has been approved and credited to your wallet.`,
+          body: `Your fund request of ₹${amount} has been approved. Please complete biometric verification to credit the amount to your wallet.`,
         },
         data: {
           type: "FUND_REQUEST_APPROVED",
@@ -1175,12 +1176,14 @@ const sendFundRequestApprovedNotification = async ({
       });
       fcmSent = true;
     } catch (err) {
+      console.error(`[FundRequestApproved] FCM error for device ${device.fcmToken?.slice(0, 20)}...:`, err.message);
       failureReason = err.message;
     }
   }
 
   await updateFcmStatus({ notificationId: notification._id, fcmSent, fcmFailureReason: failureReason });
 
+  console.log(`[FundRequestApproved] Notification completed. FCM sent: ${fcmSent}, Failure: ${failureReason}`);
   return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notification };
 };
 
@@ -1195,6 +1198,7 @@ const sendFundRequestRejectedNotification = async ({
   const retailer = await User.findById(retailerId).select("devices name fullName mobile");
 
   if (!retailer) {
+    console.error(`[FundRequestRejected] Retailer not found: ${retailerId}`);
     return { success: false, message: "Retailer not found" };
   }
 
@@ -1217,6 +1221,7 @@ const sendFundRequestRejectedNotification = async ({
   const devices = retailer.devices?.filter((d) => d.isActive && d.fcmToken && d.fcmToken !== "dummy") || [];
 
   if (devices.length === 0 || !firebaseMessaging) {
+    console.log(`[FundRequestRejected] Notification saved. Devices: ${devices.length}, Firebase: ${!!firebaseMessaging}`);
     return { success: true, message: "Notification saved", data: notification };
   }
 
@@ -1242,12 +1247,14 @@ const sendFundRequestRejectedNotification = async ({
       });
       fcmSent = true;
     } catch (err) {
+      console.error(`[FundRequestRejected] FCM error for device ${device.fcmToken?.slice(0, 20)}...:`, err.message);
       failureReason = err.message;
     }
   }
 
   await updateFcmStatus({ notificationId: notification._id, fcmSent, fcmFailureReason: failureReason });
 
+  console.log(`[FundRequestRejected] Notification completed. FCM sent: ${fcmSent}, Failure: ${failureReason}`);
   return { success: true, message: fcmSent ? "Notification sent" : "Notification saved", data: notification };
 };
 
