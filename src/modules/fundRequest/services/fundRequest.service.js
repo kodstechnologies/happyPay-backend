@@ -188,6 +188,7 @@ export const getPendingFundRequests = async () => {
 
 /**
  * Approve a fund request (admin)
+ * Note: This only changes status to APPROVED. Wallet is credited after biometric verification.
  */
 export const approveFundRequest = async (id, adminId, adminNotes = null) => {
   try {
@@ -204,38 +205,11 @@ export const approveFundRequest = async (id, adminId, adminNotes = null) => {
       );
     }
 
-    // Credit the retailer's wallet with the approved amount
-    try {
-      await addAmountToWallet(
-        fundRequest.userId,
-        fundRequest.amount,
-        null, // razorpay_order_id
-        null, // razorpay_payment_id
-        fundRequest._id, // referenceKey - use fund request ID
-        `Fund Request Approval - ${fundRequest.paymentMode} payment via ${fundRequest.bank}`
-      );
-
-      // Send wallet credit notification (non-blocking)
-      sendWalletTransferNotification({
-        recipientId: fundRequest.userId,
-        type: "WALLET_CREDIT",
-        title: "Wallet Credited",
-        body: `₹${fundRequest.amount} has been credited to your wallet from approved fund request.`,
-        data: {
-          amount: fundRequest.amount,
-          reference: fundRequest._id,
-        },
-      }).catch((err) => {
-        console.error("Failed to send wallet credit notification:", err);
-      });
-    } catch (walletError) {
-      console.error("Failed to credit wallet:", walletError);
-      // Continue with approval even if wallet credit fails (log the error)
-    }
-
+    // Update status to APPROVED but keep isBiometricVerified as false
     const updatedRequest = await fundRequestRepository.updateStatus(id, "APPROVED", {
       reviewedBy: adminId,
       adminNotes,
+      isBiometricVerified: false,
     });
 
     // Send notification to retailer (non-blocking)
@@ -248,7 +222,7 @@ export const approveFundRequest = async (id, adminId, adminNotes = null) => {
 
     return ApiResponse.success(
       updatedRequest,
-      "Fund request approved successfully and amount credited to wallet"
+      "Fund request approved successfully. Please complete biometric verification to credit amount to wallet."
     );
   } catch (error) {
     console.error("Error approving fund request:", error);
@@ -392,6 +366,82 @@ export const deleteFundRequest = async (id) => {
     console.error("Error deleting fund request:", error);
     return ApiResponse.error(
       error.message || "Failed to delete fund request",
+      500
+    );
+  }
+};
+
+/**
+ * Verify biometric and credit wallet for approved fund request
+ */
+export const verifyBiometricAndCreditWallet = async (id, withdrawalData) => {
+  try {
+    const fundRequest = await fundRequestRepository.findByIdPlain(id);
+
+    if (!fundRequest) {
+      return ApiResponse.error("Fund request not found", 404);
+    }
+
+    if (fundRequest.status !== "APPROVED") {
+      return ApiResponse.error(
+        "Only approved requests can be verified",
+        400
+      );
+    }
+
+    if (fundRequest.isBiometricVerified) {
+      return ApiResponse.error(
+        "Biometric verification already completed",
+        400
+      );
+    }
+
+    // Credit the retailer's wallet with the approved amount
+    try {
+      await addAmountToWallet(
+        fundRequest.userId,
+        fundRequest.amount,
+        null, // razorpay_order_id
+        null, // razorpay_payment_id
+        fundRequest._id, // referenceKey - use fund request ID
+        `Fund Request Biometric Verification - ${fundRequest.paymentMode} payment via ${fundRequest.bank}`
+      );
+
+      // Send wallet credit notification (non-blocking)
+      sendWalletTransferNotification({
+        recipientId: fundRequest.userId,
+        type: "WALLET_CREDIT",
+        title: "Wallet Credited",
+        body: `₹${fundRequest.amount} has been credited to your wallet from approved fund request after biometric verification.`,
+        data: {
+          amount: fundRequest.amount,
+          reference: fundRequest._id,
+        },
+      }).catch((err) => {
+        console.error("Failed to send wallet credit notification:", err);
+      });
+    } catch (walletError) {
+      console.error("Failed to credit wallet:", walletError);
+      return ApiResponse.error(
+        walletError.message || "Failed to credit wallet after biometric verification",
+        500
+      );
+    }
+
+    // Update fund request with biometric verification status and withdrawal details
+    const updatedRequest = await fundRequestRepository.updateById(id, {
+      isBiometricVerified: true,
+      withdrawalDetails: withdrawalData,
+    });
+
+    return ApiResponse.success(
+      updatedRequest,
+      "Biometric verification successful. Amount credited to wallet."
+    );
+  } catch (error) {
+    console.error("Error verifying biometric:", error);
+    return ApiResponse.error(
+      error.message || "Failed to verify biometric",
       500
     );
   }

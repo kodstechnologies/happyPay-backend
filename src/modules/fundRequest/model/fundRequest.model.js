@@ -18,7 +18,7 @@ const fundRequestSchema = new mongoose.Schema(
 
     // =========================
     // Payment Details
-    // =========================
+    // =========================a
     paymentMode: {
       type: String,
       required: true,
@@ -93,6 +93,16 @@ const fundRequestSchema = new mongoose.Schema(
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
       default: "PENDING",
+    },
+
+    isBiometricVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    withdrawalDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
 
     rejectionReason: {

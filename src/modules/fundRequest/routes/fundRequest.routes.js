@@ -7,13 +7,17 @@ import {
   resubmitFundRequestController,
   deleteFundRequestController,
   getMyFundRequestStatsController,
+  verifyBiometricAndCreditWalletController,
 } from "../controller/fundRequest.controller.js";
 import {
   validateCreateFundRequest,
   validateResubmitFundRequest,
 } from "../validators/fundRequest.validators.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
-import { uploadFundRequestDocument } from "../../../utils/multer.js";
+import {
+  uploadFundRequestDocument,
+  uploadFundRequestToS3,
+} from "../../../utils/multer.js";
 
 const router = Router();
 
@@ -28,6 +32,7 @@ router.use(authMiddleware);
 router.post(
   "/",
   uploadFundRequestDocument,
+  uploadFundRequestToS3,
   validateCreateFundRequest,
   createFundRequestController
 );
@@ -68,6 +73,7 @@ router.get("/:id", getFundRequestByIdController);
 router.patch(
   "/:id/resubmit",
   uploadFundRequestDocument,
+  uploadFundRequestToS3,
   validateResubmitFundRequest,
   resubmitFundRequestController
 );
@@ -78,5 +84,12 @@ router.patch(
  * @access  Private (Retailer)
  */
 router.delete("/:id", deleteFundRequestController);
+
+/**
+ * @route   POST /api/v1/fund-requests/:id/verify-biometric
+ * @desc    Verify biometric and credit wallet for approved fund request
+ * @access  Private (Retailer)
+ */
+router.post("/:id/verify-biometric", verifyBiometricAndCreditWalletController);
 
 export default router;

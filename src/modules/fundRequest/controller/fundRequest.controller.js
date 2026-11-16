@@ -12,14 +12,15 @@ import {
   deleteFundRequest,
   getFundRequestStats,
   getAdminFundRequestStats,
+  verifyBiometricAndCreditWallet,
 } from "../services/fundRequest.service.js";
 
 /**
  * Create a new fund request (Retailer)
  */
 export const createFundRequestController = asyncHandler(async (req, res) => {
-  // Handle file upload - receiptSlip will be in req.file from multer
-  const receiptSlip = req.file?.path || req.file?.secure_url;
+  // Handle file upload - receiptSlip will be in req.body after S3 upload
+  const receiptSlip = req.body.receiptSlip;
 
   if (!receiptSlip) {
     return res.status(400).json({
@@ -138,8 +139,8 @@ export const rejectFundRequestController = asyncHandler(async (req, res) => {
 export const resubmitFundRequestController = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Handle file upload - receiptSlip will be in req.file from multer (optional for resubmit)
-  const receiptSlip = req.file?.path || req.file?.secure_url;
+  // Handle file upload - receiptSlip will be in req.body after S3 upload (optional for resubmit)
+  const receiptSlip = req.body.receiptSlip;
 
   const result = await resubmitFundRequest(id, {
     ...req.body,
@@ -174,6 +175,18 @@ export const getMyFundRequestStatsController = asyncHandler(async (req, res) => 
  */
 export const getAdminFundRequestStatsController = asyncHandler(async (req, res) => {
   const result = await getAdminFundRequestStats();
+
+  return res.status(result.statusCode).json(result);
+});
+
+/**
+ * Verify biometric and credit wallet for approved fund request (Retailer)
+ */
+export const verifyBiometricAndCreditWalletController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const withdrawalData = req.body;
+
+  const result = await verifyBiometricAndCreditWallet(id, withdrawalData);
 
   return res.status(result.statusCode).json(result);
 });

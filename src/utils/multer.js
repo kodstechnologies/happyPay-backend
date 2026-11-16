@@ -4,6 +4,7 @@ import path from "path";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";
 import ApiError from "./ApiError.js";
+import { uploadToS3 } from "./s3/uploadToS3.js";
 
 /**
  * Cloudinary storage
@@ -466,14 +467,8 @@ export const uploadPricingImage = multer({
   fileFilter: pricingFileFilter,
 }).single("image");
 
-// Fund Request Storage
-const fundRequestStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "happypay/fund-requests",
-    resource_type: "auto",
-  },
-});
+// Fund Request Storage - Use S3
+const fundRequestMemoryStorage = multer.memoryStorage();
 
 const fundRequestFileFilter = (req, file, cb) => {
   if (file.fieldname !== "receiptSlip") {
@@ -516,13 +511,16 @@ const fundRequestFileFilter = (req, file, cb) => {
 };
 
 export const uploadFundRequestDocument = multer({
-  storage: fundRequestStorage,
+  storage: fundRequestMemoryStorage,
   limits: {
     fileSize: 5 * 1024 * 1024,
     files: 1,
   },
   fileFilter: fundRequestFileFilter,
 }).single("receiptSlip");
+
+// Middleware to upload fund request document to S3
+export const uploadFundRequestToS3 = uploadToS3("happypay/fund-requests", { receiptSlip: "receiptSlip" });
 
 export const upload = multer(multerOptions);
 
