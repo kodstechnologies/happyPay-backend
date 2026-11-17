@@ -123,7 +123,9 @@ const saveRetailerRegistration = async (userId, payload) => {
 };
 
 const findById = async (userId) => {
-  return await User.findById(userId).select("aadhaarNumber mobile");
+  return await User.findById(userId).select(
+    "aadhaarNumber mobile isWalletLocked"
+  );
 };
 
 const updateUser = async (userId, updateData) => {
