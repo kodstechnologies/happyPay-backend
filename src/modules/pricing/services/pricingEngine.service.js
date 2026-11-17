@@ -229,9 +229,17 @@ export const calculateTransactionPricing = async ({
         const rawCharge = matchedSlab.chargeAmount ?? matchedSlab.adminAmount ?? 0;
         providerCharge += computeVal(rawCharge);
       } else if (isCommission) {
-        adminCommission += computeVal(matchedSlab.adminAmount);
+        // chargeAmount on a COMMISSION rule = the total fee deducted from the retailer.
+        // The retailer/distributor/admin amounts are their respective share of that fee
+        // credited back — so they are commissions, not additional deductions.
+        // If chargeAmount is set (the admin UI "CHARGE" column), treat it as the provider
+        // fee so it ends up in totalChargesDeducted.
+        if (matchedSlab.chargeAmount != null && Number(matchedSlab.chargeAmount) > 0) {
+          providerCharge += computeVal(matchedSlab.chargeAmount);
+        }
+        adminCommission      += computeVal(matchedSlab.adminAmount);
         distributorCommission += computeVal(matchedSlab.distributorAmount);
-        retailerCommission += computeVal(matchedSlab.retailerAmount);
+        retailerCommission   += computeVal(matchedSlab.retailerAmount);
       }
     }
 

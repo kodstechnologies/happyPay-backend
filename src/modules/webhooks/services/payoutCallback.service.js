@@ -10,9 +10,9 @@
  *   with the documented mechanism (HMAC-SHA256, IP whitelist, etc.).
  *
  * Wallet accounting:
- *   PENDING  → holdBalance += netDebitAmount   (done at initiation)
- *   SUCCESS  → balance    -= netDebitAmount, holdBalance -= netDebitAmount
- *   FAILED   → holdBalance -= netDebitAmount   (reservation released)
+ *   PENDING  → balance -= netDebitAmount   (deducted immediately at initiation)
+ *   SUCCESS  → no wallet change            (already deducted at initiation)
+ *   FAILED   → balance += netDebitAmount   (refund credited back, reversed transaction created)
  *
  * @module payoutCallback.service
  */
@@ -277,78 +277,30 @@ export const processPayoutCallbackService = async (callbackBody = {}) => {
 
 const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }) => {
   const internalTxnId = txn.transactionId;
-  const netDebitAmount = Number(txn.netDebitAmount || 0);
 
   logger.info(
-    `[PAYOUT_CALLBACK] Processing SUCCESS. internalTxnId=${internalTxnId} netDebitAmount=${netDebitAmount}`
+    `[PAYOUT_CALLBACK] Processing SUCCESS. internalTxnId=${internalTxnId} (balance already deducted at initiation)`
   );
 
-  const session = await mongoose.startSession();
-  let finalBalanceBefore, finalBalanceAfter;
-
   try {
-    await session.withTransaction(async () => {
-      // Re-read inside session to guard against concurrent processing
-      const txnInSession = await Transaction.findOne({
-        _id: txn._id,
-        status: "pending",
-      }).session(session);
-
-      if (!txnInSession) {
-        const err = new Error("ALREADY_PROCESSED");
-        err.code = "ALREADY_PROCESSED";
-        throw err;
-      }
-
-      const wallet = await Wallet.findById(txn.wallet).session(session);
-      if (!wallet) {
-        throw new Error(`Wallet not found for transaction ${internalTxnId}`);
-      }
-
-      const currentBalance = Number(wallet.balance || 0);
-      const currentHold = Number(wallet.holdBalance || 0);
-
-      // Release from hold AND debit from balance
-      const holdToRelease = Math.min(netDebitAmount, currentHold);
-      const newBalance = Math.round((currentBalance - netDebitAmount) * 100) / 100;
-      const newHold = Math.max(0, Math.round((currentHold - holdToRelease) * 100) / 100);
-
-      if (newBalance < 0) {
-        throw new Error(
-          `Balance would go negative on SUCCESS. currentBalance=${currentBalance} netDebitAmount=${netDebitAmount}`
-        );
-      }
-
-      finalBalanceBefore = currentBalance;
-      finalBalanceAfter = newBalance;
-
-      wallet.balance = newBalance;
-      wallet.holdBalance = newHold;
-      await wallet.save({ session });
-
-      logger.info(
-        `[PAYOUT_CALLBACK] Wallet SUCCESS update. ` +
-        `balance: ${currentBalance}→${newBalance} holdBalance: ${currentHold}→${newHold}`
-      );
-
-      await Transaction.findByIdAndUpdate(
-        txn._id,
-        {
-          $set: {
-            status: "success",
-            providerStatus: rawStatus,
-            providerCallbackPayload: callbackBody,
-            callbackReceivedAt: new Date(),
-            balanceAfter: newBalance,
-            ...(utr ? { utr } : {}),
-            ...(operatorId ? { operatorId } : {}),
-          },
+    // Balance was already deducted when the transaction was queued — no wallet mutation needed.
+    // Simply mark the transaction as success and stamp the provider fields atomically.
+    const updated = await Transaction.findOneAndUpdate(
+      { _id: txn._id, status: "pending" },   // idempotency guard inside the query
+      {
+        $set: {
+          status: "success",
+          providerStatus: rawStatus,
+          providerCallbackPayload: callbackBody,
+          callbackReceivedAt: new Date(),
+          ...(utr ? { utr } : {}),
+          ...(operatorId ? { operatorId } : {}),
         },
-        { session }
-      );
-    });
-  } catch (err) {
-    if (err.code === "ALREADY_PROCESSED" || err.message === "ALREADY_PROCESSED") {
+      },
+      { new: true }
+    );
+
+    if (!updated) {
       logger.warn(`[PAYOUT_CALLBACK] Concurrent SUCCESS – already processed. internalTxnId=${internalTxnId}`);
       return {
         processed: false,
@@ -358,16 +310,15 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
         ack: "duplicate",
       };
     }
+  } catch (err) {
     logger.error(`[PAYOUT_CALLBACK] SUCCESS processing failed. internalTxnId=${internalTxnId} error=${err.message}`);
     throw err;
-  } finally {
-    session.endSession();
   }
 
-  // Credit distributor commission (best-effort, outside main session)
+  // Credit distributor commission (best-effort, outside transaction)
   await _creditDistributorCommission(txn, internalTxnId);
 
-  logger.info(`[PAYOUT_CALLBACK] SUCCESS complete. internalTxnId=${internalTxnId} balanceAfter=${finalBalanceAfter}`);
+  logger.info(`[PAYOUT_CALLBACK] SUCCESS complete. internalTxnId=${internalTxnId}`);
 
   return {
     processed: true,
@@ -388,7 +339,7 @@ const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus })
   const netDebitAmount = Number(txn.netDebitAmount || 0);
 
   logger.info(
-    `[PAYOUT_CALLBACK] Processing FAILED. internalTxnId=${internalTxnId} netDebitAmount=${netDebitAmount}`
+    `[PAYOUT_CALLBACK] Processing FAILED. internalTxnId=${internalTxnId} refunding ₹${netDebitAmount}`
   );
 
   const failureReason =
@@ -400,6 +351,7 @@ const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus })
     "Provider marked payout as failed";
 
   const session = await mongoose.startSession();
+  let refundBalanceBefore, refundBalanceAfter, retailerUserId;
 
   try {
     await session.withTransaction(async () => {
@@ -414,21 +366,46 @@ const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus })
         throw err;
       }
 
-      // Release the hold reservation (wallet balance unchanged)
+      // Refund: credit the amount back to the retailer wallet
       const wallet = await Wallet.findById(txn.wallet).session(session);
       if (wallet) {
-        const currentHold = Number(wallet.holdBalance || 0);
-        const holdToRelease = Math.min(netDebitAmount, currentHold);
-        wallet.holdBalance = Math.max(0, Math.round((currentHold - holdToRelease) * 100) / 100);
+        refundBalanceBefore = Number(wallet.balance || 0);
+        refundBalanceAfter = Math.round((refundBalanceBefore + netDebitAmount) * 100) / 100;
+        wallet.balance = refundBalanceAfter;
         await wallet.save({ session });
 
+        // Resolve the retailer userId from the wallet document
+        retailerUserId = wallet.user;
+
         logger.info(
-          `[PAYOUT_CALLBACK] Hold released on FAILED. holdBalance: ${currentHold}→${wallet.holdBalance}`
+          `[PAYOUT_CALLBACK] Balance refunded on FAILED. balance: ${refundBalanceBefore}→${refundBalanceAfter}`
+        );
+
+        // Create a "reversed" credit transaction as the refund record
+        const refundTxn = new Transaction({
+          wallet: wallet._id,
+          type: "credit",
+          amount: netDebitAmount,
+          balanceBefore: refundBalanceBefore,
+          balanceAfter: refundBalanceAfter,
+          service: "PAYOUT",
+          transactionId: generate15CharTxnId("RFD"),
+          status: "reversed",
+          description: `Refund for failed payout (Ref: ${internalTxnId}). ${failureReason}`,
+          commissionEarned: 0,
+          charges: 0,
+          payee: txn.payee || {},
+        });
+        await refundTxn.save({ session });
+
+        logger.info(
+          `[PAYOUT_CALLBACK] Refund transaction created. refundTxnId=${refundTxn.transactionId}`
         );
       } else {
         logger.warn(`[PAYOUT_CALLBACK] Wallet not found for FAILED processing. internalTxnId=${internalTxnId}`);
       }
 
+      // Mark the original transaction as failed
       await Transaction.findByIdAndUpdate(
         txn._id,
         {
@@ -462,13 +439,42 @@ const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus })
     session.endSession();
   }
 
-  logger.info(`[PAYOUT_CALLBACK] FAILED complete. internalTxnId=${internalTxnId} holdReleased=${netDebitAmount}`);
+  // Send push + in-app notification to the retailer (best-effort, outside session)
+  if (retailerUserId && netDebitAmount > 0) {
+    try {
+      const { sendWalletTransferNotification } = await import(
+        "../../notifications/services/notification.services.js"
+      );
+      await sendWalletTransferNotification({
+        recipientId: retailerUserId,
+        type: "WALLET_CREDIT",
+        title: "Settlement Refunded",
+        body: `₹${netDebitAmount.toFixed(2)} has been refunded to your wallet. Your settlement (Ref: ${internalTxnId}) could not be processed. Reason: ${failureReason}`,
+        data: {
+          service: "PAYOUT",
+          serviceName: "Settlement Refund",
+          amount: String(netDebitAmount),
+          transactionId: internalTxnId,
+          screen: "TRANSACTIONS",
+        },
+      });
+      logger.info(
+        `[PAYOUT_CALLBACK] Refund notification sent. userId=${retailerUserId} amount=₹${netDebitAmount}`
+      );
+    } catch (notifErr) {
+      logger.error(
+        `[PAYOUT_CALLBACK] Failed to send refund notification. error=${notifErr.message}`
+      );
+    }
+  }
+
+  logger.info(`[PAYOUT_CALLBACK] FAILED complete. internalTxnId=${internalTxnId} refunded=₹${netDebitAmount}`);
 
   return {
     processed: true,
     status: "failed",
     transactionId: internalTxnId,
-    message: "Payout failed – wallet reservation released",
+    message: `Payout failed – ₹${netDebitAmount.toFixed(2)} refunded to wallet`,
     failureReason,
     ack: "ok",
   };

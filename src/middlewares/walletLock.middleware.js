@@ -1,4 +1,4 @@
-import { findById } from "../modules/auth/repository/user.repository.js";
+import Wallet from "../modules/wallet/model/wallet.model.js";
 
 /**
  * Middleware to check if user's wallet is locked
@@ -16,17 +16,11 @@ export const checkWalletLock = async (req, res, next) => {
       });
     }
 
-    const user = await findById(userId);
+    const wallet = await Wallet.findOne({ user: userId })
+      .select("isWalletLocked")
+      .lean();
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-        statusCode: 404,
-      });
-    }
-
-    if (user.isWalletLocked) {
+    if (wallet?.isWalletLocked) {
       return res.status(403).json({
         success: false,
         message: "Your wallet is locked. Please contact support for assistance.",

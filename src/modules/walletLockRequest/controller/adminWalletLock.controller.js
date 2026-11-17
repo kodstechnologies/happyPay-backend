@@ -1,6 +1,7 @@
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
-import { findById, updateUser } from "../../auth/repository/user.repository.js";
+import { findById } from "../../auth/repository/user.repository.js";
+import Wallet from "../../wallet/model/wallet.model.js";
 
 /**
  * Lock user wallet directly (Admin action)
@@ -29,10 +30,19 @@ export const lockUserWalletController = asyncHandler(async (req, res) => {
     );
   }
 
-  // Lock the user's wallet
-  const updatedUser = await updateUser(userId, {
-    isWalletLocked: true,
-  });
+  // Lock the user's wallet (wallet-level field)
+  await Wallet.findOneAndUpdate(
+    { user: userId },
+    {
+      $set: {
+        isWalletLocked: true,
+        lockedAt: new Date(),
+        lockedBy: adminId,
+        lockReason: reason.trim(),
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
 
   // Create a lock request record for audit trail
   const walletLockRequestRepository = (await import("../repository/walletLockRequest.repository.js")).default;
@@ -79,10 +89,19 @@ export const unlockUserWalletController = asyncHandler(async (req, res) => {
     );
   }
 
-  // Unlock the user's wallet
-  const updatedUser = await updateUser(userId, {
-    isWalletLocked: false,
-  });
+  // Unlock the user's wallet (wallet-level field)
+  await Wallet.findOneAndUpdate(
+    { user: userId },
+    {
+      $set: {
+        isWalletLocked: false,
+        lockedAt: null,
+        lockedBy: null,
+        lockReason: null,
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
 
   // Update the latest approved lock request with unlock notes
   const walletLockRequestRepository = (await import("../repository/walletLockRequest.repository.js")).default;

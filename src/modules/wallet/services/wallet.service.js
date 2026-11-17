@@ -133,7 +133,7 @@ export const addAmountToWallet = async (
 export const getUserWalletBalance = async (userId) => {
 
   let wallet = await Wallet.findOne({ user: userId })
-    .select("_id user balance holdBalance currency status")
+    .select("_id user balance holdBalance currency status isWalletLocked lockedAt lockedBy lockReason")
     .lean();
 
   if (!wallet) {
@@ -154,7 +154,7 @@ export const getUserWalletBalance = async (userId) => {
         setDefaultsOnInsert: true,
         lean: true,
       }
-    ).select("_id user balance holdBalance currency status");
+    ).select("_id user balance holdBalance currency status isWalletLocked lockedAt lockedBy lockReason");
   }
 
   const balance = Number(wallet.balance || 0);
@@ -169,6 +169,10 @@ export const getUserWalletBalance = async (userId) => {
     availableBalance: Number(availableBalance.toFixed(2)),
     currency: wallet.currency || "INR",
     status: wallet.status || "active",
+    isWalletLocked: Boolean(wallet.isWalletLocked),
+    lockedAt: wallet.lockedAt || null,
+    lockedBy: wallet.lockedBy || null,
+    reason: wallet.lockReason || null,
   };
 };
 
@@ -426,12 +430,14 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
     console.log(`[PAYOUT] Provider returned ${providerStatus} – reserving holdBalance. txnid=${txnid} providerTxnId=${providerTxnId}`);
 
-    // 1. Increase wallet holdBalance atomically to reserve the amount
+    // 1. Deduct balance immediately so the retailer sees the deduction right away.
+    //    On SUCCESS (webhook) nothing more needs to happen to the wallet.
+    //    On FAILED (webhook) the amount is refunded back via a credit + reversed transaction.
     await Wallet.findOneAndUpdate(
       { user: userId },
-      { $inc: { holdBalance: netDebitAmount } }
+      { $inc: { balance: -netDebitAmount } }
     );
-    console.log(`[PAYOUT] holdBalance increased by ₹${netDebitAmount} for userId=${userId}`);
+    console.log(`[PAYOUT] balance decreased by ₹${netDebitAmount} for userId=${userId}`);
 
     // 2. Record pending transaction with provider reference
     const pendingTxn = new Transaction({
@@ -440,7 +446,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       amount: numAmount,
       netDebitAmount,
       balanceBefore: currentBalance,
-      balanceAfter: currentBalance, // actual balance unchanged; hold is reserved separately
+      balanceAfter: Math.round((currentBalance - netDebitAmount) * 100) / 100,
       payee: {
         name: providerPayload.beneficiary_name || user.fullName,
         mobile: user.mobile,

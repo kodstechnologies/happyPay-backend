@@ -1,6 +1,7 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import walletLockRequestRepository from "../repository/walletLockRequest.repository.js";
-import { findById, updateUser } from "../../auth/repository/user.repository.js";
+import { findById } from "../../auth/repository/user.repository.js";
+import Wallet from "../../wallet/model/wallet.model.js";
 
 /**
  * Create a new wallet lock request
@@ -186,7 +187,8 @@ export const getWalletLockStatus = async (userId) => {
       return ApiResponse.error("User not found", 404);
     }
 
-    const isLocked = user.isWalletLocked || false;
+    const wallet = await Wallet.findOne({ user: userId }).select("isWalletLocked").lean();
+    const isLocked = wallet?.isWalletLocked || false;
     const latestLockRequest = await walletLockRequestRepository.findLatestApprovedByUserId(userId);
 
     return ApiResponse.success({
@@ -221,11 +223,20 @@ export const approveWalletLockRequest = async (id, adminId, adminNotes = null) =
       );
     }
 
-    // Lock the user's wallet
+    // Lock the user's wallet (wallet-level field)
     try {
-      await updateUser(walletLockRequest.userId, {
-        isWalletLocked: true,
-      });
+      await Wallet.findOneAndUpdate(
+        { user: walletLockRequest.userId },
+        {
+          $set: {
+            isWalletLocked: true,
+            lockedAt: new Date(),
+            lockedBy: adminId,
+            lockReason: walletLockRequest.reason,
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
     } catch (walletError) {
       console.error("Failed to lock wallet:", walletError);
       return ApiResponse.error(
@@ -312,11 +323,20 @@ export const unlockWallet = async (id, adminId, adminNotes = null) => {
       );
     }
 
-    // Unlock the user's wallet
+    // Unlock the user's wallet (wallet-level field)
     try {
-      await updateUser(walletLockRequest.userId, {
-        isWalletLocked: false,
-      });
+      await Wallet.findOneAndUpdate(
+        { user: walletLockRequest.userId },
+        {
+          $set: {
+            isWalletLocked: false,
+            lockedAt: null,
+            lockedBy: null,
+            lockReason: null,
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
     } catch (walletError) {
       console.error("Failed to unlock wallet:", walletError);
       return ApiResponse.error(

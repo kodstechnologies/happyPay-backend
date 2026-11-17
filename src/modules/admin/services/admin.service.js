@@ -365,11 +365,17 @@ const getRetailer = async (id) => {
   const roleSlug = hasDistributorRole
     ? "distributor"
     : retailer.roles?.[0]?.slug || retailer.role || "retailer";
+
+  // Wallet lock status lives on the Wallet document (not the User)
+  const wallet = await Wallet.findOne({ user: id })
+    .select("isWalletLocked")
+    .lean();
   return {
     ...retailer,
     id: retailer._id.toString(),
     role: roleSlug,
     kycStatus: retailer.adminApproved || retailer.kycStatus || "pending",
+    isWalletLocked: wallet?.isWalletLocked || false,
   };
 };
 

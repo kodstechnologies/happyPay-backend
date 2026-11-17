@@ -28,6 +28,23 @@ const walletSchema = new mongoose.Schema(
       enum: ["active", "frozen", "suspended"],
       default: "active",
     },
+    isWalletLocked: {
+      type: Boolean,
+      default: false,
+    },
+    lockedAt: {
+      type: Date,
+      default: null,
+    },
+    lockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    lockReason: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
