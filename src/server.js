@@ -4,9 +4,12 @@ import connectDB from "./config/db.js";
 import env from "./config/env.js";
 import logger from "./utils/logger.js";
 import { initializeSocket } from "./sockets/socket.server.js";
-import { startSubscriptionExpiryCron, stopSubscriptionExpiryCron } from "./cron/subscriptionExpiry.cron.js";
-import { runSubscriptionExpiryCheck } from "./cron/subscriptionExpiry.cron.js";
-await runSubscriptionExpiryCheck();
+import {
+  startSubscriptionExpiryCron,
+  stopSubscriptionExpiryCron,
+  runSubscriptionExpiryCheck,
+} from "./cron/subscriptionExpiry.cron.js";
+
 let server;
 
 // Handle uncaught exceptions
@@ -37,6 +40,9 @@ const startServer = async () => {
 
     // Start cron jobs
     startSubscriptionExpiryCron();
+
+    // Run an initial expiry check now that the DB is connected
+    await runSubscriptionExpiryCheck();
 
   } catch (error) {
     console.error("❌ Server startup failed:", error);
