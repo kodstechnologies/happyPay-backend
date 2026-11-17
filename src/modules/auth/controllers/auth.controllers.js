@@ -47,6 +47,7 @@ const retailerFileFields = [
   "shopOutsidePhoto",
   "shopLocationPhoto",
   "businessProofDocument",
+  "gstDocument",
 ];
 
 const uploadedRetailerFiles = (files = {}) =>

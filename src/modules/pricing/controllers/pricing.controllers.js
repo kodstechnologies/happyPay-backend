@@ -120,8 +120,9 @@ export const configurePlanServicesController = asyncHandler(
 export const subscribeToPlanController = asyncHandler(async (req, res) => {
   const planId = req.params.id || req.body?.planId;
   const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+  const mpin = req.body?.mpin;
 
-  const subscription = await subscribeToPlan(planId, userId);
+  const subscription = await subscribeToPlan(planId, userId, mpin);
 
   res
     .status(200)

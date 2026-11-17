@@ -148,6 +148,7 @@ const retailerDocumentFields = new Set([
   "panDocument",
   "aadhaarDocument",
   "businessProofDocument",
+  "gstDocument",
 ]);
 
 const imageMimeTypes = [
@@ -263,7 +264,7 @@ export const uploadRetailerProfileDocuments = multer({
   storage: registrationMemoryStorage,
   limits: {
     fileSize: 5 * 1024 * 1024,
-    files: 7,
+    files: 8,
   },
   fileFilter: retailerFileFilter,
 }).fields([
@@ -274,6 +275,7 @@ export const uploadRetailerProfileDocuments = multer({
   { name: "shopOutsidePhoto", maxCount: 1 },
   { name: "shopLocationPhoto", maxCount: 1 },
   { name: "businessProofDocument", maxCount: 1 },
+  { name: "gstDocument", maxCount: 1 },
 ]);
 
 // Specialized multer middleware for shop details with mandatory file validation

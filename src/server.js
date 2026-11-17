@@ -4,7 +4,9 @@ import connectDB from "./config/db.js";
 import env from "./config/env.js";
 import logger from "./utils/logger.js";
 import { initializeSocket } from "./sockets/socket.server.js";
-
+import { startSubscriptionExpiryCron, stopSubscriptionExpiryCron } from "./cron/subscriptionExpiry.cron.js";
+import { runSubscriptionExpiryCheck } from "./cron/subscriptionExpiry.cron.js";
+await runSubscriptionExpiryCheck();
 let server;
 
 // Handle uncaught exceptions
@@ -33,6 +35,9 @@ const startServer = async () => {
       console.log(`✅ Environment: ${env.NODE_ENV}`);
     });
 
+    // Start cron jobs
+    startSubscriptionExpiryCron();
+
   } catch (error) {
     console.error("❌ Server startup failed:", error);
     process.exit(1);
@@ -60,6 +65,26 @@ process.on("unhandledRejection", (reason) => {
 // Handle termination signals
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received. Shutting down gracefully...");
+
+  // Stop cron jobs
+  stopSubscriptionExpiryCron();
+
+  if (server) {
+    server.close(() => {
+      logger.info("Process terminated.");
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+});
+
+// Handle SIGINT (Ctrl+C)
+process.on("SIGINT", () => {
+  logger.info("SIGINT received. Shutting down gracefully...");
+
+  // Stop cron jobs
+  stopSubscriptionExpiryCron();
 
   if (server) {
     server.close(() => {

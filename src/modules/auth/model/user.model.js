@@ -286,6 +286,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+
+    gstDocument: {
+      type: String,
+      trim: true,
+    },
+
     ditributor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
@@ -469,6 +481,11 @@ const userSchema = new mongoose.Schema(
       },
 
       businessProofDocument: {
+        type: documentReviewSchema,
+        default: () => ({}),
+      },
+
+      gstDocument: {
         type: documentReviewSchema,
         default: () => ({}),
       },

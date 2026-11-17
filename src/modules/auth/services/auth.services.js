@@ -1229,6 +1229,7 @@ const DOC_FIELDS = [
   "shopOutsidePhoto",
   "shopLocationPhoto",
   "businessProofDocument",
+  "gstDocument",
 ];
 
 const updateRetailerProfileService = async (retailerId, body = {}, files = {}) => {
@@ -1262,6 +1263,11 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     if (!Number.isNaN(parsedDob.getTime())) {
       user.dateOfBirth = parsedDob;
     }
+  }
+
+  // GST number
+  if (body.gstNumber !== undefined) {
+    user.gstNumber = String(body.gstNumber).trim().toUpperCase();
   }
 
   // Shop details update

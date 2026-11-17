@@ -88,7 +88,7 @@ const configurePlanServices = async (planId, incomingServices) => {
   return await savePlan(plan);
 };
 
-const subscribeToPlan = async (planId, userId) => {
+const subscribeToPlan = async (planId, userId, mpin) => {
   if (!planId) {
     throw ApiError.badRequest("Plan ID is required");
   }
@@ -104,6 +104,14 @@ const subscribeToPlan = async (planId, userId) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw ApiError.badRequest("Invalid User ID format");
   }
+
+  // Verify MPIN before proceeding
+  if (!mpin) {
+    throw ApiError.badRequest("MPIN is required for plan subscription");
+  }
+
+  const { verifyMpinService } = await import("../../auth/services/mpin.service.js");
+  await verifyMpinService(userId, mpin);
 
   const user = await User.findById(userId);
   if (!user) {
