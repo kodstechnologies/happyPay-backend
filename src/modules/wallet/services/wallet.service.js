@@ -112,8 +112,8 @@ export const addAmountToWallet = async (
         service: "RAZORPAY",
         transactionId: uniqueTxnId,
         referenceKey: referenceKey || null,
-        razorpay_order_id: razorpay_order_id ||null,
-        razorpay_payment_id: razorpay_payment_id ||  null,
+        razorpay_order_id: razorpay_order_id || null,
+        razorpay_payment_id: razorpay_payment_id || null,
         status: "success",
         description,
       });
@@ -131,7 +131,7 @@ export const addAmountToWallet = async (
 
 
 export const getUserWalletBalance = async (userId) => {
- 
+
   let wallet = await Wallet.findOne({ user: userId })
     .select("_id user balance holdBalance currency status")
     .lean();
@@ -322,7 +322,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.notFound("Retailer not found");
   }
 
-  if (user.status == "blocked"||user.status=="blocked") {
+  if (user.status == "blocked" || user.status == "blocked") {
     throw ApiError.forbidden("Retailer account is currently inactive or suspended");
   }
 
@@ -366,7 +366,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   }
 
   const providerPayload = {
-    accountType:payload.accountType || "Savings Account",
+    accountType: payload.accountType || "Savings Account",
     branchName: payload.branchName || "",
     benMobile: String(payload.benMobile).trim(),
     bank_name: String(payload.bank_name || payload.bankName || "").trim(),
@@ -416,13 +416,31 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   const isProviderQueued = providerStatus === "QUEUED" || providerStatus === "PENDING" || providerStatus === "PROCESSING";
 
   if (isProviderQueued) {
-    // Provider queued the transaction - do not debit wallet yet, record pending transaction
+    // ── PENDING: reserve wallet hold balance & save transaction ──────────────
+    const providerTxnId =
+      providerResponse?.data?.txn_id ||
+      providerResponse?.txn_id ||
+      providerResponse?.data?.transaction_id ||
+      providerResponse?.transaction_id ||
+      null;
+
+    console.log(`[PAYOUT] Provider returned ${providerStatus} – reserving holdBalance. txnid=${txnid} providerTxnId=${providerTxnId}`);
+
+    // 1. Increase wallet holdBalance atomically to reserve the amount
+    await Wallet.findOneAndUpdate(
+      { user: userId },
+      { $inc: { holdBalance: netDebitAmount } }
+    );
+    console.log(`[PAYOUT] holdBalance increased by ₹${netDebitAmount} for userId=${userId}`);
+
+    // 2. Record pending transaction with provider reference
     const pendingTxn = new Transaction({
       wallet: wallet._id,
       type: "debit",
       amount: numAmount,
+      netDebitAmount,
       balanceBefore: currentBalance,
-      balanceAfter: currentBalance, // No balance change since it's pending
+      balanceAfter: currentBalance, // actual balance unchanged; hold is reserved separately
       payee: {
         name: providerPayload.beneficiary_name || user.fullName,
         mobile: user.mobile,
@@ -433,25 +451,58 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       },
       service: "PAYOUT",
       transactionId: txnid,
+      providerTxnId,
+      providerStatus,
+      providerInitResponse: providerResponse,
+      paymentMode: providerPayload.mode || "IMPS",
       status: "pending",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Queued for processing`,
       commissionEarned: retailerCommission,
       charges,
+      distributorCommission,
+      distributorId: distributorId || null,
       commissionBreakdown,
     });
     await pendingTxn.save();
 
-    throw ApiError.badRequest(
-      providerResponse?.msg || providerResponse?.message || "Transaction is queued for processing. Please check transaction status later."
-    );
+    console.log(`[PAYOUT] Pending transaction saved. transactionId=${txnid}`);
+
+    // 3. Return a 200 success response — do NOT throw
+    return {
+      txnid,
+      providerTxnId,
+      amount: numAmount,
+      netDebitAmount,
+      balanceBefore: currentBalance,
+      balanceAfter: currentBalance,
+      bankName: recordedBankName,
+      accountNumber: providerPayload.account_number,
+      mode: providerPayload.mode,
+      status: "pending",
+      providerStatus,
+      providerResponse,
+      commission: retailerCommission,
+      charges,
+      distributorCommission,
+      commissionBreakdown,
+      message: providerResponse?.msg || providerResponse?.message || "Transaction is queued for processing. You will be notified on completion.",
+    };
   }
 
   if (!isProviderSuccess) {
     // Provider failed - do not debit wallet, record failed transaction
+    const providerTxnIdFailed =
+      providerResponse?.data?.txn_id ||
+      providerResponse?.txn_id ||
+      providerResponse?.data?.transaction_id ||
+      providerResponse?.transaction_id ||
+      null;
+
     const failedTxn = new Transaction({
       wallet: wallet._id,
       type: "debit",
       amount: numAmount,
+      netDebitAmount,
       balanceBefore: currentBalance,
       balanceAfter: currentBalance, // No balance change since it failed
       payee: {
@@ -464,10 +515,17 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       },
       service: "PAYOUT",
       transactionId: txnid,
+      providerTxnId: providerTxnIdFailed,
+      providerStatus,
+      providerInitResponse: providerResponse,
+      paymentMode: providerPayload.mode || "IMPS",
       status: "failed",
+      failureReason: providerResponse?.msg || providerResponse?.message || "Provider error",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Failed: ${providerResponse?.msg || providerResponse?.message || "Provider error"}`,
       commissionEarned: retailerCommission,
       charges,
+      distributorCommission,
+      distributorId: distributorId || null,
       commissionBreakdown,
     });
     await failedTxn.save();
@@ -476,6 +534,14 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       providerResponse?.msg || providerResponse?.message || "Settlement payout failed. Please try again."
     );
   }
+
+  // ── SUCCESS path: immediate success from provider ─────────────────────────
+  const providerTxnIdSuccess =
+    providerResponse?.data?.txn_id ||
+    providerResponse?.txn_id ||
+    providerResponse?.data?.transaction_id ||
+    providerResponse?.transaction_id ||
+    null;
 
   // 7. Debit wallet balance and record Transaction using processServiceWalletTransaction (similar to AEPS)
   let balanceAfter = currentBalance;
@@ -502,6 +568,28 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)})`,
       status: "success",
     });
+
+    // Stamp provider fields on the newly created transaction
+    if (walletTxn?.transaction?._id) {
+      const finalUtrImmediate =
+        providerResponse?.utr || providerResponse?.rrn ||
+        providerResponse?.data?.utr || providerResponse?.data?.rrn ||
+        providerResponse?.bank_ref_num || null;
+
+      await Transaction.findByIdAndUpdate(walletTxn.transaction._id, {
+        $set: {
+          providerTxnId: providerTxnIdSuccess,
+          providerStatus,
+          providerInitResponse: providerResponse,
+          paymentMode: providerPayload.mode || "IMPS",
+          netDebitAmount,
+          distributorCommission,
+          distributorId: distributorId || null,
+          utr: finalUtrImmediate,
+          operatorId: providerResponse?.data?.operator_id || providerResponse?.operator_id || null,
+        },
+      });
+    }
 
     // Send notification about commission earned (if any)
     if (retailerCommission > 0) {
@@ -544,6 +632,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
   return {
     txnid,
+    providerTxnId: providerTxnIdSuccess,
     utr: finalUtr,
     amount: numAmount,
     netDebitAmount,
@@ -894,8 +983,8 @@ export const verifyRecipientRetailerService = async (senderUserId, mobile) => {
   return {
     id: recipient._id.toString(),
     _id: recipient._id.toString(),
-    name: recipient.fullName ,
-    fullName: recipient.fullName ,
+    name: recipient.fullName,
+    fullName: recipient.fullName,
     shopName: recipient.shop?.name,
     mobile: recipient.mobile,
     status: recipient.status,
@@ -1049,7 +1138,7 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
           name: recipient.fullName,
           mobile: recipient.mobile,
           shopName: recipient.shop?.name || "",
-          bankName: recipient.shop?.name ,
+          bankName: recipient.shop?.name,
           accountHolderName: recipient.fullName,
           accountNumber: recipient.mobile,
         },
@@ -1068,11 +1157,11 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         service: "SETTLEMENT",
         transactionId: recipientTxnId,
         payee: {
-          name: sender.fullName ,
+          name: sender.fullName,
           mobile: sender.mobile,
           shopName: sender.shop?.name,
-          bankName: sender.shop?.name ,
-          accountHolderName: sender.fullName ,
+          bankName: sender.shop?.name,
+          accountHolderName: sender.fullName,
           accountNumber: sender.mobile,
         },
         status: "success",
@@ -1088,7 +1177,7 @@ export const transferRetailerToRetailerService = async (senderUserId, payload = 
         senderBalanceBefore,
         senderBalanceAfter,
         recipientBalanceAfter,
-        recipientName: recipient.fullName ,
+        recipientName: recipient.fullName,
         recipientShopName: recipient.shop?.name,
         recipientMobile: recipient.mobile,
         remarks,
@@ -1158,7 +1247,7 @@ export const getRecentRetailerSettlementsService = async (userId) => {
 
   return transactions.map((t) => ({
     id: t.transactionId || String(t._id),
-    name: t.payee?.name || t.payee?.accountHolderName ,
+    name: t.payee?.name || t.payee?.accountHolderName,
     shopName: t.payee?.shopName || t.payee?.bankName || "",
     mobile: t.payee?.mobile || t.payee?.accountNumber || "",
     amount: t.amount,
@@ -1225,9 +1314,9 @@ export const getDistributorSettlementInfoService = async (userId) => {
       distributor: {
         id: distributorUser._id.toString(),
         customId: customDistId,
-        name: distributorUser.fullName || distributorUser.shop?.name ,
-        contactName: distributorUser.fullName ,
-        shopName: distributorUser.shop?.name ,
+        name: distributorUser.fullName || distributorUser.shop?.name,
+        contactName: distributorUser.fullName,
+        shopName: distributorUser.shop?.name,
         phone: distributorUser.mobile || "",
         email: distributorUser.email || "",
         address: formattedAddress,
@@ -1428,10 +1517,10 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         service: "SETTLEMENT",
         transactionId: txnid,
         payee: {
-          name: distributor.fullName ,
+          name: distributor.fullName,
           mobile: distributor.mobile,
           shopName: distributor.shop?.name,
-          bankName: distributor.shop?.name ,
+          bankName: distributor.shop?.name,
           accountHolderName: distributor.fullName,
           accountNumber: distributor.mobile,
         },
@@ -1471,7 +1560,7 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
         senderBalanceAfter,
         distributorBalanceAfter: distBalanceAfter,
         distributorName: distributor.fullName,
-        distributorShopName: distributor.shop?.name ,
+        distributorShopName: distributor.shop?.name,
         distributorId: distributor._id.toString(),
         distributorMobile: distributor.mobile,
         reason,
@@ -1526,9 +1615,9 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       payee: {
         name: distributor.fullName,
         mobile: distributor.mobile,
-        shopName: distributor.shop?.name ,
-        bankName: distributor.shop?.name ,
-        accountHolderName: distributor.fullName ,
+        shopName: distributor.shop?.name,
+        bankName: distributor.shop?.name,
+        accountHolderName: distributor.fullName,
         accountNumber: distributor.mobile,
       },
       status: "success",
@@ -1545,10 +1634,10 @@ export const transferRetailerToDistributorService = async (senderUserId, payload
       service: "SETTLEMENT",
       transactionId: distTxnId,
       payee: {
-        name: sender.fullName ,
+        name: sender.fullName,
         mobile: sender.mobile,
-        shopName: sender.shop?.name ,
-        bankName: sender.shop?.name ,
+        shopName: sender.shop?.name,
+        bankName: sender.shop?.name,
         accountHolderName: sender.fullName,
         accountNumber: sender.mobile,
       },

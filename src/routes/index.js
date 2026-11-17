@@ -27,6 +27,7 @@ import adminWalletLockRoutes from "../modules/walletLockRequest/routes/adminWall
 
 import dashboardRoutes from "../modules/dashboard/routes/dashboard.routes.js";
 import pricingRoutes from "../modules/pricing/routes/pricing.routes.js";
+import webhookRoutes from "../modules/webhooks/routes/webhook.routes.js";
 
 
 router.use("/api/v1/otp", otpRoutes);
@@ -52,6 +53,9 @@ router.use("/api/v1/admin/wallet-lock-requests", walletLockRequestAdminRoutes);
 router.use("/api/v1/admin", adminWalletLockRoutes);
 router.use("/api/v1/dashboard", dashboardRoutes);
 router.use("/api/v1/pricing", pricingRoutes);
+
+// Webhook routes — no JWT, provider-authenticated per route
+router.use("/api/v1/webhooks", webhookRoutes);
 
 
 // router.use("/api/v1/admin/support", adminSupportRoutes);

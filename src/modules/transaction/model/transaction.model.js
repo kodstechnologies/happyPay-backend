@@ -19,7 +19,74 @@ const transactionSchema = new mongoose.Schema(
       sparse: true,
       default: () => generate15CharTxnId("TXN"),
     },
-   
+
+
+    // ── Provider references ──────────────────────────────────────────────────
+    /** Provider-generated transaction ID (e.g. TXN8E43FBC1DDE3) */
+    providerTxnId: {
+      type: String,
+      default: null,
+      index: true, // needed for fast callback lookup
+    },
+    /** Raw status string last reported by provider (PENDING / SUCCESS / FAILED …) */
+    providerStatus: {
+      type: String,
+      default: null,
+    },
+    /** Full JSON response received at initiation */
+    providerInitResponse: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    /** Full JSON payload received in the most recent callback */
+    providerCallbackPayload: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    /** Timestamp when the last callback was received */
+    callbackReceivedAt: {
+      type: Date,
+      default: null,
+    },
+    // ── Financial precision ──────────────────────────────────────────────────
+    /** Net amount actually debited / to be debited (amount + charges - retailerCommission) */
+    netDebitAmount: {
+      type: Number,
+      default: null,
+    },
+    /** Distributor commission cached for callback re-use */
+    distributorCommission: {
+      type: Number,
+      default: 0,
+    },
+    /** Distributor user ID cached for callback re-use */
+    distributorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    // ── Bank transfer references ─────────────────────────────────────────────
+    /** Bank UTR / RRN received in callback or initiation */
+    utr: {
+      type: String,
+      default: null,
+    },
+    /** Provider operator / bank reference ID */
+    operatorId: {
+      type: String,
+      default: null,
+    },
+    /** Transfer mode (IMPS / NEFT / RTGS) */
+    paymentMode: {
+      type: String,
+      default: null,
+    },
+    /** Failure reason from provider */
+    failureReason: {
+      type: String,
+      default: null,
+    },
+
     payee: {
       name: String,
       mobile: String,
@@ -94,6 +161,8 @@ transactionSchema.index({ wallet: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, service: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, status: 1, createdAt: -1 });
 transactionSchema.index({ wallet: 1, type: 1, createdAt: -1 });
+// Payout callback lookup index
+transactionSchema.index({ providerTxnId: 1, service: 1 });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 

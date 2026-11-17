@@ -1,0 +1,531 @@
+/**
+ * Settlement Payout Callback (Webhook) Service
+ *
+ * Handles provider callbacks for settlement payout transactions.
+ *
+ * Authentication strategy:
+ *   The provider sends a shared secret in the `X-Webhook-Secret` header
+ *   (or body field `secret`).  Set PAYOUT_WEBHOOK_SECRET in .env.
+ *   When the actual provider documentation arrives, replace verifyCallbackAuthenticity()
+ *   with the documented mechanism (HMAC-SHA256, IP whitelist, etc.).
+ *
+ * Wallet accounting:
+ *   PENDING  → holdBalance += netDebitAmount   (done at initiation)
+ *   SUCCESS  → balance    -= netDebitAmount, holdBalance -= netDebitAmount
+ *   FAILED   → holdBalance -= netDebitAmount   (reservation released)
+ *
+ * @module payoutCallback.service
+ */
+
+import crypto from "crypto";
+import mongoose from "mongoose";
+import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
+import Transaction from "../../transaction/model/transaction.model.js";
+import Wallet from "../../wallet/model/wallet.model.js";
+import logger from "../../../utils/logger.js";
+import env from "../../../config/env.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status normalisation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Map provider status strings to our internal status.
+ * Returns one of: 'pending' | 'success' | 'failed' | 'unknown'
+ */
+export const normaliseStatus = (rawStatus = "") => {
+  const s = String(rawStatus).toUpperCase().trim();
+
+  if (["SUCCESS", "SUCCESSFUL", "COMPLETED", "COMPLETE"].includes(s)) return "success";
+  if (["PENDING", "QUEUED", "PROCESSING", "INITIATED", "IN_PROGRESS", "IN-PROGRESS"].includes(s)) return "pending";
+  if (["FAILED", "FAILURE", "FAIL", "REJECTED", "REVERSED", "REFUNDED", "ERROR"].includes(s)) return "failed";
+
+  return "unknown";
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Authentication / verification
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Verify that the callback request is genuinely from the provider.
+ *
+ * Current strategy: compare `X-Webhook-Secret` header (or `secret` body field)
+ * against the PAYOUT_WEBHOOK_SECRET environment variable using a timing-safe
+ * comparison.
+ *
+ * TODO – Replace with the provider's actual auth mechanism once their callback
+ * documentation is received (e.g. HMAC-SHA256 signature verification).
+ *
+ * @returns {{ valid: boolean, reason: string }}
+ */
+export const verifyCallbackAuthenticity = (req) => {
+  const webhookSecret = env.PAYOUT_WEBHOOK_SECRET;
+
+  // If no secret is configured, skip verification but warn loudly.
+  if (!webhookSecret) {
+    logger.warn(
+      "[PAYOUT_CALLBACK] PAYOUT_WEBHOOK_SECRET is not set. " +
+      "Callback authentication is DISABLED. Configure it before going to production."
+    );
+    return { valid: true, reason: "no_secret_configured" };
+  }
+
+  // Try header first, then body field
+  const incomingSecret =
+    req.headers["x-webhook-secret"] ||
+    req.headers["x-api-key"] ||
+    (req.body && (req.body.secret || req.body.webhook_secret)) ||
+    "";
+
+  if (!incomingSecret) {
+    return { valid: false, reason: "missing_secret" };
+  }
+
+  // Timing-safe comparison to prevent timing-based attacks
+  const bufExpected = Buffer.from(webhookSecret);
+  const bufIncoming = Buffer.from(String(incomingSecret));
+
+  if (bufExpected.length !== bufIncoming.length) {
+    return { valid: false, reason: "invalid_secret" };
+  }
+
+  if (!crypto.timingSafeEqual(bufExpected, bufIncoming)) {
+    return { valid: false, reason: "invalid_secret" };
+  }
+
+  return { valid: true, reason: "ok" };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payload extraction
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Extract and validate required fields from the provider callback payload.
+ *
+ * NOTE: Field names are based on the illustrative example provided in the
+ * requirements.  Update the mapping below when the actual provider callback
+ * documentation arrives.
+ *
+ * @returns {{ providerTxnId, rawStatus, utr, operatorId, amount, error? }}
+ */
+export const extractCallbackFields = (body = {}) => {
+  // Provider txn ID – required for lookup
+  const providerTxnId =
+    body.txn_id ||
+    body.transaction_id ||
+    body.txnId ||
+    body.transactionId ||
+    null;
+
+  if (!providerTxnId) {
+    return { error: "Missing required field: txn_id (provider transaction ID)" };
+  }
+
+  // Status – required
+  const rawStatus = body.status || body.txn_status || body.transaction_status || null;
+  if (!rawStatus) {
+    return { error: "Missing required field: status" };
+  }
+
+  // Optional enrichment fields
+  const utr =
+    body.utr || body.rrn || body.bank_ref_num || body.bankRefNum ||
+    body.bank_reference || null;
+
+  const operatorId =
+    body.operator_id || body.operatorId || body.bank_txn_id || null;
+
+  const amount = body.amount ? Number(body.amount) : null;
+
+  return { providerTxnId, rawStatus, utr, operatorId, amount, error: null };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core callback processor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Process a provider payout callback.
+ * This is the main entry point called by the controller.
+ *
+ * @returns {{ processed: boolean, status: string, transactionId: string, message: string, ack: string }}
+ */
+export const processPayoutCallbackService = async (callbackBody = {}) => {
+  // 1. Extract & validate fields
+  const { providerTxnId, rawStatus, utr, operatorId, amount, error: extractionError } =
+    extractCallbackFields(callbackBody);
+
+  if (extractionError) {
+    logger.warn({ msg: "[PAYOUT_CALLBACK] Invalid payload", extractionError });
+    return {
+      processed: false,
+      status: null,
+      transactionId: null,
+      message: extractionError,
+      ack: "error",
+    };
+  }
+
+  const internalStatus = normaliseStatus(rawStatus);
+  logger.info(
+    `[PAYOUT_CALLBACK] Received. providerTxnId=${providerTxnId} rawStatus=${rawStatus} internalStatus=${internalStatus}`
+  );
+
+  // 2. Find the transaction by providerTxnId
+  const txn = await Transaction.findOne({ providerTxnId, service: "PAYOUT" });
+
+  if (!txn) {
+    logger.warn(`[PAYOUT_CALLBACK] Unknown providerTxnId=${providerTxnId}. No matching transaction found.`);
+    return {
+      processed: false,
+      status: null,
+      transactionId: null,
+      message: "Transaction not found for provider ID",
+      ack: "not_found",
+    };
+  }
+
+  const internalTxnId = txn.transactionId;
+  logger.info(
+    `[PAYOUT_CALLBACK] Matched. internalTxnId=${internalTxnId} currentStatus=${txn.status}`
+  );
+
+  // 3. Idempotency guard: terminal states must not be overwritten
+  const terminalStates = ["success", "failed", "reversed"];
+  if (terminalStates.includes(txn.status)) {
+    logger.warn(
+      `[PAYOUT_CALLBACK] Duplicate callback for terminal transaction. ` +
+      `internalTxnId=${internalTxnId} currentStatus=${txn.status} incomingStatus=${internalStatus}. Ignoring.`
+    );
+    return {
+      processed: false,
+      status: txn.status,
+      transactionId: internalTxnId,
+      message: "Callback already processed – transaction is in terminal state",
+      ack: "duplicate",
+    };
+  }
+
+  // 4. PENDING → PENDING: update provider info only (no wallet change)
+  if (internalStatus === "pending" && txn.status === "pending") {
+    logger.info(
+      `[PAYOUT_CALLBACK] PENDING callback for already-pending transaction internalTxnId=${internalTxnId}. Updating provider info only.`
+    );
+    await Transaction.findByIdAndUpdate(txn._id, {
+      $set: {
+        providerStatus: rawStatus,
+        providerCallbackPayload: callbackBody,
+        callbackReceivedAt: new Date(),
+        ...(utr ? { utr } : {}),
+        ...(operatorId ? { operatorId } : {}),
+      },
+    });
+    return {
+      processed: true,
+      status: "pending",
+      transactionId: internalTxnId,
+      message: "Callback acknowledged – transaction remains pending",
+      ack: "ok",
+    };
+  }
+
+  // 5. Unknown status: record but don't change state
+  if (internalStatus === "unknown") {
+    logger.warn(
+      `[PAYOUT_CALLBACK] Unknown provider status '${rawStatus}' for internalTxnId=${internalTxnId}. Recording only.`
+    );
+    await Transaction.findByIdAndUpdate(txn._id, {
+      $set: {
+        providerStatus: rawStatus,
+        providerCallbackPayload: callbackBody,
+        callbackReceivedAt: new Date(),
+      },
+    });
+    return {
+      processed: false,
+      status: txn.status,
+      transactionId: internalTxnId,
+      message: `Unrecognised provider status '${rawStatus}'. Transaction state unchanged.`,
+      ack: "unknown_status",
+    };
+  }
+
+  // 6. SUCCESS
+  if (internalStatus === "success") {
+    return await _processSuccess(txn, callbackBody, { utr, operatorId, rawStatus });
+  }
+
+  // 7. FAILED
+  if (internalStatus === "failed") {
+    return await _processFailed(txn, callbackBody, { utr, operatorId, rawStatus });
+  }
+
+  return {
+    processed: false,
+    status: txn.status,
+    transactionId: internalTxnId,
+    message: "Unhandled callback status",
+    ack: "error",
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUCCESS handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }) => {
+  const internalTxnId = txn.transactionId;
+  const netDebitAmount = Number(txn.netDebitAmount || 0);
+
+  logger.info(
+    `[PAYOUT_CALLBACK] Processing SUCCESS. internalTxnId=${internalTxnId} netDebitAmount=${netDebitAmount}`
+  );
+
+  const session = await mongoose.startSession();
+  let finalBalanceBefore, finalBalanceAfter;
+
+  try {
+    await session.withTransaction(async () => {
+      // Re-read inside session to guard against concurrent processing
+      const txnInSession = await Transaction.findOne({
+        _id: txn._id,
+        status: "pending",
+      }).session(session);
+
+      if (!txnInSession) {
+        const err = new Error("ALREADY_PROCESSED");
+        err.code = "ALREADY_PROCESSED";
+        throw err;
+      }
+
+      const wallet = await Wallet.findById(txn.wallet).session(session);
+      if (!wallet) {
+        throw new Error(`Wallet not found for transaction ${internalTxnId}`);
+      }
+
+      const currentBalance = Number(wallet.balance || 0);
+      const currentHold = Number(wallet.holdBalance || 0);
+
+      // Release from hold AND debit from balance
+      const holdToRelease = Math.min(netDebitAmount, currentHold);
+      const newBalance = Math.round((currentBalance - netDebitAmount) * 100) / 100;
+      const newHold = Math.max(0, Math.round((currentHold - holdToRelease) * 100) / 100);
+
+      if (newBalance < 0) {
+        throw new Error(
+          `Balance would go negative on SUCCESS. currentBalance=${currentBalance} netDebitAmount=${netDebitAmount}`
+        );
+      }
+
+      finalBalanceBefore = currentBalance;
+      finalBalanceAfter = newBalance;
+
+      wallet.balance = newBalance;
+      wallet.holdBalance = newHold;
+      await wallet.save({ session });
+
+      logger.info(
+        `[PAYOUT_CALLBACK] Wallet SUCCESS update. ` +
+        `balance: ${currentBalance}→${newBalance} holdBalance: ${currentHold}→${newHold}`
+      );
+
+      await Transaction.findByIdAndUpdate(
+        txn._id,
+        {
+          $set: {
+            status: "success",
+            providerStatus: rawStatus,
+            providerCallbackPayload: callbackBody,
+            callbackReceivedAt: new Date(),
+            balanceAfter: newBalance,
+            ...(utr ? { utr } : {}),
+            ...(operatorId ? { operatorId } : {}),
+          },
+        },
+        { session }
+      );
+    });
+  } catch (err) {
+    if (err.code === "ALREADY_PROCESSED" || err.message === "ALREADY_PROCESSED") {
+      logger.warn(`[PAYOUT_CALLBACK] Concurrent SUCCESS – already processed. internalTxnId=${internalTxnId}`);
+      return {
+        processed: false,
+        status: "success",
+        transactionId: internalTxnId,
+        message: "Already processed",
+        ack: "duplicate",
+      };
+    }
+    logger.error(`[PAYOUT_CALLBACK] SUCCESS processing failed. internalTxnId=${internalTxnId} error=${err.message}`);
+    throw err;
+  } finally {
+    session.endSession();
+  }
+
+  // Credit distributor commission (best-effort, outside main session)
+  await _creditDistributorCommission(txn, internalTxnId);
+
+  logger.info(`[PAYOUT_CALLBACK] SUCCESS complete. internalTxnId=${internalTxnId} balanceAfter=${finalBalanceAfter}`);
+
+  return {
+    processed: true,
+    status: "success",
+    transactionId: internalTxnId,
+    message: "Payout settled successfully",
+    utr,
+    ack: "ok",
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FAILED handler
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus }) => {
+  const internalTxnId = txn.transactionId;
+  const netDebitAmount = Number(txn.netDebitAmount || 0);
+
+  logger.info(
+    `[PAYOUT_CALLBACK] Processing FAILED. internalTxnId=${internalTxnId} netDebitAmount=${netDebitAmount}`
+  );
+
+  const failureReason =
+    callbackBody.failure_reason ||
+    callbackBody.error_message ||
+    callbackBody.error ||
+    callbackBody.msg ||
+    callbackBody.message ||
+    "Provider marked payout as failed";
+
+  const session = await mongoose.startSession();
+
+  try {
+    await session.withTransaction(async () => {
+      const txnInSession = await Transaction.findOne({
+        _id: txn._id,
+        status: "pending",
+      }).session(session);
+
+      if (!txnInSession) {
+        const err = new Error("ALREADY_PROCESSED");
+        err.code = "ALREADY_PROCESSED";
+        throw err;
+      }
+
+      // Release the hold reservation (wallet balance unchanged)
+      const wallet = await Wallet.findById(txn.wallet).session(session);
+      if (wallet) {
+        const currentHold = Number(wallet.holdBalance || 0);
+        const holdToRelease = Math.min(netDebitAmount, currentHold);
+        wallet.holdBalance = Math.max(0, Math.round((currentHold - holdToRelease) * 100) / 100);
+        await wallet.save({ session });
+
+        logger.info(
+          `[PAYOUT_CALLBACK] Hold released on FAILED. holdBalance: ${currentHold}→${wallet.holdBalance}`
+        );
+      } else {
+        logger.warn(`[PAYOUT_CALLBACK] Wallet not found for FAILED processing. internalTxnId=${internalTxnId}`);
+      }
+
+      await Transaction.findByIdAndUpdate(
+        txn._id,
+        {
+          $set: {
+            status: "failed",
+            providerStatus: rawStatus,
+            providerCallbackPayload: callbackBody,
+            callbackReceivedAt: new Date(),
+            failureReason,
+            ...(utr ? { utr } : {}),
+            ...(operatorId ? { operatorId } : {}),
+          },
+        },
+        { session }
+      );
+    });
+  } catch (err) {
+    if (err.code === "ALREADY_PROCESSED" || err.message === "ALREADY_PROCESSED") {
+      logger.warn(`[PAYOUT_CALLBACK] Concurrent FAILED – already processed. internalTxnId=${internalTxnId}`);
+      return {
+        processed: false,
+        status: "failed",
+        transactionId: internalTxnId,
+        message: "Already processed",
+        ack: "duplicate",
+      };
+    }
+    logger.error(`[PAYOUT_CALLBACK] FAILED processing error. internalTxnId=${internalTxnId} error=${err.message}`);
+    throw err;
+  } finally {
+    session.endSession();
+  }
+
+  logger.info(`[PAYOUT_CALLBACK] FAILED complete. internalTxnId=${internalTxnId} holdReleased=${netDebitAmount}`);
+
+  return {
+    processed: true,
+    status: "failed",
+    transactionId: internalTxnId,
+    message: "Payout failed – wallet reservation released",
+    failureReason,
+    ack: "ok",
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Distributor commission credit (best-effort, called only on SUCCESS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _creditDistributorCommission = async (txn, internalTxnId) => {
+  const distributorId = txn.distributorId || txn.commissionBreakdown?.distributorId;
+  const distributorCommission = Number(
+    txn.distributorCommission || txn.commissionBreakdown?.distributorCommission || 0
+  );
+
+  if (!distributorId || distributorCommission <= 0 || !mongoose.Types.ObjectId.isValid(String(distributorId))) {
+    return;
+  }
+
+  try {
+    const distWallet = await Wallet.findOneAndUpdate(
+      { user: distributorId },
+      { $inc: { balance: distributorCommission } },
+      { returnDocument: "after", upsert: true }
+    );
+
+    const distBalAfter = distWallet.balance;
+    const distBalBefore = Math.round((distBalAfter - distributorCommission) * 100) / 100;
+
+    const distTxn = new Transaction({
+      wallet: distWallet._id,
+      type: "credit",
+      amount: distributorCommission,
+      balanceBefore: distBalBefore,
+      balanceAfter: distBalAfter,
+      service: "COMMISSION",
+      transactionId: generate15CharTxnId("DST"),
+      status: "success",
+      description: `Distributor Commission for PAYOUT (Retailer Ref: ${internalTxnId})`,
+      payee: { name: "Retailer Sub-Commission" },
+      commissionEarned: distributorCommission,
+    });
+    await distTxn.save();
+
+    logger.info(
+      `[PAYOUT_CALLBACK] Distributor commission credited. distributorId=${distributorId} amount=₹${distributorCommission}`
+    );
+  } catch (err) {
+    logger.error(
+      `[PAYOUT_CALLBACK] Distributor commission credit failed. distributorId=${distributorId} error=${err.message}`
+    );
+  }
+};
+
+export default {
+  processPayoutCallbackService,
+  verifyCallbackAuthenticity,
+  extractCallbackFields,
+  normaliseStatus,
+};

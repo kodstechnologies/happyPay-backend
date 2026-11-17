@@ -30,6 +30,8 @@ const env = {
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
     SMS_AUTH_KEY: process.env.SMS_AUTH_KEY,
     SMS_SENDERID: process.env.SMS_SENDERID,
+    // Settlement payout webhook
+    PAYOUT_WEBHOOK_SECRET: process.env.PAYOUT_WEBHOOK_SECRET || "",
 }
 
 export default env;
