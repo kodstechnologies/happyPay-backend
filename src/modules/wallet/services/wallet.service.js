@@ -444,11 +444,12 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     // 1. Deduct balance immediately so the retailer sees the deduction right away.
     //    On SUCCESS (webhook) nothing more needs to happen to the wallet.
     //    On FAILED (webhook) the amount is refunded back via a credit + reversed transaction.
-    await Wallet.findOneAndUpdate(
+    const updatedWallet = await Wallet.findOneAndUpdate(
       { user: userId },
-      { $inc: { balance: -netDebitAmount } }
+      { $inc: { balance: -netDebitAmount, holdBalance: netDebitAmount } }
     );
-    console.log(`[PAYOUT] balance decreased by ₹${netDebitAmount} for userId=${userId}`);
+    const newBalance = Number(updatedWallet?.balance || 0) - netDebitAmount;
+    console.log(`[PAYOUT] balance decreased by ₹${netDebitAmount} for userId=${userId}, new balance: ${newBalance}`);
 
     // 2. Record pending transaction with provider reference
     const pendingTxn = new Transaction({
@@ -491,7 +492,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       amount: numAmount,
       netDebitAmount,
       balanceBefore: currentBalance,
-      balanceAfter: currentBalance,
+      balanceAfter: newBalance,
+      holdBalance: Number(wallet.holdBalance || 0) + netDebitAmount,
       bankName: recordedBankName,
       accountNumber: providerPayload.account_number,
       mode: providerPayload.mode,
@@ -655,6 +657,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     netDebitAmount,
     balanceBefore: currentBalance,
     balanceAfter: finalBalanceAfter,
+    holdBalance: Number(finalWallet?.holdBalance || 0),
     bankName: recordedBankName,
     accountNumber: providerPayload.account_number,
     mode: providerPayload.mode,
