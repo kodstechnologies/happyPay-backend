@@ -6,6 +6,7 @@ import {
   isKycRequired,
   onboardMerchantService,
 } from "../services/aeps.service.js";
+import { resolveBankForAeps } from "../../bankMaster/services/bankMaster.service.js";
 import {
   doEkyc,
   doBioEkyc,
@@ -671,7 +672,8 @@ const balanceEnquiryController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
-      bankiin,
+      bankiin: rawBankiin,
+      bankMasterId,
       ts,
       // Biometric fields
       dc,
@@ -699,6 +701,17 @@ const balanceEnquiryController = async (req, res) => {
       sysid,
 
     } = req.body;
+
+    // ── Bank Master resolution ──────────────────────────────────────────────
+    // Prefer bankMasterId resolution (validates isActive + aeps.enabled).
+    // Fall back to raw bankiin for older clients or manual overrides.
+    let bankiin = rawBankiin;
+    if (bankMasterId) {
+      const bmBank = await resolveBankForAeps(String(bankMasterId));
+      bankiin = bmBank.iin;
+      console.log(`[AEPS BalanceEnquiry] Resolved bankiin=${bankiin} from BankMaster ${bankMasterId}`);
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Prepare payload for provider API
     const payload = {
@@ -776,7 +789,8 @@ const miniStatementController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
-      bankiin,
+      bankiin: rawBankiin,
+      bankMasterId,
       ts,
       // Biometric fields
       dc,
@@ -804,6 +818,15 @@ const miniStatementController = async (req, res) => {
       sysid,
 
     } = req.body;
+
+    // ── Bank Master resolution ──────────────────────────────────────────────
+    let bankiin = rawBankiin;
+    if (bankMasterId) {
+      const bmBank = await resolveBankForAeps(String(bankMasterId));
+      bankiin = bmBank.iin;
+      console.log(`[AEPS MiniStatement] Resolved bankiin=${bankiin} from BankMaster ${bankMasterId}`);
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Prepare payload for provider API
     const payload = {
@@ -984,7 +1007,8 @@ const cashWithdrawController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
-      bankiin,
+      bankiin: rawBankiin,
+      bankMasterId,
       amount,
       ts,
       // Biometric fields
@@ -1013,6 +1037,15 @@ const cashWithdrawController = async (req, res) => {
       sysid,
 
     } = req.body;
+
+    // ── Bank Master resolution ──────────────────────────────────────────────
+    let bankiin = rawBankiin;
+    if (bankMasterId) {
+      const bmBank = await resolveBankForAeps(String(bankMasterId));
+      bankiin = bmBank.iin;
+      console.log(`[AEPS CashWithdraw] Resolved bankiin=${bankiin} from BankMaster ${bankMasterId}`);
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     const txnid = generate15CharTxnId("TXN")
     // Prepare payload for provider API
@@ -1163,9 +1196,19 @@ const sendOtpController = async (req, res) => {
       longitude,
       aadhaar,
       MobileNumber,
-      bankiin,
+      bankiin: rawBankiin,
+      bankMasterId,
       amount,
     } = req.body;
+
+    // ── Bank Master resolution ──────────────────────────────────────────────
+    let bankiin = rawBankiin;
+    if (bankMasterId) {
+      const bmBank = await resolveBankForAeps(String(bankMasterId));
+      bankiin = bmBank.iin;
+      console.log(`[AEPS SendOtp] Resolved bankiin=${bankiin} from BankMaster ${bankMasterId}`);
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Prepare payload for provider API
     const payload = {
@@ -1224,7 +1267,8 @@ const cashDepositController = async (req, res) => {
       longitude,
       aadhaar,
       mobile,
-      bankiin,
+      bankiin: rawBankiin,
+      bankMasterId,
       amount,
       ts,
       // Biometric fields
@@ -1252,6 +1296,15 @@ const cashDepositController = async (req, res) => {
       srno,
       sysid,
     } = req.body;
+
+    // ── Bank Master resolution ──────────────────────────────────────────────
+    let bankiin = rawBankiin;
+    if (bankMasterId) {
+      const bmBank = await resolveBankForAeps(String(bankMasterId));
+      bankiin = bmBank.iin;
+      console.log(`[AEPS CashDeposit] Resolved bankiin=${bankiin} from BankMaster ${bankMasterId}`);
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     const payload = {
       txnid,

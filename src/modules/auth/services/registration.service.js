@@ -453,6 +453,7 @@ const registerRetailer = async (body = {}) => {
         ifscCode: ifscCode,
         isPrimary: true,
         isActive: true,
+        bankMasterId: body.bankMasterId || null,
       },
     ],
     registrationStatus: "COMPLETED",
@@ -745,6 +746,7 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
       accountNumber: body.accountNumber.trim(),
       isPrimary: true,
       isActive: true,
+      bankMasterId: body.bankMasterId || null,
     }
   ];
 

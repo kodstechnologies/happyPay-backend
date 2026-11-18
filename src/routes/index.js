@@ -28,6 +28,8 @@ import adminWalletLockRoutes from "../modules/walletLockRequest/routes/adminWall
 import dashboardRoutes from "../modules/dashboard/routes/dashboard.routes.js";
 import pricingRoutes from "../modules/pricing/routes/pricing.routes.js";
 import webhookRoutes from "../modules/webhooks/routes/webhook.routes.js";
+import bankMasterRoutes from "../modules/bankMaster/routes/bankMaster.routes.js";
+import adminBankMasterRoutes from "../modules/bankMaster/routes/adminBankMaster.routes.js";
 
 
 router.use("/api/v1/otp", otpRoutes);
@@ -62,5 +64,8 @@ router.use("/api/v1/webhooks", webhookRoutes);
 
 router.use("/api/admin", adminRoutes);
 router.use("/api/v1/banners", bannerRoutes);
+
+router.use("/api/v1/banks", bankMasterRoutes);
+router.use("/api/admin/banks", adminBankMasterRoutes);
 
 export default router;

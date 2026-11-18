@@ -10,6 +10,7 @@ import { payoutSettlement, getBankList, payoutSettlementBankList as fetchPayoutS
 import { sendWalletTransferNotification } from "../../notifications/services/notification.services.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
 import { calculateTransactionPricing } from "../../pricing/services/pricingEngine.service.js";
+import { resolveBankForPayout } from "../../bankMaster/services/bankMaster.service.js";
 
 
 
@@ -260,6 +261,7 @@ export const getSettlementBankInfoService = async (userId) => {
         _id: b._id ? b._id.toString() : "",
         name: bankName,
         bank_code: b.bank_code || "",
+        bankMasterId: b.bankMasterId ? b.bankMasterId.toString() : null,
         accountNumber: acc,
         maskedAccountNumber: masked,
         ifscCode: String(b.ifscCode || "").trim().toUpperCase(),
@@ -378,11 +380,32 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.badRequest("Bank code is required");
   }
 
+  // ── Bank Master resolution ────────────────────────────────────────────────
+  // If the frontend sent a bankMasterId, resolve the authoritative payout bank
+  // code from BankMaster. This handles new registrations that store _id in
+  // bankMasterId. For older records (no bankMasterId), payload.bank_name
+  // already holds the legacy payout code — fall through unchanged.
+  let resolvedBankCode = String(payload.bank_name || "").trim();
+  if (payload.bankMasterId) {
+    try {
+      const bmResolved = await resolveBankForPayout(String(payload.bankMasterId));
+      if (bmResolved?.bankCode) {
+        resolvedBankCode = String(bmResolved.bankCode).trim();
+        console.log(`[Payout] Resolved bank code from BankMaster ${payload.bankMasterId}: ${resolvedBankCode}`);
+      }
+    } catch (bmErr) {
+      // Bank Master resolution failed — either not found or payout disabled.
+      // Surface a clear error rather than silently falling back.
+      throw ApiError.badRequest(bmErr?.message || "Bank is not enabled for payout transactions");
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const providerPayload = {
     accountType: payload.accountType || "Savings Account",
     branchName: payload.branchName || "",
     benMobile: String(payload.benMobile).trim(),
-    bank_name: String(payload.bank_name || "").trim(),
+    bank_name: resolvedBankCode,
     beneficiary_name: String(payload.beneficiary_name).trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number).trim(),

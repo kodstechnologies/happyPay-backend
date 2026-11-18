@@ -350,6 +350,12 @@ const userSchema = new mongoose.Schema(
           type: Boolean,
           default: true,
         },
+
+        bankMasterId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "BankMaster",
+          default: null,
+        },
       },
     ],
 
