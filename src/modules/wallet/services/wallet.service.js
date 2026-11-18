@@ -420,6 +420,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
   }
 
   // 5. Call external payoutSettlement from external service
+  console.log("===== PAYOUT PROVIDER PAYLOAD =====");
+  console.log(JSON.stringify(providerPayload, null, 2));
+  console.log("====================================");
   const providerResponse = await payoutSettlement(providerPayload);
 
   // 6. Check provider response status before debiting wallet
