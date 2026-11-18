@@ -20,7 +20,6 @@ const bankMasterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-bankMasterSchema.index({ normalizedName: 1 }, { unique: true });
 bankMasterSchema.index({ isActive: 1 });
 bankMasterSchema.index({ "aeps.enabled": 1 });
 bankMasterSchema.index({ "payout.enabled": 1 });
