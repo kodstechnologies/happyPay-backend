@@ -16,7 +16,7 @@ const env = {
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
     SMTP_FROM: process.env.SMTP_FROM,
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
-    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
+    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN || "10d",
     ADMIN_NAME: process.env.ADMIN_NAME,
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
