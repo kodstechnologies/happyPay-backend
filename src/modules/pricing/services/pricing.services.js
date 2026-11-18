@@ -123,14 +123,29 @@ const subscribeToPlan = async (planId, userId, mpin) => {
     throw ApiError.notFound("Plan not found");
   }
 
+  console.log("Plan data:", JSON.stringify(plan, null, 2));
+
   if (plan.status !== "ACTIVE") {
     throw ApiError.badRequest("Cannot subscribe to an inactive plan");
   }
 
   const subscriptionAmount = Number(plan.subscriptionAmount) || 0;
 
+  // Extract validity period & unit early for logging
+  const validityPeriod = Number(plan.validityPeriod ?? 1);
+  const validityUnit = String(plan.validityUnit ?? "MONTHS").toUpperCase();
+
+  // Check if plan has required validity fields
+  if (!plan.validityPeriod || !plan.validityUnit) {
+    console.error("Plan missing validity fields:", {
+      validityPeriod: plan.validityPeriod,
+      validityUnit: plan.validityUnit
+    });
+    throw ApiError.badRequest("Plan is missing validity period information. Please contact support.");
+  }
+
   // Check if wallet has sufficient balance for subscription
-  const Wallet = (await import("../wallet/model/wallet.model.js")).default;
+  const Wallet = (await import("../../wallet/model/wallet.model.js")).default;
   const wallet = await Wallet.findOne({ user: userId });
   
   if (!wallet) {
@@ -160,11 +175,7 @@ const subscribeToPlan = async (planId, userId, mpin) => {
       // 1. Capture subscription start date & time (subscribedAt)
       const subscribedAt = new Date();
 
-      // 2. Extract validity period & unit from the plan
-      const validityPeriod = Number(plan.validityPeriod) || 1;
-      const validityUnit = String(plan.validityUnit || "MONTHS").toUpperCase();
-
-      // 3. Calculate when the plan expires (expiresAt)
+      // 2. Calculate when the plan expires (expiresAt)
       const expiresAt = new Date(subscribedAt);
       if (validityUnit === "DAYS") {
         expiresAt.setDate(expiresAt.getDate() + validityPeriod);

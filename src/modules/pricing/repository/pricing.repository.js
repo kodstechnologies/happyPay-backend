@@ -43,7 +43,7 @@ const getPlans = async (filters = {}, options = {}) => {
 };
 
 const getPlanById = async (id) => {
-  return await Plan.findById(id);
+  return await Plan.findById(id).lean();
 };
 
 const findOnePlan = async (query = {}) => {

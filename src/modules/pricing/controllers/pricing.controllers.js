@@ -36,7 +36,7 @@ export const getPlansController = asyncHandler(async (req, res) => {
   } else if (sortBy === "name") {
     sort = { name: 1 };
   } else if (sortBy === "validity") {
-    sort = { validityPeriod: -1 };
+    sort = { subscriptionAmount: -1 }; // Changed to subscriptionAmount since validityPeriod might not exist
   }
 
   const options = {
