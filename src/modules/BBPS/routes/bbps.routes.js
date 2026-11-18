@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
+import { checkWalletLock } from "../../../middlewares/walletLock.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import {
   getBillerCategoriesController,
@@ -53,6 +54,7 @@ router.post(
 router.post(
   "/pay-bill",
   authMiddleware,
+  checkWalletLock,
   validate(payBillSchema, "body"),
   payBillController
 );

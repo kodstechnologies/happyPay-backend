@@ -132,7 +132,10 @@ export const calculateTransactionPricing = async ({
     const targetServiceNorm = normalizeName(service);
     const targetServiceSanitized = sanitizeForMatch(service);
 
-    const matchedService = plan.services.find((s) => {
+    // Prefer an exact (case-sensitive) serviceId match so duplicate
+    // serviceIds that differ only by case (e.g. "payout" vs "PAYOUT")
+    // resolve to the intended service instead of the first normalized hit.
+    const serviceCandidates = plan.services.filter((s) => {
       const sIdNorm = normalizeName(s.serviceId);
       const sIdSanitized = sanitizeForMatch(s.serviceId);
       return (
@@ -142,6 +145,11 @@ export const calculateTransactionPricing = async ({
           s.serviceId.toString() === String(service).trim())
       );
     });
+
+    const matchedService =
+      serviceCandidates.find(
+        (s) => String(s.serviceId).trim() === String(service).trim()
+      ) || serviceCandidates[0];
 
     if (!matchedService) {
       return {
@@ -161,7 +169,7 @@ export const calculateTransactionPricing = async ({
       const targetCategoryNorm = normalizeName(category);
       const targetCategorySanitized = sanitizeForMatch(category);
 
-      const matchedCategory = matchedService.categories.find((c) => {
+      const categoryCandidates = matchedService.categories.filter((c) => {
         if (!c.categoryName) return false;
         const cNameNorm = normalizeName(c.categoryName);
         const cNameSanitized = sanitizeForMatch(c.categoryName);
@@ -186,6 +194,13 @@ export const calculateTransactionPricing = async ({
 
         return false;
       });
+
+      // Prefer an exact (case-sensitive) categoryName match before
+      // falling back to the first normalized/substring candidate.
+      const matchedCategory =
+        categoryCandidates.find(
+          (c) => String(c.categoryName).trim() === String(category).trim()
+        ) || categoryCandidates[0];
 
       if (matchedCategory && Array.isArray(matchedCategory.pricing) && matchedCategory.pricing.length > 0) {
         pricingList = matchedCategory.pricing;

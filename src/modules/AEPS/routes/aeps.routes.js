@@ -16,6 +16,7 @@ import {
   outletRegisterVerifyController,
 } from "../controller/aeps.controller.js";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
+import { checkWalletLock } from "../../../middlewares/walletLock.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import {
   getRetailerKycParamsSchema,
@@ -73,6 +74,7 @@ router.post("/verify-tfa", authMiddleware, verifyTfaController);
 router.post(
   "/balance-enquiry",
   authMiddleware,
+  checkWalletLock,
   // validate(balanceEnquirySchema, "body"),
   balanceEnquiryController
 );
@@ -81,6 +83,7 @@ router.post(
 router.post(
   "/mini-statement",
   authMiddleware,
+  checkWalletLock,
   validate(miniStatementSchema, "body"),
   miniStatementController
 );
@@ -89,6 +92,7 @@ router.post(
 router.post(
   "/cash-withdraw",
   authMiddleware,
+  checkWalletLock,
   validate(cashWithdrawSchema, "body"),
   cashWithdrawController
 );
@@ -97,6 +101,7 @@ router.post(
 router.post(
   "/cash-deposit",
   authMiddleware,
+  checkWalletLock,
   validate(cashDepositSchema, "body"),
   cashDepositController
 );

@@ -40,6 +40,7 @@ import {
 
 import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
 import sendSMS from "../../../utils/sendSMS.js";
+import Wallet from "../../wallet/model/wallet.model.js";
 
 
 /* ==============================
@@ -94,6 +95,26 @@ const formatUpiEkyc = (upiEkycData) => {
 /* ==============================
    Token Payloads
 ============================== */
+
+/* ==============================
+   Resolve Wallet Lock State
+============================== */
+
+const resolveWalletLockState = async (userId) => {
+  try {
+    const wallet = await Wallet.findOne({ user: userId })
+      .select("isWalletLocked lockedAt lockReason")
+      .lean();
+
+    return {
+      isWalletLocked: Boolean(wallet?.isWalletLocked),
+      reason: wallet?.lockReason || null,
+      lockedAt: wallet?.lockedAt || null,
+    };
+  } catch {
+    return { isWalletLocked: false, reason: null, lockedAt: null };
+  }
+};
 
 const buildAccessTokenPayload = (user, access, ekycData = null) => {
   const ekyc = ekycData || (user?.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
@@ -468,6 +489,7 @@ const verifyRetailerLoginOtp = async ({
     : null;
 
   const upiEkycObj = formatUpiEkyc(upiEkycData);
+  const walletLockState = await resolveWalletLockState(user._id);
 
   const accessTokenPayload = buildAccessTokenPayload(user, access, ekycData);
   const refreshTokenPayload = buildRefreshTokenPayload(user, ekycData);
@@ -501,6 +523,7 @@ const verifyRetailerLoginOtp = async ({
       eKYCStatus: ekycData?.eKYCStatus || null,
       AepsEkyc: aepsEkycObj,
       UpiEkyc: upiEkycObj,
+      walletLock: walletLockState,
       roles: access.roles,
       permissions: access.permissions,
     },
@@ -1193,6 +1216,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     : null;
 
   const upiEkycObj = formatUpiEkyc(upiEkycData);
+  const walletLockState = await resolveWalletLockState(retailer._id);
 
   return {
     id: retailer._id,
@@ -1218,6 +1242,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     status: retailer.status,
     isActive: !!retailer.isActive,
     isMpinSet: Boolean(retailer.MPIN),
+    walletLock: walletLockState,
   };
 };
 

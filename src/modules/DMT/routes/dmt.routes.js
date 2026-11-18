@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authMiddleware from "../../../middlewares/auth.middleware.js";
+import { checkWalletLock } from "../../../middlewares/walletLock.middleware.js";
 import validate from "../../../middlewares/validate.middleware.js";
 import {
   getRemitterDetailsController,
@@ -119,6 +120,7 @@ router.post(
 router.post(
   "/generate-transaction-otp",
   authMiddleware,
+  checkWalletLock,
   validate(transactionOtpSchema, "body"),
   generateTransactionOtpController
 );
@@ -127,6 +129,7 @@ router.post(
 router.post(
   "/do-transaction",
   authMiddleware,
+  checkWalletLock,
   validate(transactionExecuteSchema, "body"),
   executeTransactionController
 );

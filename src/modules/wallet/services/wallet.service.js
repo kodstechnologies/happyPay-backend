@@ -343,6 +343,10 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.notFound("Wallet not found for retailer");
   }
 
+  if (wallet.isWalletLocked) {
+    throw ApiError.forbidden("Your wallet is locked. Please contact support for assistance.");
+  }
+
   const currentBalance = Number(wallet.balance || 0);
   const holdBalance = Number(wallet.holdBalance || 0);
   const availableBalance = Math.max(0, currentBalance - holdBalance);
@@ -373,7 +377,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     accountType: payload.accountType || "Savings Account",
     branchName: payload.branchName || "",
     benMobile: String(payload.benMobile).trim(),
-    bank_name: String(payload.bank_name || payload.bankName || "").trim(),
+    bank_name: String(payload.bank_code || "").trim(),
     beneficiary_name: String(payload.beneficiary_name).trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number).trim(),
