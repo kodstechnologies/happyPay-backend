@@ -248,6 +248,27 @@ const subscribeToPlan = async (planId, userId, mpin) => {
         { session }
       );
 
+      // Send notification for wallet debit
+      if (subscriptionAmount > 0) {
+        try {
+          const { sendWalletTransferNotification } = await import("../../notifications/services/notification.services.js");
+          sendWalletTransferNotification({
+            recipientId: userId,
+            type: "WALLET_DEBIT",
+            title: "Wallet Debited",
+            body: `₹${subscriptionAmount.toFixed(2)} debited from your wallet for ${plan.name} subscription.`,
+            data: {
+              service: "PLAN_SUBSCRIPTION",
+              serviceName: "Plan Subscription",
+              amount: String(subscriptionAmount),
+              transactionId: generate15CharTxnId("SUB"),
+            },
+          }).catch((err) => console.error("Failed to send wallet debit notification:", err));
+        } catch (notifErr) {
+          console.error("Failed to import or send wallet debit notification:", notifErr);
+        }
+      }
+
       // Populate plan details for the response
       await subscription.populate("planId");
     });
