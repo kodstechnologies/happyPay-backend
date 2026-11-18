@@ -373,11 +373,15 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.badRequest("IFSC code must be in valid format (e.g., SBIN0001234)");
   }
 
+  if (!payload.bank_name || String(payload.bank_name).trim().length < 2) {
+    throw ApiError.badRequest("Bank code is required");
+  }
+
   const providerPayload = {
     accountType: payload.accountType || "Savings Account",
     branchName: payload.branchName || "",
     benMobile: String(payload.benMobile).trim(),
-    bank_name: String(payload.bank_code || "").trim(),
+    bank_name: String(payload.bank_name || "").trim(),
     beneficiary_name: String(payload.beneficiary_name).trim(),
     ifsc: String(payload.ifsc || "").trim().toUpperCase(),
     account_number: String(payload.account_number).trim(),
