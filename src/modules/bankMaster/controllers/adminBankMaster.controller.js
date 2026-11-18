@@ -24,9 +24,11 @@ export const listBanksController = asyncHandler(async (req, res) => {
     limit,
   });
 
+  const { banks, ...meta } = result;
+
   return res
     .status(200)
-    .json(new ApiResponse(200, result, "Bank list fetched successfully"));
+    .json(ApiResponse.success(banks, "Bank list fetched successfully", meta));
 });
 
 /**
@@ -37,7 +39,7 @@ export const getBankController = asyncHandler(async (req, res) => {
   const bank = await getBankMasterByIdService(req.params.id);
   return res
     .status(200)
-    .json(new ApiResponse(200, bank, "Bank details fetched successfully"));
+    .json(ApiResponse.success(bank, "Bank details fetched successfully"));
 });
 
 /**
@@ -48,7 +50,7 @@ export const updateBankController = asyncHandler(async (req, res) => {
   const bank = await updateBankService(req.params.id, req.body);
   return res
     .status(200)
-    .json(new ApiResponse(200, bank, "Bank updated successfully"));
+    .json(ApiResponse.success(bank, "Bank updated successfully"));
 });
 
 /**
@@ -63,7 +65,7 @@ export const toggleGlobalStatusController = asyncHandler(async (req, res) => {
   const bank = await updateBankService(req.params.id, { isActive });
   return res
     .status(200)
-    .json(new ApiResponse(200, bank, "Bank global status updated successfully"));
+    .json(ApiResponse.success(bank, "Bank global status updated successfully"));
 });
 
 /**
@@ -78,7 +80,7 @@ export const toggleAepsStatusController = asyncHandler(async (req, res) => {
   const bank = await updateBankService(req.params.id, { "aeps.enabled": enabled });
   return res
     .status(200)
-    .json(new ApiResponse(200, bank, "Bank AEPS status updated successfully"));
+    .json(ApiResponse.success(bank, "Bank AEPS status updated successfully"));
 });
 
 /**
@@ -93,7 +95,7 @@ export const togglePayoutStatusController = asyncHandler(async (req, res) => {
   const bank = await updateBankService(req.params.id, { "payout.enabled": enabled });
   return res
     .status(200)
-    .json(new ApiResponse(200, bank, "Bank payout status updated successfully"));
+    .json(ApiResponse.success(bank, "Bank payout status updated successfully"));
 });
 
 /**
@@ -104,5 +106,5 @@ export const syncBanksController = asyncHandler(async (req, res) => {
   const stats = await syncBankMasterService();
   return res
     .status(200)
-    .json(new ApiResponse(200, stats, "Bank master sync completed"));
+    .json(ApiResponse.success(stats, "Bank master sync completed"));
 });
