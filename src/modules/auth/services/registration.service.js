@@ -671,8 +671,8 @@ const updateAboutDetails = async (body = {}, files = {}) => {
   user.maritalStatus = body.maritalStatus.trim();
   user.educationalQualification = body.educationalQualification.trim();
   if (selfie) user.selfie = selfie;
-  if (body.fatherName) user.fatherName = body.fatherName.trim();
-  if (body.motherName) user.motherName = body.motherName.trim();
+  if (body.fatherName !== undefined) user.fatherName = body.fatherName ? body.fatherName.trim() : "";
+  if (body.motherName !== undefined) user.motherName = body.motherName ? body.motherName.trim() : "";
 
   // Update registration progress
   user.registrationStatus = "IN_PROGRESS";
