@@ -170,10 +170,33 @@ const onboardMerchantService = async (userId) => {
   }
 
   const parsedDob = user.dateOfBirth ? toDateOnly(user.dateOfBirth) : "";
+
+  // Normalize gender to the single-letter codes the AEPS provider requires (M / F / T).
+  // The DB may store full words like "Male", "Female", "Transgender" from the provider
+  // response during registration, so we map them here before forwarding.
+  const normalizeGender = (raw) => {
+    if (!raw) return "";
+    const g = String(raw).trim().toUpperCase();
+    if (g === "M" || g === "MALE") return "M";
+    if (g === "F" || g === "FEMALE") return "F";
+    if (g === "T" || g === "TRANSGENDER" || g === "OTHER") return "T";
+    // Already a valid code passed through as-is; anything else falls to ""
+    return ["M", "F", "T"].includes(g) ? g : "";
+  };
+
+  const normalizedGender = normalizeGender(user.gender);
+
+  if (!normalizedGender) {
+    throw fail(
+      400,
+      "Retailer gender is missing or invalid in your profile. Please update your About Details (expected: Male, Female, or Transgender)."
+    );
+  }
+
   const onboardPayload = {
     mobile: user.mobile || "",
     name: user.fullName || "",
-    gender: user.gender || "",
+    gender: normalizedGender,
     pan: user.panNumber || "",
     email: user.email || "",
     aadhaar: user.aadhaarNumber || "",
