@@ -10,5 +10,5 @@ export const getRetailerBanksController = asyncHandler(async (req, res) => {
   const banks = await getRetailerBankListService();
   return res
     .status(200)
-    .json(new ApiResponse(200, banks, "Active bank list fetched successfully"));
+    .json(ApiResponse.success(banks, "Active bank list fetched successfully"));
 });
