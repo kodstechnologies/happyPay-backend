@@ -77,6 +77,7 @@ const bankDetailsSchema = Joi.object({
       "string.max": "Branch name must not exceed 100 characters",
     }),
 
+  bankMasterId: Joi.string().trim().allow("", null).optional(),
   fcmToken: Joi.string().trim().allow("", null).optional(),
   deviceId: Joi.string().trim().allow("", null).optional(),
   platform: Joi.string().trim().valid("android", "ios", "web").allow("", null).optional(),
