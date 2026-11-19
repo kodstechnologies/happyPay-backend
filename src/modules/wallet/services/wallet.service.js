@@ -376,10 +376,6 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     throw ApiError.badRequest("IFSC code must be in valid format (e.g., SBIN0001234)");
   }
 
-  if (!payload.bank_name || String(payload.bank_name).trim().length < 2) {
-    throw ApiError.badRequest("Bank code is required");
-  }
-
   // ── Bank Master resolution ────────────────────────────────────────────────
   // If the frontend sent a bankMasterId, resolve the authoritative payout bank
   // code from BankMaster. This handles new registrations that store _id in
@@ -398,6 +394,11 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       // Surface a clear error rather than silently falling back.
       throw ApiError.badRequest(bmErr?.message || "Bank is not enabled for payout transactions");
     }
+  }
+
+  // Validate that we have a usable bank code after resolution
+  if (!resolvedBankCode || resolvedBankCode.length < 2) {
+    throw ApiError.badRequest("Bank payout code could not be resolved. Please re-link your bank account.");
   }
   // ─────────────────────────────────────────────────────────────────────────
 
