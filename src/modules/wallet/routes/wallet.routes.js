@@ -31,7 +31,7 @@ router.get("/settlement/bank-info", getSettlementBankInfoController);
 router.post("/settlement/payout", initiateSettlementPayoutController);
 
 // GET /api/v1/wallet/settlement/retailer/verify
-router.get("/settlement/retailer/verify", verifyRetailerSettlementController);
+router.get("/settlement/retailer/verify", verifyRetailerSettlementController);3
 
 // POST /api/v1/wallet/settlement/retailer/transfer
 router.post("/settlement/retailer/transfer", transferRetailerSettlementController);

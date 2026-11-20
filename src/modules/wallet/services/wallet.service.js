@@ -489,15 +489,18 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
 
     console.log(`[PAYOUT] Provider returned ${providerStatus} – reserving holdBalance. txnid=${txnid} providerTxnId=${providerTxnId}`);
 
-    // 1. Deduct balance immediately so the retailer sees the deduction right away.
-    //    On SUCCESS (webhook) nothing more needs to happen to the wallet.
-    //    On FAILED (webhook) the amount is refunded back via a credit + reversed transaction.
+    // 1. Reserve the amount on holdBalance only (do NOT deduct balance yet).
+    //    availableBalance = balance - holdBalance, so increasing holdBalance
+    //    alone makes the amount unavailable without double-counting.
+    //    On SUCCESS (webhook): deduct balance + release hold.
+    //    On FAILED (webhook): release hold only (balance was never touched).
     const updatedWallet = await Wallet.findOneAndUpdate(
       { user: userId },
-      { $inc: { balance: -netDebitAmount, holdBalance: netDebitAmount } }
+      { $inc: { holdBalance: netDebitAmount } }
     );
-    const newBalance = Number(updatedWallet?.balance || 0) - netDebitAmount;
-    console.log(`[PAYOUT] balance decreased by ₹${netDebitAmount} for userId=${userId}, new balance: ${newBalance}`);
+    const newBalance = Number(updatedWallet?.balance || 0); // balance unchanged
+    const newHoldBalance = Number(updatedWallet?.holdBalance || 0) + netDebitAmount;
+    console.log(`[PAYOUT] holdBalance increased by ₹${netDebitAmount} for userId=${userId}. balance=${newBalance} holdBalance=${newHoldBalance}`);
 
     // 2. Record pending transaction with provider reference
     const pendingTxn = new Transaction({
@@ -506,7 +509,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       amount: numAmount,
       netDebitAmount,
       balanceBefore: currentBalance,
-      balanceAfter: Math.round((currentBalance - netDebitAmount) * 100) / 100,
+      balanceAfter: currentBalance, // balance unchanged at initiation; finalized on webhook SUCCESS
       payee: {
         name: providerPayload.beneficiary_name || user.fullName,
         mobile: user.mobile,
@@ -534,14 +537,17 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     console.log(`[PAYOUT] Pending transaction saved. transactionId=${txnid}`);
 
     // 3. Return a 200 success response — do NOT throw
+    //    balanceBefore/balanceAfter reflect the *available* balance
+    //    (total balance − holdBalance) so the frontend shows the
+    //    correct "available for settlement" amount.
     return {
       txnid,
       providerTxnId,
       amount: numAmount,
       netDebitAmount,
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
-      holdBalance: Number(wallet.holdBalance || 0) + netDebitAmount,
+      balanceBefore: availableBalance,
+      balanceAfter: Math.round((availableBalance - netDebitAmount) * 100) / 100,
+      holdBalance: newHoldBalance,
       bankName: recordedBankName,
       accountNumber: providerPayload.account_number,
       mode: providerPayload.mode,
