@@ -251,7 +251,7 @@ export const getSettlementBankInfoService = async (userId) => {
 
   const rawBanks = Array.isArray(user.banks) ? user.banks : [];
 
-  const activeBanks = rawBanks
+  const mappedBanks = rawBanks
     .filter((b) => b && b.isActive !== false)
     .map((b) => {
       const acc = String(b.accountNumber || "").trim();
@@ -272,6 +272,29 @@ export const getSettlementBankInfoService = async (userId) => {
         isVerified: true,
       };
     });
+
+  // Resolve payout.bankCode from BankMaster for any bank that has a
+  // bankMasterId but is missing a stored bank_code.
+  const masterCodeMap = {};
+  const idsToResolve = mappedBanks
+    .filter((b) => b.bankMasterId && !b.bank_code)
+    .map((b) => b.bankMasterId);
+
+  if (idsToResolve.length > 0) {
+    const results = await Promise.allSettled(
+      idsToResolve.map((id) => resolveBankForPayout(id))
+    );
+    results.forEach((result, idx) => {
+      if (result.status === "fulfilled" && result.value?.bankCode) {
+        masterCodeMap[idsToResolve[idx]] = result.value.bankCode;
+      }
+    });
+  }
+
+  const activeBanks = mappedBanks.map((b) => ({
+    ...b,
+    bank_code: b.bank_code || (b.bankMasterId && masterCodeMap[b.bankMasterId]) || "",
+  }));
 
   const primaryBank =
     activeBanks.find((b) => b.isPrimary) || activeBanks[0] || null;
