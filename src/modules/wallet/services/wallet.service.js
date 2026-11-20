@@ -82,7 +82,8 @@ export const addAmountToWallet = async (
   razorpay_order_id = null,
   razorpay_payment_id = null,
   referenceKey = null,
-  description = "Wallet Topup"
+  description = "Wallet Topup",
+  service = "RAZORPAY"
 ) => {
   const session = await mongoose.startSession();
   let updatedWallet = null;
@@ -111,11 +112,11 @@ export const addAmountToWallet = async (
         payee: {
           bankName: "Self Wallet",
         },
-        service: "RAZORPAY",
+        service,
         transactionId: uniqueTxnId,
         referenceKey: referenceKey || null,
-        razorpay_order_id: razorpay_order_id || null,
-        razorpay_payment_id: razorpay_payment_id || null,
+        ...(razorpay_order_id ? { razorpay_order_id } : {}),
+        ...(razorpay_payment_id ? { razorpay_payment_id } : {}),
         status: "success",
         description,
       });

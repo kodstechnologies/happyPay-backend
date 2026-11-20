@@ -210,10 +210,11 @@ export const approveFundRequest = async (id, adminId, adminNotes = null) => {
       await addAmountToWallet(
         fundRequest.userId,
         fundRequest.amount,
-        null, // razorpay_order_id
-        null, // razorpay_payment_id
+        null, // no razorpay_order_id — fund requests are manually approved
+        null, // no razorpay_payment_id
         fundRequest._id, // referenceKey - use fund request ID
-        `Fund Request Approved - ${fundRequest.paymentMode} payment via ${fundRequest.bank}`
+        `Fund Request Approved - ${fundRequest.paymentMode} payment via ${fundRequest.bank}`,
+        "FUND_REQUEST" // service — not a Razorpay payment
       );
 
       // Send wallet credit notification (non-blocking)
