@@ -9,6 +9,11 @@ import {
   stopSubscriptionExpiryCron,
   runSubscriptionExpiryCheck,
 } from "./cron/subscriptionExpiry.cron.js";
+import {
+  startPayoutReconciliationCron,
+  stopPayoutReconciliationCron,
+  runPayoutReconciliationNow,
+} from "./cron/payoutReconciliation.cron.js";
 
 let server;
 
@@ -44,6 +49,14 @@ const startServer = async () => {
     // Run an initial expiry check now that the DB is connected
     await runSubscriptionExpiryCheck();
 
+    // Start payout reconciliation cron — releases/finalizes pending settlement
+    // holds when the provider callback is missed or rejected, so a failed
+    // payout's hold is not left permanently reducing the available balance.
+    startPayoutReconciliationCron();
+
+    // Reconcile any payouts left pending before this restart (non-blocking).
+    void runPayoutReconciliationNow();
+
   } catch (error) {
     console.error("❌ Server startup failed:", error);
     process.exit(1);
@@ -74,6 +87,7 @@ process.on("SIGTERM", () => {
 
   // Stop cron jobs
   stopSubscriptionExpiryCron();
+  stopPayoutReconciliationCron();
 
   if (server) {
     server.close(() => {
@@ -91,6 +105,7 @@ process.on("SIGINT", () => {
 
   // Stop cron jobs
   stopSubscriptionExpiryCron();
+  stopPayoutReconciliationCron();
 
   if (server) {
     server.close(() => {
