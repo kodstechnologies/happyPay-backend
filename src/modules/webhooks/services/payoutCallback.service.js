@@ -26,6 +26,30 @@ import Wallet from "../../wallet/model/wallet.model.js";
 import logger from "../../../utils/logger.js";
 import env from "../../../config/env.js";
 
+// Best-effort socket import — avoids crash if socket server isn't initialised
+let getIO = null;
+try {
+  const sockets = await import("../../../sockets/socket.server.js");
+  getIO = sockets.getIO;
+} catch {
+  logger.warn("[PAYOUT_CALLBACK] Socket server not available — real-time updates disabled");
+}
+
+/**
+ * Emit a real-time socket event to the retailer's personal room.
+ * Swallows errors so a socket failure never breaks the callback.
+ */
+const _emitSocketEvent = (retailerUserId, eventName, payload) => {
+  if (!getIO || !retailerUserId) return;
+  try {
+    const io = getIO();
+    io.to(`retailer:${retailerUserId}`).emit(eventName, payload);
+    logger.info(`[PAYOUT_CALLBACK] Socket event emitted. event=${eventName} userId=${retailerUserId}`);
+  } catch (err) {
+    logger.error(`[PAYOUT_CALLBACK] Socket emit failed. event=${eventName} error=${err.message}`);
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Status normalisation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -293,7 +317,7 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
   );
 
   const session = await mongoose.startSession();
-  let balanceBefore, balanceAfter;
+  let balanceBefore, balanceAfter, retailerUserId;
 
   try {
     await session.withTransaction(async () => {
@@ -316,6 +340,8 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
 
       balanceBefore = Number(wallet.balance || 0);
       const holdBefore = Number(wallet.holdBalance || 0);
+
+      retailerUserId = wallet.user?.toString() || null;
 
       wallet.balance = Math.round((balanceBefore - netDebitAmount) * 100) / 100;
       wallet.holdBalance = Math.max(0, Math.round((holdBefore - netDebitAmount) * 100) / 100);
@@ -364,6 +390,43 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
 
   // Credit distributor commission (best-effort, outside transaction)
   await _creditDistributorCommission(txn, internalTxnId);
+
+  // Send push + in-app notification to the retailer (best-effort)
+  if (retailerUserId) {
+    const settlementAmount = Number(txn.amount || 0);
+    try {
+      const { sendWalletTransferNotification } = await import(
+        "../../notifications/services/notification.services.js"
+      );
+      await sendWalletTransferNotification({
+        recipientId: retailerUserId,
+        type: "WALLET_DEBIT",
+        title: "Settlement Successful",
+        body: `₹${settlementAmount.toFixed(2)} has been successfully transferred to your bank account. UTR: ${utr || internalTxnId}`,
+        data: {
+          service: "PAYOUT",
+          serviceName: "Settlement",
+          amount: String(settlementAmount),
+          transactionId: internalTxnId,
+          status: "success",
+          utr: utr || "",
+          screen: "TRANSACTIONS",
+        },
+      });
+      logger.info(`[PAYOUT_CALLBACK] Success notification sent. userId=${retailerUserId} amount=₹${settlementAmount}`);
+    } catch (notifErr) {
+      logger.error(`[PAYOUT_CALLBACK] Failed to send success notification. error=${notifErr.message}`);
+    }
+
+    // Real-time socket event so the frontend can update instantly
+    _emitSocketEvent(retailerUserId, "payout:status", {
+      transactionId: internalTxnId,
+      status: "success",
+      amount: settlementAmount,
+      utr: utr || "",
+      balanceAfter,
+    });
+  }
 
   logger.info(`[PAYOUT_CALLBACK] SUCCESS complete. internalTxnId=${internalTxnId}`);
 
@@ -515,6 +578,14 @@ const _processFailed = async (txn, callbackBody, { utr, operatorId, rawStatus })
         `[PAYOUT_CALLBACK] Failed to send refund notification. error=${notifErr.message}`
       );
     }
+
+    // Real-time socket event so the frontend can update instantly
+    _emitSocketEvent(retailerUserId, "payout:status", {
+      transactionId: internalTxnId,
+      status: "failed",
+      amount: netDebitAmount,
+      failureReason,
+    });
   }
 
   logger.info(`[PAYOUT_CALLBACK] FAILED complete. internalTxnId=${internalTxnId} hold released=₹${netDebitAmount}`);
