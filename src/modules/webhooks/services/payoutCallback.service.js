@@ -119,9 +119,9 @@ export const extractCallbackFields = (body = {}) => {
     body.transactionId ||
     null;
 
-  if (!providerTxnId) {
-    return { error: "Missing required field: txn_id (provider transaction ID)" };
-  }
+  // if (!providerTxnId) {
+  //   return { error: "Missing required field: txn_id (provider transaction ID)" };
+  // }
 
   // Status – required
   const rawStatus = body.status || body.txn_status || body.transaction_status || null;
