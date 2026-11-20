@@ -117,7 +117,7 @@ const transactionSchema = new mongoose.Schema(
     },
     service: {
       type: String,
-      enum: ["AEPS", "DMT", "UPI", "CMS", "PAYOUT", "MANUAL", "COMMISSION", "BBPS", "RAZORPAY", "SETTLEMENT", "PLAN_SUBSCRIPTION"],
+      enum: ["AEPS", "DMT", "UPI", "CMS", "PAYOUT", "MANUAL", "COMMISSION", "BBPS", "RAZORPAY", "SETTLEMENT", "PLAN_SUBSCRIPTION", "FUND_REQUEST"],
       required: true,
     },
     status: {
