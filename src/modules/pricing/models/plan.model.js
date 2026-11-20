@@ -147,4 +147,22 @@ const planSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Indexes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Most common query: findOnePlan({ isDefault: true, status: "ACTIVE" })
+// — used by subscribeToDefaultPlan and auto-assignment flows.
+planSchema.index({ isDefault: 1, status: 1 });
+
+// Paginated listing: getPlans({ status }) sorted by createdAt desc
+planSchema.index({ status: 1, createdAt: -1 });
+
+// Name lookups (exact match + prefix-anchored regex search)
+planSchema.index({ name: 1 });
+
+// Nested serviceId lookup — supports future aggregation queries that
+// filter plans by contained service without loading the full document.
+planSchema.index({ "services.serviceId": 1 });
+
 export default mongoose.model("Plan", planSchema);

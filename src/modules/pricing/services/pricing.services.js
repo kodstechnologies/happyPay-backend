@@ -65,7 +65,8 @@ const removePlan = async (id) => {
 };
 
 const configurePlanServices = async (planId, incomingServices) => {
-  const plan = await getPlanById(planId);
+  // Needs a Mongoose document for .set() / .push() / save()
+  const plan = await getPlanById(planId, false);
 
   if (!plan) {
     throw ApiError.notFound("Plan not found");

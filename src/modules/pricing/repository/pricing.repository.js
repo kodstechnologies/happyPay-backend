@@ -24,8 +24,8 @@ const getPlans = async (filters = {}, options = {}) => {
   // Get total count for pagination metadata
   const total = await Plan.countDocuments(query);
 
-  // Get paginated plans
-  const plans = await Plan.find(query).sort(sort).skip(skip).limit(limit);
+  // Get paginated plans (lean for read-only performance)
+  const plans = await Plan.find(query).sort(sort).skip(skip).limit(limit).lean();
 
   const totalPages = Math.ceil(total / limit);
 
@@ -42,12 +42,15 @@ const getPlans = async (filters = {}, options = {}) => {
   };
 };
 
-const getPlanById = async (id) => {
-  return await Plan.findById(id).lean();
+const getPlanById = async (id, lean = true) => {
+  // Default to lean (plain object) for read-only performance.
+  // Pass lean=false when you need a Mongoose document for .set()/.push()/save().
+  const query = Plan.findById(id);
+  return lean ? await query.lean() : await query.exec();
 };
 
-const findOnePlan = async (query = {}) => {
-  return await Plan.findOne(query);
+const findOnePlan = async (query = {}, projection = null) => {
+  return await Plan.findOne(query, projection).lean();
 };
 
 const updatePlan = async (id, updateData) => {
