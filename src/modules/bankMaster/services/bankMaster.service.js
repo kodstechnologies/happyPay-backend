@@ -244,8 +244,11 @@ export const getBankMasterByIdService = async (id) => {
  * Only returns banks that are active AND have AEPS enabled.
  */
 export const getRetailerBankListService = async () => {
-  return BankMaster.find({ isActive: true, "aeps.enabled": true })
-    .select("_id bankName aeps.iin aeps.bankId")
+  return BankMaster.find({
+    isActive: true,
+    "payout.enabled": true,
+  })
+    .select("_id bankName aeps.iin aeps.bankId payout.enabled")
     .sort({ bankName: 1 })
     .lean()
     .then((banks) =>
@@ -254,6 +257,7 @@ export const getRetailerBankListService = async () => {
         bankName: b.bankName,
         iin: b.aeps?.iin ?? null,
         bankId: b.aeps?.bankId ?? null,
+        payoutEnabled: true,
       }))
     );
 };
