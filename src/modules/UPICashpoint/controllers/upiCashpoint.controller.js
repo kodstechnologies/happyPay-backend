@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 import UpiEkyc from "../models/upiEkyc.model.js";
 import UpiTransaction from "../models/upiTransaction.model.js";
+import { addAmountToWallet } from "../../wallet/services/wallet.service.js";
 import {
   initiateUpiCashpointService,
   merchantRegistrationService,
@@ -334,6 +335,7 @@ const confirmPaymentController = asyncHandler(async (req, res) => {
     return res.status(400).json(ApiResponse.error("txnid is required", null, null, 400));
   }
 
+  // Mark the UPI transaction as PAID
   const txn = await UpiTransaction.findOneAndUpdate(
     { txnid: String(txnid).trim(), status: "INITIATED" },
     { status: "PAID" },
@@ -344,8 +346,36 @@ const confirmPaymentController = asyncHandler(async (req, res) => {
     return res.status(404).json(ApiResponse.error("Transaction not found or already processed", null, null, 404));
   }
 
+  // Credit the retailer's wallet and record a Transaction entry
+  let balanceAfter = null;
+  try {
+    const wallet = await addAmountToWallet(
+      String(txn.userId),
+      Number(txn.amount),
+      null,        // no razorpay_order_id
+      null,        // no razorpay_payment_id
+      txn.txnid,   // referenceKey
+      `UPI Cashpoint Payment Received — Txn: ${txn.txnid}`,
+      "UPI"        // service
+    );
+    balanceAfter = Number(wallet?.balance ?? 0);
+  } catch (walletErr) {
+    // Wallet credit failed — still report the UPI txn as PAID but surface the error
+    return res.status(500).json(
+      ApiResponse.error(
+        walletErr?.message || "Payment marked as PAID but wallet credit failed",
+        { txnid: txn.txnid, status: txn.status, amount: txn.amount },
+        null,
+        500
+      )
+    );
+  }
+
   return res.status(200).json(
-    ApiResponse.success({ txnid: txn.txnid, status: txn.status, amount: txn.amount }, "Payment confirmed successfully")
+    ApiResponse.success(
+      { txnid: txn.txnid, status: txn.status, amount: txn.amount, balanceAfter },
+      "Payment confirmed and wallet credited successfully"
+    )
   );
 });
 

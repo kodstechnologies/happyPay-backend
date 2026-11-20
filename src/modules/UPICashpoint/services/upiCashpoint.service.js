@@ -215,28 +215,28 @@ const merchantEkycService = async ({ merchantId, pidData } = {}) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MOCK_STATES = [
-  { stateName: "Andhra Pradesh", stateCode: "AP" },
-  { stateName: "Assam", stateCode: "AS" },
-  { stateName: "Bihar", stateCode: "BR" },
-  { stateName: "Chhattisgarh", stateCode: "CG" },
-  { stateName: "Delhi", stateCode: "DL" },
-  { stateName: "Goa", stateCode: "GA" },
-  { stateName: "Gujarat", stateCode: "GJ" },
-  { stateName: "Haryana", stateCode: "HR" },
-  { stateName: "Himachal Pradesh", stateCode: "HP" },
-  { stateName: "Jharkhand", stateCode: "JH" },
-  { stateName: "Karnataka", stateCode: "KA" },
-  { stateName: "Kerala", stateCode: "KL" },
-  { stateName: "Madhya Pradesh", stateCode: "MP" },
-  { stateName: "Maharashtra", stateCode: "MH" },
-  { stateName: "Odisha", stateCode: "OR" },
-  { stateName: "Punjab", stateCode: "PB" },
-  { stateName: "Rajasthan", stateCode: "RJ" },
-  { stateName: "Tamil Nadu", stateCode: "TN" },
-  { stateName: "Telangana", stateCode: "TG" },
-  { stateName: "Uttar Pradesh", stateCode: "UP" },
-  { stateName: "Uttarakhand", stateCode: "UK" },
-  { stateName: "West Bengal", stateCode: "WB" },
+  { description: "Andhra Pradesh", code: "AP" },
+  { description: "Assam", code: "AS" },
+  { description: "Bihar", code: "BR" },
+  { description: "Chhattisgarh", code: "CG" },
+  { description: "Delhi", code: "DL" },
+  { description: "Goa", code: "GA" },
+  { description: "Gujarat", code: "GJ" },
+  { description: "Haryana", code: "HR" },
+  { description: "Himachal Pradesh", code: "HP" },
+  { description: "Jharkhand", code: "JH" },
+  { description: "Karnataka", code: "KA" },
+  { description: "Kerala", code: "KL" },
+  { description: "Madhya Pradesh", code: "MP" },
+  { description: "Maharashtra", code: "MH" },
+  { description: "Odisha", code: "OR" },
+  { description: "Punjab", code: "PB" },
+  { description: "Rajasthan", code: "RJ" },
+  { description: "Tamil Nadu", code: "TN" },
+  { description: "Telangana", code: "TG" },
+  { description: "Uttar Pradesh", code: "UP" },
+  { description: "Uttarakhand", code: "UK" },
+  { description: "West Bengal", code: "WB" },
 ];
 
 const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
@@ -246,8 +246,8 @@ const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}
     const searchLower = search.toLowerCase();
     states = states.filter(
       (s) =>
-        s.stateName.toLowerCase().includes(searchLower) ||
-        s.stateCode.toLowerCase().includes(searchLower)
+        s.description.toLowerCase().includes(searchLower) ||
+        s.code.toLowerCase().includes(searchLower)
     );
   }
 
@@ -275,46 +275,46 @@ const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}
 
 const MOCK_DISTRICTS = {
   RJ: [
-    { districtName: "Jaipur", districtCode: "RJ01" },
-    { districtName: "Jodhpur", districtCode: "RJ02" },
-    { districtName: "Udaipur", districtCode: "RJ03" },
-    { districtName: "Kota", districtCode: "RJ04" },
-    { districtName: "Ajmer", districtCode: "RJ05" },
+    { description: "Jaipur", code: "RJ01" },
+    { description: "Jodhpur", code: "RJ02" },
+    { description: "Udaipur", code: "RJ03" },
+    { description: "Kota", code: "RJ04" },
+    { description: "Ajmer", code: "RJ05" },
   ],
   DL: [
-    { districtName: "New Delhi", districtCode: "DL01" },
-    { districtName: "South Delhi", districtCode: "DL02" },
-    { districtName: "North Delhi", districtCode: "DL03" },
+    { description: "New Delhi", code: "DL01" },
+    { description: "South Delhi", code: "DL02" },
+    { description: "North Delhi", code: "DL03" },
   ],
   MH: [
-    { districtName: "Mumbai", districtCode: "MH01" },
-    { districtName: "Pune", districtCode: "MH02" },
-    { districtName: "Nagpur", districtCode: "MH03" },
+    { description: "Mumbai", code: "MH01" },
+    { description: "Pune", code: "MH02" },
+    { description: "Nagpur", code: "MH03" },
   ],
   KA: [
-    { districtName: "Bengaluru", districtCode: "KA01" },
-    { districtName: "Mysuru", districtCode: "KA02" },
-    { districtName: "Mangaluru", districtCode: "KA03" },
+    { description: "Bengaluru", code: "KA01" },
+    { description: "Mysuru", code: "KA02" },
+    { description: "Mangaluru", code: "KA03" },
   ],
   UP: [
-    { districtName: "Lucknow", districtCode: "UP01" },
-    { districtName: "Kanpur", districtCode: "UP02" },
-    { districtName: "Varanasi", districtCode: "UP03" },
+    { description: "Lucknow", code: "UP01" },
+    { description: "Kanpur", code: "UP02" },
+    { description: "Varanasi", code: "UP03" },
   ],
 };
 
 const getUpiDistrictService = async ({ stateCode, page = 1, limit = 20, search = "" } = {}) => {
   let districts = MOCK_DISTRICTS[String(stateCode).toUpperCase()] || [
-    { districtName: "Default District", districtCode: `${stateCode}01` },
-    { districtName: "Central District", districtCode: `${stateCode}02` },
+    { description: "Default District", code: `${stateCode}01` },
+    { description: "Central District", code: `${stateCode}02` },
   ];
 
   if (search && search.trim()) {
     const searchLower = search.toLowerCase();
     districts = districts.filter(
       (d) =>
-        d.districtName.toLowerCase().includes(searchLower) ||
-        d.districtCode.toLowerCase().includes(searchLower)
+        d.description.toLowerCase().includes(searchLower) ||
+        d.code.toLowerCase().includes(searchLower)
     );
   }
 
