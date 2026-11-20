@@ -30,6 +30,7 @@ export const payoutCallbackController = asyncHandler(async (req, res) => {
     callbackBody.transaction_id ||
     callbackBody.txnId ||
     callbackBody.transactionId ||
+    callbackBody.txnid ||    // provider sends our internal txnid without underscore
     "unknown";
 
   // ── Log raw callback (never log sensitive tokens) ───────────────────────

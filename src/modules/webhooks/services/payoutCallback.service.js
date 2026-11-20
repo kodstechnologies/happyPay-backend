@@ -142,6 +142,7 @@ export const extractCallbackFields = (body = {}) => {
     body.transaction_id ||
     body.txnId ||
     body.transactionId ||
+    body.txnid ||    // provider may send our internal txnid without underscore
     null;
 
   // if (!providerTxnId) {
