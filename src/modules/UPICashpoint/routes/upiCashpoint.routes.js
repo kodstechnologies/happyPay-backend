@@ -11,6 +11,8 @@ import {
   merchantEkycController,
   getUpiStateListController,
   getUpiDistrictController,
+  confirmPaymentController,
+  getMyTransactionsController,
 } from "../controllers/upiCashpoint.controller.js";
 import {
   initiateUpiCashpointSchema,
@@ -19,78 +21,43 @@ import {
   merchantRegistrationVerifySchema,
   sellerOnboardingSchema,
   merchantEkycSchema,
-  paginationSchema,
-  districtPaginationSchema,
 } from "../validations/upiCashpoint.validation.js";
 
-// Configure multer for handling multipart/form-data (text fields only, no file uploads)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 const router = Router();
 
-router.post(
-  "/merchant-register",
-  authMiddleware,
-  validate(merchantRegistrationSchema, "body"),
-  merchantRegistrationController
-);
+// Merchant Registration
+router.post("/merchant-register", authMiddleware, validate(merchantRegistrationSchema, "body"), merchantRegistrationController);
 
-// Merchant Registration - Send OTP
-router.post(
-  "/merchant-registration/send-otp",
-  authMiddleware,
-  validate(merchantRegistrationSendOtpSchema, "body"),
-  merchantRegistrationSendOtpController
-);
+// Send OTP
+router.post("/merchant-registration/send-otp", authMiddleware, validate(merchantRegistrationSendOtpSchema, "body"), merchantRegistrationSendOtpController);
 
-// Merchant Registration - Verify OTP
-router.post(
-  "/merchant-registration/verify",
-  authMiddleware,
-  validate(merchantRegistrationVerifySchema, "body"),
-  merchantRegistrationVerifyController
-);
+// Verify OTP
+router.post("/merchant-registration/verify", authMiddleware, validate(merchantRegistrationVerifySchema, "body"), merchantRegistrationVerifyController);
 
 // Seller Onboarding
-router.post(
-  "/seller-onboarding",
-  authMiddleware,
-  validate(sellerOnboardingSchema, "body"),
-  sellerOnboardingController
-);
+router.post("/seller-onboarding", authMiddleware, validate(sellerOnboardingSchema, "body"), sellerOnboardingController);
 
-router.post(
-  "/ekyc",
-  authMiddleware,
-  upload.none(), // Handle multipart/form-data without file uploads
-  validate(merchantEkycSchema, "body"),
-  merchantEkycController
-);
+// eKYC
+router.post("/ekyc", authMiddleware, upload.none(), validate(merchantEkycSchema, "body"), merchantEkycController);
 
-router.post(
-  "/initiate-payment",
-  authMiddleware,
-  validate(initiateUpiCashpointSchema, "body"),
-  initiateUpiCashpointController
-);
+// Initiate Payment (generate QR)
+router.post("/initiate-payment", authMiddleware, validate(initiateUpiCashpointSchema, "body"), initiateUpiCashpointController);
 
-// UPI State List with pagination
-router.post(
-  "/state-list",
-  // validate(paginationSchema, "body"),
-  getUpiStateListController
-);
+// Confirm payment received (mark transaction as PAID)
+router.post("/confirm-payment", authMiddleware, confirmPaymentController);
 
-// UPI District List by State Code with pagination
-router.post(
-  "/district",
-  // validate(districtPaginationSchema, "body"),
-  getUpiDistrictController
-);
+// My transactions list
+router.get("/my-transactions", authMiddleware, getMyTransactionsController);
+
+// State list
+router.post("/state-list", getUpiStateListController);
+
+// District list by state code
+router.post("/district", getUpiDistrictController);
 
 export default router;

@@ -23,6 +23,14 @@ const upiEkycSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    otpVerified: {
+      type: Boolean,
+      default: false,
+    },
+    sellerOnboarded: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

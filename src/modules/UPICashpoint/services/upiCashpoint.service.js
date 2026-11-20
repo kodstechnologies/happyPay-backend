@@ -1,15 +1,17 @@
-import {
-  initiateUpiCashpointPayment,
-  merchantRegistration,
-  merchantRegistrationSendOtp,
-  merchantRegistrationVerify,
-  merchantRegistrationOnboarding,
-  merchantEKYC,
-  getUpiStateList,
-  getUpiDistrict,
-} from "../../external/services/provider.service.js";
+/**
+ * UPI Cashpoint Service (Mock Mode)
+ *
+ * All external provider API calls have been replaced with mock implementations
+ * that generate realistic responses and store data in the local database.
+ * This allows the full UPI Cashpoint flow to work end-to-end without an
+ * external payment provider.
+ */
+
 import User from "../../auth/model/user.model.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
+import UpiTransaction from "../models/upiTransaction.model.js";
+import UpiEkyc from "../models/upiEkyc.model.js";
+import logger from "../../../utils/logger.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -19,79 +21,63 @@ const fail = (statusCode, message, meta = null) => {
   return error;
 };
 
-const STATE_CODE_MAP = {
-  "ANDAMAN AND NICOBAR ISLANDS": "AN",
-  "ANDHRA PRADESH": "AP",
-  "ARUNACHAL PRADESH": "AR",
-  "ASSAM": "AS",
-  "BIHAR": "BR",
-  "CHANDIGARH": "CH",
-  "CHHATTISGARH": "CG",
-  "DADRA AND NAGAR HAVELI AND DAMAN AND DIU": "DH",
-  "DELHI": "DL",
-  "GOA": "GA",
-  "GUJARAT": "GJ",
-  "HARYANA": "HR",
-  "HIMACHAL PRADESH": "HP",
-  "JAMMU AND KASHMIR": "JK",
-  "JHARKHAND": "JH",
-  "KARNATAKA": "KA",
-  "KERALA": "KL",
-  "LADAKH": "LA",
-  "LAKSHADWEEP": "LD",
-  "MADHYA PRADESH": "MP",
-  "MAHARASHTRA": "MH",
-  "MANIPUR": "MN",
-  "MEGHALAYA": "ML",
-  "MIZORAM": "MZ",
-  "NAGALAND": "NL",
-  "ODISHA": "OR",
-  "PUDUCHERRY": "PY",
-  "PUNJAB": "PB",
-  "RAJASTHAN": "RJ",
-  "SIKKIM": "SK",
-  "TAMIL NADU": "TN",
-  "TELANGANA": "TG",
-  "TRIPURA": "TR",
-  "UTTAR PRADESH": "UP",
-  "UTTARAKHAND": "UK",
-  "WEST BENGAL": "WB",
-};
-
-const mapStateToCode = (stateName = "") => {
-  if (!stateName || typeof stateName !== "string") return "";
-  const cleaned = stateName.trim().toUpperCase();
-  if (cleaned.length === 2) return cleaned;
-  return STATE_CODE_MAP[cleaned] || "";
-};
-
-const lettersOnly = (str = "") => {
-  if (!str || typeof str !== "string") return "";
-  return str.replace(/[^a-zA-Z]/g, "");
-};
-
-const formatDateToDDMMYYYY = (value) => {
-  if (!value) return "";
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) return trimmed;
-  }
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Initiate UPI Cashpoint Payment (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const initiateUpiCashpointService = async (payload = {}) => {
-  return await initiateUpiCashpointPayment(payload);
+  const { amount, latitude = "", longitude = "", merchantLoginId = "" } = payload;
+  const txnid = payload.txnid || generate15CharTxnId("TXN");
+  const numAmount = Number(amount) || 0;
+
+  // Generate a mock RRN (12-digit reference number)
+  const rrn = String(Date.now()).slice(-12).padStart(12, "0");
+
+  // Generate a mock UPI QR string
+  const qrString = `upi://pay?pa=happypay@yesbank&pn=HappyPayCashpoint&am=${numAmount.toFixed(2)}&cu=INR&tr=${txnid}&tn=UPICashpoint`;
+
+  // Resolve userId from the payload or merchantLoginId
+  let userId = payload.userId || null;
+  if (!userId && merchantLoginId) {
+    const upiEkyc = await UpiEkyc.findOne({ merchantId: String(merchantLoginId).trim() });
+    if (upiEkyc) userId = upiEkyc.userId;
+  }
+
+  // Store the mock transaction in the DB
+  if (userId) {
+    await UpiTransaction.create({
+      userId,
+      merchantId: String(merchantLoginId || "MOCK_MERCHANT").trim(),
+      txnid,
+      amount: numAmount,
+      qrString,
+      rrn,
+      latitude: String(latitude),
+      longitude: String(longitude),
+      status: "INITIATED",
+    });
+    logger.info(`[UPI Mock] Transaction stored. txnid=${txnid} amount=₹${numAmount}`);
+  }
+
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    response_code: 0,
+    txnid,
+    orderid: txnid,
+    qrString,
+    rrn,
+    bankRefNum: rrn,
+    amount: numAmount,
+    msg: "QR code generated successfully (mock)",
+    message: "QR code generated successfully (mock)",
+  };
 };
 
-/**
- * Service for Merchant Registration in UPI Cashpoint
- * Extracts retailer data by userId and maps strictly to the 24 required external fields.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Merchant Registration (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
+
 const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = "127.0.0.1" } = {}) => {
   if (!userId) {
     throw fail(400, "User ID is required for merchant registration");
@@ -102,211 +88,169 @@ const merchantRegistrationService = async ({ userId, overrides = {}, clientIp = 
     throw fail(404, "Retailer not found with provided User ID");
   }
 
-  // Identify primary or first active bank
-  const primaryBank =
-    (Array.isArray(retailer.banks) && retailer.banks.find((b) => b?.isPrimary && b?.isActive !== false)) ||
-    (Array.isArray(retailer.banks) && retailer.banks.find((b) => b?.isActive !== false)) ||
-    retailer.banks?.[0] ||
-    {};
+  // Generate a mock merchant ID (e.g., "HPMR" + timestamp + random)
+  const merchantId = `HPMR${Date.now().toString().slice(-10)}${Math.floor(Math.random() * 100).toString().padStart(2, "0")}`;
 
-  // Shop details
-  const shop = retailer.shop || {};
-  const shopAddress = shop.address || {};
-  const fullAddress =
-    shop.completeAddress ||
-    [shopAddress.addressLine, shopAddress.city, shopAddress.state, shopAddress.pincode]
-      .filter(Boolean)
-      .join(", ") ||
-    "";
+  logger.info(`[UPI Mock] Merchant registered. userId=${userId} merchantId=${merchantId}`);
 
-  // Name extraction - use firstName and lastName from DB directly
-  const derivedFirstname = retailer.firstName || "";
-  const derivedLastname = retailer.lastName || "";
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    merchantId,
+    merchant_id: merchantId,
+    msg: "Merchant registered successfully (mock)",
+    message: "Merchant registered successfully (mock)",
+  };
+};
 
-  // State and stateCode derivation - use stateCode from DB directly
-  const resolvedState = overrides.state || shopAddress.state || "";
-  const resolvedStateCode =
-    overrides.stateCode ||
-    shopAddress.stateCode ||
-    retailer.stateCode ||
-    mapStateToCode(resolvedState) ||
-    "";
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Merchant Registration — Send OTP (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Date of birth formatted as DD-MM-YYYY (e.g. 15-08-1995)
-  const resolvedDob =
-    overrides.dob ||
-    formatDateToDDMMYYYY(retailer.dateOfBirth) ||
-    "";
-
-  // Gender (single char uppercase: M/F/T)
-  const resolvedGender =
-    overrides.gender ||
-    (retailer.gender ? String(retailer.gender).trim().toUpperCase().charAt(0) : "M");
-
-  // Marital status (uppercase, e.g. MARRIED)
-  const resolvedMaritalStatus =
-    overrides.maritalstatus ||
-    (retailer.maritalStatus ? String(retailer.maritalStatus).trim().toUpperCase() : "");
-
-  // Transaction ID
-  const resolvedTxnId =
-    overrides.txnid ||
-    generate15CharTxnId("TXN");
-
-  // Pre-resolve fields that the external provider marks as required
-  const resolvedMothername = String(overrides.mothername || retailer.motherName || "").trim();
-  const resolvedShopname   = String(overrides.shopname   || shop.name            || "").trim();
-  const resolvedStateFinal = String(resolvedState).trim();
-  // Provider expects a bank CODE (e.g. "SBI"), not the full name — prefer bank_code over name
-  const resolvedBankname   = String(overrides.bankname || primaryBank.bank_code || primaryBank.name || "").trim();
-
-  // Pre-flight validation: surface missing required fields before hitting external API
-  const missingFields = [];
-  if (!resolvedMothername) missingFields.push("mothername — set retailer.motherName in profile");
-  if (!resolvedShopname)   missingFields.push("shopname — set shop.name in profile");
-  if (!resolvedStateFinal) missingFields.push("state — set shop.address.state in profile");
-  if (!resolvedBankname)   missingFields.push("bankname/bank_code — add bank details with bank_code in profile");
-
-  if (missingFields.length > 0) {
-    throw fail(
-      422,
-      "Merchant registration cannot proceed: required fields are missing from the retailer profile. " +
-        "Please update the profile and try again.",
-      { missingFields }
-    );
+const merchantRegistrationSendOtpService = async ({ merchantId }) => {
+  if (!merchantId) {
+    throw fail(400, "merchantId is required to send OTP");
   }
 
-  // Build payload using strictly and exclusively the 24 required external fields
-  const payload = {
-    stateCode:       String(resolvedStateCode).trim(),
-    fathername:      lettersOnly(overrides.fathername || retailer.fatherName || ""),
-    mothername:      lettersOnly(resolvedMothername),
-    firstname:       lettersOnly(overrides.firstname || derivedFirstname || ""),
-    lastname:        lettersOnly(overrides.lastname  || derivedLastname  || ""),
-    dob:             String(resolvedDob).trim(),
-    email:           String(overrides.email  || retailer.email  || "").trim(),
-    phone:           String(overrides.phone  || overrides.mobile || retailer.mobile || "").trim(),
-    latitude:
-      overrides.latitude !== undefined && overrides.latitude !== null && overrides.latitude !== ""
-        ? String(overrides.latitude).trim()
-        : shop.location?.latitude !== undefined && shop.location?.latitude !== null
-          ? String(shop.location.latitude).trim()
-          : "",
-    longitude:
-      overrides.longitude !== undefined && overrides.longitude !== null && overrides.longitude !== ""
-        ? String(overrides.longitude).trim()
-        : shop.location?.longitude !== undefined && shop.location?.longitude !== null
-          ? String(shop.location.longitude).trim()
-          : "",
-    txnid:           String(resolvedTxnId).trim(),
-    merchantpincode: String(overrides.merchantpincode || overrides.pincode || shopAddress.pincode || "").trim(),
-    panno:           String(overrides.panno || overrides.pan || retailer.panNumber || "").trim(),
-    accountnumber:   String(overrides.accountnumber || primaryBank.accountNumber || "").trim(),
-    ifsc:            String(overrides.ifsc || primaryBank.ifscCode || "").trim(),
-    // Provider requires a bank CODE (e.g. "SBI"), not the full bank name
-    bankname:        resolvedBankname,
-    aadharno:        String(overrides.aadharno || overrides.aadhaar || retailer.aadhaarNumber || "").trim(),
-    state:           String(resolvedStateCode).trim(),
-    shopname:        resolvedShopname,
-    address:         String(overrides.address || fullAddress).trim(),
-    gender:          String(resolvedGender).trim(),
-    maritalstatus:   String(resolvedMaritalStatus).trim(),
-    ipaddress:       String(overrides.ipaddress || clientIp || "127.0.0.1").trim(),
-    district:        String(overrides.district || shopAddress.districtName || shopAddress.city || "").trim(),
+  // Generate a mock OTP — in production this would be sent via SMS
+  const mockOtp = "1234";
+
+  logger.info(`[UPI Mock] OTP sent for merchantId=${merchantId} otp=${mockOtp}`);
+
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    msg: "OTP sent successfully (mock)",
+    message: "OTP sent successfully (mock)",
+    // Include the OTP in the response for testing/dev convenience
+    otp: mockOtp,
   };
-
-  return await merchantRegistration(payload);
 };
 
-/**
- * Service to send OTP for Merchant Registration
- * Strictly uses merchantId as required by the provider API
- */
-const merchantRegistrationSendOtpService = async ({ merchantId }) => {
-  return await merchantRegistrationSendOtp({ merchantId });
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Merchant Registration — Verify OTP (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Service to verify OTP for Merchant Registration
- * Strictly uses merchantId and otp as required by the provider API
- */
 const merchantRegistrationVerifyService = async ({ merchantId, otp }) => {
-  return await merchantRegistrationVerify({ merchantId, otp });
+  if (!merchantId || !otp) {
+    throw fail(400, "merchantId and otp are required for OTP verification");
+  }
+
+  // Accept any non-empty OTP in mock mode
+  logger.info(`[UPI Mock] OTP verified for merchantId=${merchantId} otp=${otp}`);
+
+  // Mark OTP as verified in the UpiEkyc document
+  await UpiEkyc.findOneAndUpdate(
+    { merchantId: String(merchantId).trim() },
+    { otpVerified: true },
+    { returnDocument: "after" }
+  );
+
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    msg: "OTP VERIFIED.",
+    message: "OTP verified successfully (mock)",
+  };
 };
 
-/**
- * Service for Seller Onboarding in UPI Cashpoint
- * Strictly uses only the 8 required fields:
- * (osVersion, osType, appVersion, deviceFingerprint, ipaddress, longitude, latitude, merchantId)
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Seller Onboarding (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
+
 const sellerOnboardingService = async (payload = {}) => {
   const {
-    osVersion,
-    osType,
-    appVersion,
-    deviceFingerprint,
-    ipaddress,
-    longitude,
-    latitude,
+    osVersion = "",
+    osType = "",
+    appVersion = "",
+    deviceFingerprint = "",
+    ipaddress = "",
+    longitude = "",
+    latitude = "",
     merchantId,
   } = payload;
 
-  const externalPayload = {
-    osVersion: String(osVersion).trim(),
-    osType: String(osType).trim(),
-    appVersion: String(appVersion).trim(),
-    deviceFingerprint: String(deviceFingerprint).trim(),
-    ipaddress: String(ipaddress).trim(),
-    longitude: String(longitude).trim(),
-    latitude: String(latitude).trim(),
-    merchantId: String(merchantId).trim(),
-  };
-
-  return await merchantRegistrationOnboarding(externalPayload);
-};
-
-/**
- * Service for Merchant eKYC in UPI Cashpoint
- * Strictly uses only ("merchantId", "pidData") as required by external merchantEKYC API
- */
-const merchantEkycService = async ({ merchantId, pidData } = {}) => {
-  const externalPayload = {
-    merchantId: String(merchantId).trim(),
-    pidData: typeof pidData === "string" ? pidData.trim() : pidData,
-  };
-
-  return await merchantEKYC(externalPayload);
-};
-
-/**
- * Service to fetch the list of states from UPI provider with pagination
- * @param {object} params - { page, limit, search }
- */
-const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
-  const result = await getUpiStateList();
-
-  // Extract the array from various possible response structures
-  let states = [];
-  if (Array.isArray(result)) {
-    states = result;
-  } else if (result && typeof result === "object") {
-    states = result.states || result.data || result.stateList || result.results || [];
+  if (!merchantId) {
+    throw fail(400, "merchantId is required for seller onboarding");
   }
 
-  // Apply search filter if provided
+  logger.info(`[UPI Mock] Seller onboarded. merchantId=${merchantId} os=${osType}`);
+
+  // Mark seller as onboarded in the UpiEkyc document
+  await UpiEkyc.findOneAndUpdate(
+    { merchantId: String(merchantId).trim() },
+    { sellerOnboarded: true },
+    { returnDocument: "after" }
+  );
+
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    msg: "Seller onboarding completed successfully (mock)",
+    message: "Seller onboarding completed successfully (mock)",
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Merchant eKYC (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const merchantEkycService = async ({ merchantId, pidData } = {}) => {
+  if (!merchantId || !pidData) {
+    throw fail(400, "merchantId and pidData are required for eKYC");
+  }
+
+  logger.info(`[UPI Mock] eKYC completed for merchantId=${merchantId}`);
+
+  return {
+    status: true,
+    statuscode: "SUCCESS",
+    msg: "Merchant eKYC completed successfully (mock)",
+    message: "Merchant eKYC completed successfully (mock)",
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Get UPI State List (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MOCK_STATES = [
+  { stateName: "Andhra Pradesh", stateCode: "AP" },
+  { stateName: "Assam", stateCode: "AS" },
+  { stateName: "Bihar", stateCode: "BR" },
+  { stateName: "Chhattisgarh", stateCode: "CG" },
+  { stateName: "Delhi", stateCode: "DL" },
+  { stateName: "Goa", stateCode: "GA" },
+  { stateName: "Gujarat", stateCode: "GJ" },
+  { stateName: "Haryana", stateCode: "HR" },
+  { stateName: "Himachal Pradesh", stateCode: "HP" },
+  { stateName: "Jharkhand", stateCode: "JH" },
+  { stateName: "Karnataka", stateCode: "KA" },
+  { stateName: "Kerala", stateCode: "KL" },
+  { stateName: "Madhya Pradesh", stateCode: "MP" },
+  { stateName: "Maharashtra", stateCode: "MH" },
+  { stateName: "Odisha", stateCode: "OR" },
+  { stateName: "Punjab", stateCode: "PB" },
+  { stateName: "Rajasthan", stateCode: "RJ" },
+  { stateName: "Tamil Nadu", stateCode: "TN" },
+  { stateName: "Telangana", stateCode: "TG" },
+  { stateName: "Uttar Pradesh", stateCode: "UP" },
+  { stateName: "Uttarakhand", stateCode: "UK" },
+  { stateName: "West Bengal", stateCode: "WB" },
+];
+
+const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
+  let states = [...MOCK_STATES];
+
   if (search && search.trim()) {
     const searchLower = search.toLowerCase();
-    states = states.filter((state) => {
-      const stateName = state.stateName || state.name || state.state || "";
-      const stateCode = state.stateCode || state.code || "";
-      return (
-        stateName.toLowerCase().includes(searchLower) ||
-        stateCode.toLowerCase().includes(searchLower)
-      );
-    });
+    states = states.filter(
+      (s) =>
+        s.stateName.toLowerCase().includes(searchLower) ||
+        s.stateCode.toLowerCase().includes(searchLower)
+    );
   }
 
-  // Calculate pagination
   const total = states.length;
   const startIndex = (page - 1) * limit;
   const endIndex = startIndex + limit;
@@ -325,35 +269,55 @@ const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}
   };
 };
 
-/**
- * Service to fetch districts by state code from UPI provider with pagination
- * @param {object} params - { stateCode, page, limit, search }
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Get UPI District List (Mock)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MOCK_DISTRICTS = {
+  RJ: [
+    { districtName: "Jaipur", districtCode: "RJ01" },
+    { districtName: "Jodhpur", districtCode: "RJ02" },
+    { districtName: "Udaipur", districtCode: "RJ03" },
+    { districtName: "Kota", districtCode: "RJ04" },
+    { districtName: "Ajmer", districtCode: "RJ05" },
+  ],
+  DL: [
+    { districtName: "New Delhi", districtCode: "DL01" },
+    { districtName: "South Delhi", districtCode: "DL02" },
+    { districtName: "North Delhi", districtCode: "DL03" },
+  ],
+  MH: [
+    { districtName: "Mumbai", districtCode: "MH01" },
+    { districtName: "Pune", districtCode: "MH02" },
+    { districtName: "Nagpur", districtCode: "MH03" },
+  ],
+  KA: [
+    { districtName: "Bengaluru", districtCode: "KA01" },
+    { districtName: "Mysuru", districtCode: "KA02" },
+    { districtName: "Mangaluru", districtCode: "KA03" },
+  ],
+  UP: [
+    { districtName: "Lucknow", districtCode: "UP01" },
+    { districtName: "Kanpur", districtCode: "UP02" },
+    { districtName: "Varanasi", districtCode: "UP03" },
+  ],
+};
+
 const getUpiDistrictService = async ({ stateCode, page = 1, limit = 20, search = "" } = {}) => {
-  const result = await getUpiDistrict({ stateCode: String(stateCode).trim() });
+  let districts = MOCK_DISTRICTS[String(stateCode).toUpperCase()] || [
+    { districtName: "Default District", districtCode: `${stateCode}01` },
+    { districtName: "Central District", districtCode: `${stateCode}02` },
+  ];
 
-  // Extract the array from various possible response structures
-  let districts = [];
-  if (Array.isArray(result)) {
-    districts = result;
-  } else if (result && typeof result === "object") {
-    districts = result.districts || result.data || result.districtList || result.results || [];
-  }
-
-  // Apply search filter if provided
   if (search && search.trim()) {
     const searchLower = search.toLowerCase();
-    districts = districts.filter((district) => {
-      const districtName = district.districtName || district.name || district.district || "";
-      const districtCode = district.districtCode || district.code || "";
-      return (
-        districtName.toLowerCase().includes(searchLower) ||
-        districtCode.toLowerCase().includes(searchLower)
-      );
-    });
+    districts = districts.filter(
+      (d) =>
+        d.districtName.toLowerCase().includes(searchLower) ||
+        d.districtCode.toLowerCase().includes(searchLower)
+    );
   }
 
-  // Calculate pagination
   const total = districts.length;
   const startIndex = (page - 1) * limit;
   const endIndex = startIndex + limit;
@@ -372,6 +336,10 @@ const getUpiDistrictService = async ({ stateCode, page = 1, limit = 20, search =
   };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Exports
+// ─────────────────────────────────────────────────────────────────────────────
+
 export {
   initiateUpiCashpointService,
   merchantRegistrationService,
@@ -382,4 +350,3 @@ export {
   getUpiStateListService,
   getUpiDistrictService,
 };
-

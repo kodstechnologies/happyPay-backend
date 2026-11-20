@@ -2,6 +2,7 @@ import ApiResponse from "../../../utils/ApiResponse.js";
 import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 import UpiEkyc from "../models/upiEkyc.model.js";
+import UpiTransaction from "../models/upiTransaction.model.js";
 import {
   initiateUpiCashpointService,
   merchantRegistrationService,
@@ -322,6 +323,53 @@ const getUpiDistrictController = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * Controller to confirm a payment has been received (mark PAID)
+ * POST /api/v1/upi-cashpoint/confirm-payment
+ */
+const confirmPaymentController = asyncHandler(async (req, res) => {
+  const { txnid } = req.body;
+
+  if (!txnid) {
+    return res.status(400).json(ApiResponse.error("txnid is required", null, null, 400));
+  }
+
+  const txn = await UpiTransaction.findOneAndUpdate(
+    { txnid: String(txnid).trim(), status: "INITIATED" },
+    { status: "PAID" },
+    { new: true }
+  );
+
+  if (!txn) {
+    return res.status(404).json(ApiResponse.error("Transaction not found or already processed", null, null, 404));
+  }
+
+  return res.status(200).json(
+    ApiResponse.success({ txnid: txn.txnid, status: txn.status, amount: txn.amount }, "Payment confirmed successfully")
+  );
+});
+
+/**
+ * Controller to get the logged-in retailer's UPI Cashpoint transactions
+ * GET /api/v1/upi-cashpoint/my-transactions
+ */
+const getMyTransactionsController = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId || req.user?.id || req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json(ApiResponse.error("Unauthorized", null, null, 401));
+  }
+
+  const transactions = await UpiTransaction.find({ userId })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
+
+  return res.status(200).json(
+    ApiResponse.success(transactions, "Transactions fetched successfully")
+  );
+});
+
 export {
   initiateUpiCashpointController,
   merchantRegistrationController,
@@ -331,4 +379,6 @@ export {
   merchantEkycController,
   getUpiStateListController,
   getUpiDistrictController,
+  confirmPaymentController,
+  getMyTransactionsController,
 };
