@@ -65,7 +65,7 @@ export const checkPayoutTransactionStatus = async (internalTxnId) => {
   let providerStatusResponse;
   try {
     providerStatusResponse = await checkSettlement_status({
-      txn_id: txn.providerTxnId,
+      txnid: txn.providerTxnId,
     });
     logger.info(`[PAYOUT_STATUS_CHECK] Provider response:`, providerStatusResponse);
   } catch (err) {
