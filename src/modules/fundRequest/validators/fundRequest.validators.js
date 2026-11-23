@@ -231,6 +231,15 @@ const resubmitFundRequestSchema = Joi.object({
       "date.format": "Payment date must be in ISO format",
     }),
 
+  bankId: Joi.string()
+    .hex()
+    .length(24)
+    .optional()
+    .messages({
+      "string.hex":    "bankId must be a valid MongoDB ObjectId",
+      "string.length": "bankId must be a 24-character hex string",
+    }),
+
   bank: Joi.string()
     .trim()
     .min(2)

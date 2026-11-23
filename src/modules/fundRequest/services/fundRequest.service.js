@@ -369,7 +369,7 @@ export const resubmitFundRequest = async (id, updateData) => {
     }
 
     // Reset status to pending and clear rejection data
-    const { bank, bankCode, ifscCode, accountNumber, branchName, ...otherUpdateData } = updateData;
+    const { bank, bankCode, ifscCode, accountNumber, branchName, bankId, ...otherUpdateData } = updateData;
 
     const updateFields = {
       ...otherUpdateData,
@@ -380,31 +380,40 @@ export const resubmitFundRequest = async (id, updateData) => {
       adminNotes: null,
     };
 
-    // If any bank fields were provided, update the linked FundRequestBank document
-    const hasBankUpdate = bank || bankCode || ifscCode || accountNumber || branchName;
-    if (hasBankUpdate && fundRequest.bankDetails) {
-      const bankPatch = {};
-      if (bank) bankPatch.bank = bank;
-      if (bankCode !== undefined) bankPatch.bankCode = bankCode || null;
-      if (ifscCode) bankPatch.ifscCode = String(ifscCode).trim().toUpperCase();
-      if (accountNumber) bankPatch.accountNumber = accountNumber;
-      if (branchName) bankPatch.branchName = branchName;
-      await FundRequestBank.findByIdAndUpdate(
-        fundRequest.bankDetails,
-        { $set: bankPatch },
-        { runValidators: true }
-      );
-    } else if (hasBankUpdate && !fundRequest.bankDetails) {
-      // No existing bank doc (old record) — create one and link it
-      const newBankDoc = await FundRequestBank.create({
-        fundRequestId: fundRequest._id,
-        bank: bank || "",
-        bankCode: bankCode || null,
-        ifscCode: ifscCode ? String(ifscCode).trim().toUpperCase() : "",
-        accountNumber: accountNumber || "",
-        branchName: branchName || "",
-      });
-      updateFields.bankDetails = newBankDoc._id;
+    if (bankId) {
+      // Retailer selected a pre-existing FundRequestBank — link it directly
+      const existing = await FundRequestBank.findById(bankId);
+      if (!existing) {
+        return ApiResponse.error("Selected bank record not found", 404);
+      }
+      updateFields.bankDetails = existing._id;
+    } else {
+      // Flat bank fields provided — update (or create) the linked bank doc
+      const hasBankUpdate = bank || bankCode || ifscCode || accountNumber || branchName;
+      if (hasBankUpdate && fundRequest.bankDetails) {
+        const bankPatch = {};
+        if (bank) bankPatch.bank = bank;
+        if (bankCode !== undefined) bankPatch.bankCode = bankCode || null;
+        if (ifscCode) bankPatch.ifscCode = String(ifscCode).trim().toUpperCase();
+        if (accountNumber) bankPatch.accountNumber = accountNumber;
+        if (branchName) bankPatch.branchName = branchName;
+        await FundRequestBank.findByIdAndUpdate(
+          fundRequest.bankDetails,
+          { $set: bankPatch },
+          { runValidators: true }
+        );
+      } else if (hasBankUpdate && !fundRequest.bankDetails) {
+        // No existing bank doc (old record) — create one and link it
+        const newBankDoc = await FundRequestBank.create({
+          fundRequestId: fundRequest._id,
+          bank: bank || "",
+          bankCode: bankCode || null,
+          ifscCode: ifscCode ? String(ifscCode).trim().toUpperCase() : "",
+          accountNumber: accountNumber || "",
+          branchName: branchName || "",
+        });
+        updateFields.bankDetails = newBankDoc._id;
+      }
     }
 
     const updatedRequest = await fundRequestRepository.updateById(id, updateFields);
