@@ -1174,7 +1174,7 @@ const sendFundRequestApprovedNotification = async ({
     recipientType: "retailer",
     type: "FUND_REQUEST_APPROVED",
     title: "Fund Request Approved",
-    body: `Your fund request of ₹${amount} has been approved. Please complete biometric verification to credit the amount to your wallet.`,
+    body: `Your fund request of ₹${amount} has been approved.`,
     data: {
       type: "FUND_REQUEST_APPROVED",
       screen: "FUND_REQUEST",
@@ -1198,7 +1198,7 @@ const sendFundRequestApprovedNotification = async ({
         token: device.fcmToken,
         notification: {
           title: "Fund Request Approved",
-          body: `Your fund request of ₹${amount} has been approved. Please complete biometric verification to credit the amount to your wallet.`,
+          body: `Your fund request of ₹${amount} has been approved.`,
         },
         data: {
           type: "FUND_REQUEST_APPROVED",
