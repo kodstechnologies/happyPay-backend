@@ -510,8 +510,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       type: "debit",
       amount: numAmount,
       netDebitAmount,
-      balanceBefore: currentBalance,
-      balanceAfter: currentBalance, // balance unchanged at initiation; finalized on webhook SUCCESS
+      balanceBefore: availableBalance,
+      balanceAfter: Math.round((availableBalance - netDebitAmount) * 100) / 100, // available balance after hold; finalized on webhook SUCCESS
       payee: {
         name: providerPayload.beneficiary_name || user.fullName,
         mobile: user.mobile,

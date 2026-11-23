@@ -83,15 +83,7 @@ const updateById = async (Model, id, data) => {
 };
 
 const deleteById = async (Model, id) => {
-  return await Model.findByIdAndUpdate(
-    id,
-    {
-      isActive: false,
-    },
-    {
-      new: true,
-    }
-  );
+  return await Model.findByIdAndDelete(id);
 };
 
 export {
