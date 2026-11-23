@@ -460,8 +460,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     commissionBreakdown,
   } = pricingResult;
 
-  // PAYOUT debits principal + charges + retailer commission in full.
-  const netDebitAmount = Math.round((numAmount + charges + retailerCommission) * 100) / 100;
+  // PAYOUT debits principal + retailer commission only (provider/admin
+  // charges are not passed on to the retailer).
+  const netDebitAmount = Math.round((numAmount + retailerCommission) * 100) / 100;
 
   // Check if sufficient balance is available after calculating net debit amount
   if (netDebitAmount > availableBalance) {
