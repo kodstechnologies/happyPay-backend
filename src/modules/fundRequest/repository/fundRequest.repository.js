@@ -1,5 +1,8 @@
 import FundRequest from "../model/fundRequest.model.js";
 
+/** Fields to populate for the linked bank details document. */
+const BANK_POPULATE = { path: "bankDetails", select: "bank bankCode ifscCode accountNumber branchName" };
+
 class FundRequestRepository {
   /**
    * Create a new fund request
@@ -15,7 +18,8 @@ class FundRequestRepository {
   async findById(id) {
     return await FundRequest.findById(id)
       .populate("userId", "firstName lastName email mobile retailerId selfie")
-      .populate("reviewedBy", "firstName lastName email");
+      .populate("reviewedBy", "firstName lastName email")
+      .populate(BANK_POPULATE);
   }
 
   /**
@@ -44,7 +48,8 @@ class FundRequestRepository {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("reviewedBy", "firstName lastName email"),
+        .populate("reviewedBy", "firstName lastName email")
+        .populate(BANK_POPULATE),
       FundRequest.countDocuments(query)
     ]);
 
@@ -71,7 +76,8 @@ class FundRequestRepository {
 
     return await FundRequest.find(query)
       .sort({ createdAt: -1 })
-      .populate("reviewedBy", "firstName lastName email");
+      .populate("reviewedBy", "firstName lastName email")
+      .populate(BANK_POPULATE);
   }
 
   /**
@@ -95,7 +101,8 @@ class FundRequestRepository {
     return await FundRequest.find(query)
       .sort({ createdAt: -1 })
       .populate("userId", "firstName lastName email mobile retailerId selfie")
-      .populate("reviewedBy", "firstName lastName email");
+      .populate("reviewedBy", "firstName lastName email")
+      .populate(BANK_POPULATE);
   }
 
   /**
@@ -104,7 +111,8 @@ class FundRequestRepository {
   async findPending() {
     return await FundRequest.find({ status: "PENDING" })
       .sort({ createdAt: -1 })
-      .populate("userId", "firstName lastName email mobile retailerId selfie");
+      .populate("userId", "firstName lastName email mobile retailerId selfie")
+      .populate(BANK_POPULATE);
   }
 
   /**
@@ -117,7 +125,8 @@ class FundRequestRepository {
       { new: true, runValidators: true }
     )
       .populate("userId", "firstName lastName email mobile retailerId selfie")
-      .populate("reviewedBy", "firstName lastName email");
+      .populate("reviewedBy", "firstName lastName email")
+      .populate(BANK_POPULATE);
   }
 
   /**

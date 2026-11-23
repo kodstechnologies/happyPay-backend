@@ -42,6 +42,11 @@ const notificationSchema = new mongoose.Schema(
 
         "BANK_PENDING_APPROVAL",
 
+        "NEW_FUND_REQUEST",
+        "FUND_REQUEST_RESUBMITTED",
+        "FUND_REQUEST_APPROVED",
+        "FUND_REQUEST_REJECTED",
+
         "CUSTOM_NOTIFICATION",
       ],
       required: true,

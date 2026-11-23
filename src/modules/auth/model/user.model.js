@@ -173,6 +173,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    distributorId:{
+      type: String,
+      trim: true,
+    },
     planId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Plan",
@@ -424,6 +428,14 @@ const userSchema = new mongoose.Schema(
         reviewedBy: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
+          default: null,
+        },
+
+        // Reference to BankMaster so AEPS (iin/bankId) & payout (bankCode)
+        // can be resolved server-side from a single source of truth.
+        bankMasterId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "BankMaster",
           default: null,
         },
       },

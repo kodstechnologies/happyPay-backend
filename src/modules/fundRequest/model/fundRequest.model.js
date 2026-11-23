@@ -43,29 +43,13 @@ const fundRequestSchema = new mongoose.Schema(
       required: true,
     },
 
-    bank: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-
-    ifscCode: {
-      type: String,
-      trim: true,
-      required: true,
-      uppercase: true,
-    },
-
-    accountNumber: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-
-    branchName: {
-      type: String,
-      trim: true,
-      required: true,
+    // =========================
+    // Bank Details (separate document)
+    // =========================
+    bankDetails: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FundRequestBank",
+      default: null,
     },
 
     // =========================

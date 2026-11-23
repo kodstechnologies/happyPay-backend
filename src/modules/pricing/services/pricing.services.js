@@ -79,7 +79,14 @@ const configurePlanServices = async (planId, incomingServices) => {
 
     if (existingIndex >= 0) {
       // Update this service without removing the other services.
-      plan.services[existingIndex].set(incomingService);
+      // Explicitly set categories/pricing (defaulting to []) so fields omitted
+      // from the payload are cleared — otherwise stale category pricing would
+      // survive edits (e.g. DMT switched from category to service-level pricing).
+      plan.services[existingIndex].set({
+        serviceId: incomingService.serviceId,
+        categories: incomingService.categories ?? [],
+        pricing: incomingService.pricing ?? [],
+      });
     } else {
       // Add a new service to the plan.
       plan.services.push(incomingService);

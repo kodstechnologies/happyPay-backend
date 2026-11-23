@@ -10,6 +10,7 @@ import {
   rejectRetailerDocument,
   reviewRetailerDocument,
   getPendingBanks,
+  getAllBankRequests,
   approveBank,
   rejectBank,
   resubmitBank,
@@ -152,7 +153,16 @@ router.get(
   authMiddleware,
   requireAdmin,
   getPendingBanks
-);  
+);
+
+// All bank approval requests across every status (pending, rejected, approved).
+// Supports ?status=all|pending|rejected|approved, ?search, ?page, ?limit.
+router.get(
+  "/banks/requests",
+  authMiddleware,
+  requireAdmin,
+  getAllBankRequests
+);
 
 router.patch(
   "/retailers/:retailerId/banks/:pendingBankId/approve",

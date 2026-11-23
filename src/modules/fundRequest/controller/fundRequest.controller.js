@@ -12,6 +12,7 @@ import {
   deleteFundRequest,
   getFundRequestStats,
   getAdminFundRequestStats,
+  getRetailerBankListService,
 } from "../services/fundRequest.service.js";
 
 /**
@@ -175,5 +176,15 @@ export const getMyFundRequestStatsController = asyncHandler(async (req, res) => 
 export const getAdminFundRequestStatsController = asyncHandler(async (req, res) => {
   const result = await getAdminFundRequestStats();
 
+  return res.status(result.statusCode).json(result);
+});
+
+
+/**
+ * Get all saved FundRequestBank records for the logged-in retailer.
+ * Used to populate the bank selection dropdown when submitting a new fund request.
+ */
+export const getMyBankListController = asyncHandler(async (req, res) => {
+  const result = await getRetailerBankListService(req.user.userId);
   return res.status(result.statusCode).json(result);
 });

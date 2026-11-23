@@ -9,8 +9,9 @@ const addBanner = async (bannerData) => {
 };
 
 const listBanners = async (isAdmin = false) => {
-  // If not admin, only show active banners
-  const filters = isAdmin ? {} : { isActive: true };
+  // If not admin, only show active banners.
+  // $ne:false also matches legacy documents where isActive was never set.
+  const filters = isAdmin ? {} : { isActive: { $ne: false } };
   return await getBanners(filters);
 };
 

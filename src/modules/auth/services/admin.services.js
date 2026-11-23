@@ -144,6 +144,8 @@ const toDateOnly = (value) => {
 
 const buildRetailerReview = (user) => ({
   id: user._id,
+  retailerId: user.retailerId || null,
+  distributorId: user.distributorId || null,
   mobile: user.mobile,
   isMobileVerified: user.isMobileVerified,
   email: user.email,
@@ -601,6 +603,174 @@ const getPendingBanksService = async ({ page = 1, limit = 10 } = {}) => {
 };
 
 /**
+ * Get ALL bank approval requests across all retailers (every status:
+ * pending, rejected, and approved). Pending/rejected requests are read from
+ * `pendingBanks`; approved banks are read from the active `banks` array (they
+ * have graduated out of the approval pipeline). Each item carries its
+ * `approvalStatus` so the admin list can show the status.
+ *
+ * @param {Object} params
+ * @param {number} [params.page=1]
+ * @param {number} [params.limit=10]
+ * @param {("pending"|"rejected"|"approved"|"all")} [params.status="all"]
+ * @param {string} [params.search] - matches retailer name/mobile/email or bank name
+ */
+const getAllBankRequestsService = async ({ page = 1, limit = 10, status = "all", search = "" } = {}) => {
+  const User = (await import("../model/user.model.js")).default;
+
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const limitNum = Math.min(Math.max(Number(limit) || 10, 1), 100);
+
+  const normalizedStatus = String(status || "all").toLowerCase().trim();
+  const allowedStatuses = ["all", "pending", "rejected", "approved"];
+  if (!allowedStatuses.includes(normalizedStatus)) {
+    throw fail(400, `Invalid status filter. Allowed values: ${allowedStatuses.join(", ")}`);
+  }
+
+  const includePending = normalizedStatus === "all" || normalizedStatus === "pending";
+  const includeRejected = normalizedStatus === "all" || normalizedStatus === "rejected";
+  const includeApproved = normalizedStatus === "all" || normalizedStatus === "approved";
+
+  const term = String(search || "").trim().toLowerCase();
+
+  // DB-level pre-filter: narrow to users whose retailer fields OR a bank name
+  // matches the search term. Per-item matching is re-checked in JS below.
+  const buildMatch = (baseFilter, bankNamePath) => {
+    if (!term) return baseFilter;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = { $regex: escaped, $options: "i" };
+    const orClauses = [
+      { fullName: regex },
+      { mobile: regex },
+      { email: regex },
+    ];
+    if (bankNamePath) orClauses.push({ [bankNamePath]: regex });
+    return { ...baseFilter, $or: orClauses };
+  };
+
+  const retailerMatchesTerm = (r) => {
+    if (!term) return true;
+    return (
+      String(r.fullName || r.name || "").toLowerCase().includes(term) ||
+      String(r.mobile || "").includes(term) ||
+      String(r.email || "").toLowerCase().includes(term)
+    );
+  };
+
+  const bankNameMatchesTerm = (bankName) => {
+    if (!term) return true;
+    return String(bankName || "").toLowerCase().includes(term);
+  };
+
+  const requests = [];
+
+  // 1) Pending + Rejected requests (still in the approval pipeline)
+  const pipelineStatuses = [];
+  if (includePending) pipelineStatuses.push("pending");
+  if (includeRejected) pipelineStatuses.push("rejected");
+
+  if (pipelineStatuses.length > 0) {
+    const retailers = await User.find(
+      buildMatch({ "pendingBanks.approvalStatus": { $in: pipelineStatuses } }, "pendingBanks.name")
+    )
+      .select("mobile fullName email name _id pendingBanks")
+      .lean();
+
+    retailers.forEach((r) => {
+      if (!r.pendingBanks) return;
+      const retailerHits = retailerMatchesTerm(r);
+      r.pendingBanks.forEach((bank) => {
+        if (!pipelineStatuses.includes(bank.approvalStatus)) return;
+        if (!retailerHits && !bankNameMatchesTerm(bank.name)) return;
+        requests.push({
+          retailerId: r._id,
+          retailerName: r.fullName || r.name || "",
+          retailerMobile: r.mobile || "",
+          retailerEmail: r.email || "",
+          bankId: bank._id,
+          source: "pendingBanks",
+          name: bank.name,
+          bank_code: bank.bank_code || null,
+          bankMasterId: bank.bankMasterId || null,
+          ifscCode: bank.ifscCode,
+          accountNumber: bank.accountNumber,
+          branchName: bank.branchName || "",
+          isPrimary: Boolean(bank.isPrimary),
+          approvalStatus: bank.approvalStatus,
+          rejectionReason: bank.rejectionReason || null,
+          submittedAt: bank.submittedAt || null,
+          reviewedAt: bank.reviewedAt || null,
+          reviewedBy: bank.reviewedBy || null,
+        });
+      });
+    });
+  }
+
+  // 2) Approved requests (banks that were approved and are now active)
+  if (includeApproved) {
+    const retailers = await User.find(
+      buildMatch({ "banks.0": { $exists: true } }, "banks.name")
+    )
+      .select("mobile fullName email name _id banks")
+      .lean();
+
+    retailers.forEach((r) => {
+      if (!r.banks) return;
+      const retailerHits = retailerMatchesTerm(r);
+      r.banks.forEach((bank) => {
+        if (!retailerHits && !bankNameMatchesTerm(bank.name)) return;
+        requests.push({
+          retailerId: r._id,
+          retailerName: r.fullName || r.name || "",
+          retailerMobile: r.mobile || "",
+          retailerEmail: r.email || "",
+          bankId: bank._id,
+          source: "banks",
+          name: bank.name,
+          bank_code: bank.bank_code || null,
+          bankMasterId: bank.bankMasterId || null,
+          ifscCode: bank.ifscCode,
+          accountNumber: bank.accountNumber,
+          branchName: bank.branchName || "",
+          isPrimary: Boolean(bank.isPrimary),
+          isActive: bank.isActive !== false,
+          approvalStatus: "approved",
+          rejectionReason: null,
+          submittedAt: null,
+          reviewedAt: null,
+          reviewedBy: null,
+        });
+      });
+    });
+  }
+
+  // Sort: pending first, then rejected, then approved; newest submittedAt within a status.
+  const statusOrder = { pending: 0, rejected: 1, approved: 2 };
+  requests.sort((a, b) => {
+    const byStatus = (statusOrder[a.approvalStatus] ?? 3) - (statusOrder[b.approvalStatus] ?? 3);
+    if (byStatus !== 0) return byStatus;
+    const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+    const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const total = requests.length;
+  const totalPages = Math.ceil(total / limitNum) || 1;
+  const skip = (pageNum - 1) * limitNum;
+  const paged = requests.slice(skip, skip + limitNum);
+
+  return {
+    data: paged,
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+    },
+  };
+};
+
+/**
  * Approve a pending bank account
  */
 const approveBankService = async (retailerId, pendingBankId, adminId, adminName = null, adminRole = null) => {
@@ -635,6 +805,7 @@ const approveBankService = async (retailerId, pendingBankId, adminId, adminName 
   const approvedBank = {
     name: pendingBank.name,
     bank_code: pendingBank.bank_code,
+    bankMasterId: pendingBank.bankMasterId || null,
     ifscCode: pendingBank.ifscCode,
     accountNumber: pendingBank.accountNumber,
     confirmAccountNumber: pendingBank.confirmAccountNumber,
@@ -682,6 +853,8 @@ const approveBankService = async (retailerId, pendingBankId, adminId, adminName 
   // Return updated retailer profile
   const buildRetailerReview = (user) => ({
     id: user._id,
+    retailerId: user.retailerId || null,
+    distributorId: user.distributorId || null,
     mobile: user.mobile,
     fullName: user.fullName,
     banks: user.banks || [],
@@ -757,6 +930,8 @@ const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionRe
 
   const buildRetailerReview = (user) => ({
     id: user._id,
+    retailerId: user.retailerId || null,
+    distributorId: user.distributorId || null,
     mobile: user.mobile,
     fullName: user.fullName,
     banks: user.banks || [],
@@ -818,6 +993,8 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
 
   const buildRetailerReview = (user) => ({
     id: user._id,
+    retailerId: user.retailerId || null,
+    distributorId: user.distributorId || null,
     mobile: user.mobile,
     fullName: user.fullName,
     banks: user.banks || [],
@@ -843,6 +1020,12 @@ const convertToDistributorService = async (retailerId, adminId = null, adminName
   // Assign distributor role using the model method
   await retailer.assignRole("distributor");
 
+  // Generate a distributor ID if the user doesn't have one yet
+  if (!retailer.distributorId) {
+    const { generateDistributorId } = await import("../../../utils/generateTxnId.js");
+    retailer.distributorId = generateDistributorId(retailer._id);
+  }
+
   retailer.markModified("roles");
   await retailer.save();
 
@@ -865,6 +1048,8 @@ const convertToDistributorService = async (retailerId, adminId = null, adminName
 
   const buildRetailerReview = (user) => ({
     id: user._id,
+    retailerId: user.retailerId || null,
+    distributorId: user.distributorId || null,
     mobile: user.mobile,
     fullName: user.fullName,
     banks: user.banks || [],
@@ -890,5 +1075,6 @@ export {
   approveBankService,
   rejectBankService,
   resubmitBankService,
-  getPendingBanksService
+  getPendingBanksService,
+  getAllBankRequestsService
 };

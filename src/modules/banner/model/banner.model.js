@@ -10,6 +10,19 @@ const bannerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    position: {
+      type: String,
+      enum: ["top", "middle", "bottom"],
+      default: "top",
+    },
+    order: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

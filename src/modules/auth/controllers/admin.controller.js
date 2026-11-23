@@ -15,6 +15,7 @@ import {
   rejectBankService,
   resubmitBankService,
   convertToDistributorService,
+  getAllBankRequestsService,
 } from "../services/admin.services.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 
@@ -225,6 +226,25 @@ export const getPendingBanks = asyncHandler(async (req, res) => {
       ApiResponse.success(
         result.data,
         "Pending banks fetched successfully",
+        result.meta
+      )
+    );
+});
+
+export const getAllBankRequests = asyncHandler(async (req, res) => {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
+  const status = String(req.query.status || "all").trim();
+  const search = String(req.query.search || "").trim();
+
+  const result = await getAllBankRequestsService({ page, limit, status, search });
+
+  return res
+    .status(200)
+    .json(
+      ApiResponse.success(
+        result.data,
+        "Bank approval requests fetched successfully",
         result.meta
       )
     );

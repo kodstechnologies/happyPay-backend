@@ -33,4 +33,23 @@ export const generateRetailerId = (mongoId) => {
   return `HP-${timestamp5Digits}-${last2Chars}`;
 };
 
+/**
+ * Generate a unique distributor ID in format: DIS-{5 digit timestamp}-{MongoDB _id last 2 digits in caps}
+ * @param {string} mongoId - MongoDB ObjectId string
+ * @returns {string} - Distributor ID in format DIS-XXXXX-YY
+ */
+export const generateDistributorId = (mongoId) => {
+  if (!mongoId) {
+    throw new Error("MongoDB ID is required to generate distributor ID");
+  }
+
+  const timestamp = Date.now();
+  const timestamp5Digits = String(timestamp).slice(-5);
+
+  const mongoIdStr = String(mongoId);
+  const last2Chars = mongoIdStr.slice(-2).toUpperCase();
+
+  return `DIS-${timestamp5Digits}-${last2Chars}`;
+};
+
 export default generate15CharTxnId;

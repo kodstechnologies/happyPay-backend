@@ -1,6 +1,7 @@
 import ApiResponse from "../../../utils/ApiResponse.js";
 import fundRequestRepository from "../repository/fundRequest.repository.js";
 import { findById } from "../../auth/repository/user.repository.js";
+import FundRequestBank from "../model/fundRequestBank.model.js";
 import {
   sendFundRequestNotification,
   sendFundRequestApprovedNotification,
@@ -26,7 +27,41 @@ export const createFundRequest = async (data) => {
       data.retailerId = user.retailerId;
     }
 
-    const fundRequest = await fundRequestRepository.create(data);
+    let bankDocId;
+
+    if (data.bankId) {
+      // ── Path A: retailer selected a pre-existing FundRequestBank ──────────
+      const existing = await FundRequestBank.findById(data.bankId);
+      if (!existing) {
+        return ApiResponse.error("Selected bank record not found", 404);
+      }
+      bankDocId = existing._id;
+    } else {
+      // ── Path B: flat bank fields provided — create a new bank doc ─────────
+      const bankDoc = await FundRequestBank.create({
+        bank: data.bank,
+        bankCode: data.bankCode || null,
+        ifscCode: String(data.ifscCode || "").trim().toUpperCase(),
+        accountNumber: data.accountNumber,
+        branchName: data.branchName,
+      });
+      bankDocId = bankDoc._id;
+
+      // Back-fill fundRequestId after the fund request is saved (see below)
+      data._newBankDoc = bankDoc;
+    }
+
+    // Build the fund request payload without the flat bank / bankId fields
+    const { bank, bankCode, ifscCode, accountNumber, branchName, bankId, _newBankDoc, ...fundRequestData } = data;
+    fundRequestData.bankDetails = bankDocId;
+
+    const fundRequest = await fundRequestRepository.create(fundRequestData);
+
+    // Back-fill fundRequestId on a newly created bank doc
+    if (data._newBankDoc) {
+      data._newBankDoc.fundRequestId = fundRequest._id;
+      await data._newBankDoc.save();
+    }
 
     // Send notification to admins (non-blocking)
     sendFundRequestNotification({
@@ -334,14 +369,43 @@ export const resubmitFundRequest = async (id, updateData) => {
     }
 
     // Reset status to pending and clear rejection data
+    const { bank, bankCode, ifscCode, accountNumber, branchName, ...otherUpdateData } = updateData;
+
     const updateFields = {
-      ...updateData,
+      ...otherUpdateData,
       status: "PENDING",
       rejectionReason: null,
       reviewedBy: null,
       reviewedAt: null,
       adminNotes: null,
     };
+
+    // If any bank fields were provided, update the linked FundRequestBank document
+    const hasBankUpdate = bank || bankCode || ifscCode || accountNumber || branchName;
+    if (hasBankUpdate && fundRequest.bankDetails) {
+      const bankPatch = {};
+      if (bank) bankPatch.bank = bank;
+      if (bankCode !== undefined) bankPatch.bankCode = bankCode || null;
+      if (ifscCode) bankPatch.ifscCode = String(ifscCode).trim().toUpperCase();
+      if (accountNumber) bankPatch.accountNumber = accountNumber;
+      if (branchName) bankPatch.branchName = branchName;
+      await FundRequestBank.findByIdAndUpdate(
+        fundRequest.bankDetails,
+        { $set: bankPatch },
+        { runValidators: true }
+      );
+    } else if (hasBankUpdate && !fundRequest.bankDetails) {
+      // No existing bank doc (old record) — create one and link it
+      const newBankDoc = await FundRequestBank.create({
+        fundRequestId: fundRequest._id,
+        bank: bank || "",
+        bankCode: bankCode || null,
+        ifscCode: ifscCode ? String(ifscCode).trim().toUpperCase() : "",
+        accountNumber: accountNumber || "",
+        branchName: branchName || "",
+      });
+      updateFields.bankDetails = newBankDoc._id;
+    }
 
     const updatedRequest = await fundRequestRepository.updateById(id, updateFields);
 
@@ -444,5 +508,26 @@ export const getAdminFundRequestStats = async () => {
       error.message || "Failed to fetch fund request statistics",
       500
     );
+  }
+};
+
+
+/**
+ * Get all FundRequestBank records (the bank list shown when creating a fund request).
+ */
+export const getRetailerBankListService = async (userId) => {
+  try {
+    if (!userId) {
+      return ApiResponse.error("User ID is required", 400);
+    }
+
+    const banks = await FundRequestBank.find({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return ApiResponse.success(banks, "Bank list fetched successfully");
+  } catch (error) {
+    console.error("Error fetching bank list:", error);
+    return ApiResponse.error(error.message || "Failed to fetch bank list", 500);
   }
 };

@@ -2,7 +2,12 @@ import Joi from "joi";
 import validate from "../../../middlewares/validate.middleware.js";
 
 /**
- * Validation schema for creating a fund request
+ * Validation schema for creating a fund request.
+ *
+ * Bank details can be supplied in two ways — exactly one must be used:
+ *   A) Pass bankId (a pre-existing FundRequestBank _id) to reuse a saved bank.
+ *   B) Pass all four flat fields (bank, ifscCode, accountNumber, branchName)
+ *      to create a new bank record on the fly.
  */
 const createFundRequestSchema = Joi.object({
   paymentMode: Joi.string()
@@ -41,51 +46,84 @@ const createFundRequestSchema = Joi.object({
       "date.format": "Payment date must be in ISO format",
     }),
 
+  // ── Bank details: either bankId OR all four flat fields ───────────────────
+  bankId: Joi.string()
+    .hex()
+    .length(24)
+    .optional()
+    .messages({
+      "string.hex":    "bankId must be a valid MongoDB ObjectId",
+      "string.length": "bankId must be a 24-character hex string",
+    }),
+
   bank: Joi.string()
     .trim()
     .min(2)
     .max(100)
-    .required()
+    .when("bankId", {
+      is: Joi.exist(),
+      then: Joi.optional().allow("", null),
+      otherwise: Joi.required(),
+    })
     .messages({
-      "any.required": "Bank name is required",
-      "string.empty": "Bank name is required",
-      "string.min": "Bank name must be at least 2 characters",
-      "string.max": "Bank name must not exceed 100 characters",
+      "any.required": "Bank name is required when bankId is not provided",
+      "string.min":   "Bank name must be at least 2 characters",
+      "string.max":   "Bank name must not exceed 100 characters",
+    }),
+
+  // Provider bank code from the bank list (e.g. wallet /banklist `code`).
+  bankCode: Joi.string()
+    .trim()
+    .max(50)
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.max": "Bank code must not exceed 50 characters",
     }),
 
   ifscCode: Joi.string()
     .trim()
     .pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/)
-    .required()
+    .when("bankId", {
+      is: Joi.exist(),
+      then: Joi.optional().allow("", null),
+      otherwise: Joi.required(),
+    })
     .messages({
-      "any.required": "IFSC code is required",
-      "string.empty": "IFSC code is required",
-      "string.pattern.base": "Please enter a valid IFSC code (e.g., SBIN0001234)",
+      "any.required":          "IFSC code is required when bankId is not provided",
+      "string.pattern.base":   "Please enter a valid IFSC code (e.g., SBIN0001234)",
     }),
 
   accountNumber: Joi.string()
     .trim()
     .min(9)
     .max(18)
-    .required()
+    .when("bankId", {
+      is: Joi.exist(),
+      then: Joi.optional().allow("", null),
+      otherwise: Joi.required(),
+    })
     .messages({
-      "any.required": "Account number is required",
-      "string.empty": "Account number is required",
-      "string.min": "Account number must be at least 9 digits",
-      "string.max": "Account number must not exceed 18 digits",
+      "any.required": "Account number is required when bankId is not provided",
+      "string.min":   "Account number must be at least 9 digits",
+      "string.max":   "Account number must not exceed 18 digits",
     }),
 
   branchName: Joi.string()
     .trim()
     .min(2)
     .max(100)
-    .required()
+    .when("bankId", {
+      is: Joi.exist(),
+      then: Joi.optional().allow("", null),
+      otherwise: Joi.required(),
+    })
     .messages({
-      "any.required": "Branch name is required",
-      "string.empty": "Branch name is required",
-      "string.min": "Branch name must be at least 2 characters",
-      "string.max": "Branch name must not exceed 100 characters",
+      "any.required": "Branch name is required when bankId is not provided",
+      "string.min":   "Branch name must be at least 2 characters",
+      "string.max":   "Branch name must not exceed 100 characters",
     }),
+  // ─────────────────────────────────────────────────────────────────────────
 
   // receiptSlip is uploaded to S3 by multer middleware and added to req.body
   receiptSlip: Joi.string()
@@ -95,7 +133,7 @@ const createFundRequestSchema = Joi.object({
     .messages({
       "any.required": "Receipt slip is required",
       "string.empty": "Receipt slip is required",
-      "string.uri": "Receipt slip must be a valid URL",
+      "string.uri":   "Receipt slip must be a valid URL",
     }),
 
   // receiptSlipKey is the S3 key for the uploaded file (added by uploadToS3 middleware)
@@ -201,6 +239,15 @@ const resubmitFundRequestSchema = Joi.object({
     .messages({
       "string.min": "Bank name must be at least 2 characters",
       "string.max": "Bank name must not exceed 100 characters",
+    }),
+
+  bankCode: Joi.string()
+    .trim()
+    .max(50)
+    .optional()
+    .allow("", null)
+    .messages({
+      "string.max": "Bank code must not exceed 50 characters",
     }),
 
   ifscCode: Joi.string()

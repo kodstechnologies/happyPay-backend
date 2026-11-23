@@ -1,5 +1,6 @@
 import User from "../model/user.model.js";
 import AepsEkyc from "../../AEPS/model/aepsEkyc.model.js";
+import { generateDistributorId } from "../../../utils/generateTxnId.js";
 
 const findByMobile = async (mobile) => {
   return await User.findOne({ mobile }).populate("roles", "name slug isActive");
@@ -16,7 +17,15 @@ const createUser = async (mobile, distributorId = null, role = "retailer") => {
 
   const user = new User(userData);
   await user.assignRole(role, role.charAt(0).toUpperCase() + role.slice(1));
-  return await user.save();
+  const savedUser = await user.save();
+
+  // Generate a distributor ID when the registrant selects the distributor role
+  if (String(role).toLowerCase() === "distributor" && !savedUser.distributorId) {
+    savedUser.distributorId = generateDistributorId(savedUser._id);
+    await savedUser.save();
+  }
+
+  return savedUser;
 };
 
 const verifyMobile = async (userId) => {

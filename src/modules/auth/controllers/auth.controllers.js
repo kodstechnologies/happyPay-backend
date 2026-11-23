@@ -672,6 +672,7 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
         { "shop.name": regex },
         { panNumber: regex },
         { retailerId: regex },
+        { distributorId: regex },
       ],
     });
   }
@@ -706,7 +707,7 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
   const [users, total] = await Promise.all([
     User.find(query)
       .select(
-        "fullName firstName lastName mobile email panNumber status adminApproved registrationStatus currentRegistrationStep shop createdAt aadhaarVerified aadhaarNumber isMobileVerified isEmailVerified selfie gender maritalStatus educationalQualification dateOfBirth fatherName motherName retailerId aadhaarConsent outletId"
+        "fullName firstName lastName mobile email panNumber status adminApproved registrationStatus currentRegistrationStep shop createdAt aadhaarVerified aadhaarNumber isMobileVerified isEmailVerified selfie gender maritalStatus educationalQualification dateOfBirth fatherName motherName retailerId distributorId aadhaarConsent outletId"
       )
       .sort(sortOption)
       .skip(skip)
@@ -727,6 +728,7 @@ const getDownlineRetailersController = asyncHandler(async (req, res) => {
     return {
       id: u._id.toString(),
       retailerId: u.retailerId || null,
+      distributorId: u.distributorId || null,
       firstName: u.firstName || null,
       lastName: u.lastName || null,
       fullName: u.fullName || null,

@@ -92,6 +92,14 @@ import {
       user = await verifyMobile(user._id);
     }
 
+    // Ensure distributor role users always have a distributor ID
+    // (covers users created before this field existed or role upgraded later)
+    if (role === "distributor" && user && !user.distributorId) {
+      const { generateDistributorId } = await import("../../../utils/generateTxnId.js");
+      user.distributorId = generateDistributorId(user._id);
+      await user.save();
+    }
+
     return {
       user,
     };

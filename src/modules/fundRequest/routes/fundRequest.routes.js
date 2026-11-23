@@ -7,6 +7,7 @@ import {
   resubmitFundRequestController,
   deleteFundRequestController,
   getMyFundRequestStatsController,
+  getMyBankListController,
 } from "../controller/fundRequest.controller.js";
 import {
   validateCreateFundRequest,
@@ -22,6 +23,13 @@ const router = Router();
 
 // All retailer routes require authentication
 router.use(authMiddleware);
+
+/**
+ * @route   GET /api/v1/fund-requests/banks
+ * @desc    Get all FundRequestBank records (the bank list for fund request creation).
+ * @access  Private (Retailer)
+ */
+router.get("/banks", getMyBankListController);
 
 /**
  * @route   POST /api/v1/fund-requests

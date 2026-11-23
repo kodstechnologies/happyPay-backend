@@ -42,6 +42,11 @@ import { checkEmailOtpVerified } from "../repository/emailOtp.repository.js";
 import sendSMS from "../../../utils/sendSMS.js";
 import Wallet from "../../wallet/model/wallet.model.js";
 
+/**
+ * Maximum number of bank accounts a retailer can link.
+ * Counts both approved banks and pending banks awaiting admin approval.
+ */
+const MAX_BANK_ACCOUNTS = 5;
 
 /* ==============================
    Helper to Resolve eKYC Data
@@ -524,6 +529,8 @@ const verifyRetailerLoginOtp = async ({
       AepsEkyc: aepsEkycObj,
       UpiEkyc: upiEkycObj,
       walletLock: walletLockState,
+      retailerId: user.retailerId || null,
+      distributorId: user.distributorId || null,
       roles: access.roles,
       permissions: access.permissions,
     },
@@ -1027,6 +1034,8 @@ const getRetailerDetailsService = async (retailerId, registrationStatus) => {
 
   return {
     id: retailer._id,
+    retailerId: retailer.retailerId || null,
+    distributorId: retailer.distributorId || null,
     mobile: retailer.mobile,
     isMobileVerified: retailer.isMobileVerified,
     email: retailer.email,
@@ -1126,6 +1135,20 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
     throw error;
   }
 
+  // Enforce maximum bank accounts limit: resubmitting converts a rejected bank
+  // back to "pending", so it counts toward the limit again.
+  const resubmitApprovedBanks = retailer.banks ? retailer.banks.length : 0;
+  const resubmitPendingAwaiting = (retailer.pendingBanks || []).filter(
+    (b) => !b.approvalStatus || b.approvalStatus === "pending"
+  ).length;
+  if (resubmitApprovedBanks + resubmitPendingAwaiting >= MAX_BANK_ACCOUNTS) {
+    const error = new Error(
+      `You can link a maximum of ${MAX_BANK_ACCOUNTS} bank accounts. Please remove or delete an existing account before resubmitting.`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
   // Update bank details and reset to pending
   retailer.pendingBanks[pendingBankIndex] = {
     ...retailer.pendingBanks[pendingBankIndex],
@@ -1171,7 +1194,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
 
   const retailer = await User.findById(retailerId)
     .select(
-      "_id mobile email fullName registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc UpiEkyc MPIN"
+      "_id mobile email fullName retailerId distributorId registrationStatus currentRegistrationStep adminApproved kycStatus isMobileVerified isEmailVerified status isActive roles permissions AepsEkyc UpiEkyc MPIN"
     )
     .populate([
       {
@@ -1233,6 +1256,8 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     outletId: ekycData?.outletId || null,
     referenceKey: ekycData?.referenceKey || null,
     eKYCStatus: ekycData?.eKYCStatus || null,
+    retailerId: retailer.retailerId || null,
+    distributorId: retailer.distributorId || null,
     AepsEkyc: aepsEkycObj,
     UpiEkyc: upiEkycObj,
     roles: access.roles,
@@ -1359,6 +1384,22 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
       user.markModified("banks");
     }
   } else if (body.action === "ADD_BANK" || body.isNewBank) {
+    // Enforce maximum bank accounts limit:
+    // approved banks (user.banks) + pending banks still awaiting admin approval.
+    const approvedBanksCount = user.banks ? user.banks.length : 0;
+    const pendingBanksAwaitingApproval = (user.pendingBanks || []).filter(
+      (b) => !b.approvalStatus || b.approvalStatus === "pending"
+    ).length;
+    const currentBankCount = approvedBanksCount + pendingBanksAwaitingApproval;
+
+    if (currentBankCount >= MAX_BANK_ACCOUNTS) {
+      const error = new Error(
+        `You can link a maximum of ${MAX_BANK_ACCOUNTS} bank accounts. Please remove or delete an existing account before adding a new one.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
     if (body.accountNumber && body.ifscCode) {
       const shouldBePrimary =
         Boolean(body.isPrimary) || (!user.banks || user.banks.length === 0);
@@ -1366,6 +1407,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
       const newPendingBank = {
         name: (body.bankName || "Bank Account").trim(),
         bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+        bankMasterId: body.bankMasterId ? String(body.bankMasterId).trim() : null,
 
         ifscCode: String(body.ifscCode).trim().toUpperCase(),
         accountNumber: String(body.accountNumber).trim(),
@@ -1408,6 +1450,9 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
           user.banks[bankIndex].bank_code = bankCodeVal;
 
         }
+        if (body.bankMasterId !== undefined) {
+          user.banks[bankIndex].bankMasterId = body.bankMasterId ? String(body.bankMasterId).trim() : null;
+        }
         user.banks[bankIndex].accountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].confirmAccountNumber = String(body.accountNumber).trim();
         user.banks[bankIndex].ifscCode = String(body.ifscCode).trim().toUpperCase();
@@ -1422,6 +1467,7 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     const updatedBank = {
       name: (body.bankName || "Primary Bank").trim(),
       bank_code: body.bank_code ? String(body.bank_code).trim() : (body.bank_id ? String(body.bank_id).trim() : undefined),
+      bankMasterId: body.bankMasterId ? String(body.bankMasterId).trim() : null,
 
       ifscCode: String(body.ifscCode).trim().toUpperCase(),
       accountNumber: String(body.accountNumber).trim(),
@@ -1441,6 +1487,17 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
           ...updatedBank,
         };
       } else {
+        // Adding a new bank (no primary exists to replace) — enforce max accounts limit
+        const fallbackPendingAwaitingApproval = (user.pendingBanks || []).filter(
+          (b) => !b.approvalStatus || b.approvalStatus === "pending"
+        ).length;
+        if (user.banks.length + fallbackPendingAwaitingApproval >= MAX_BANK_ACCOUNTS) {
+          const error = new Error(
+            `You can link a maximum of ${MAX_BANK_ACCOUNTS} bank accounts. Please remove or delete an existing account before adding a new one.`
+          );
+          error.statusCode = 400;
+          throw error;
+        }
         user.banks.unshift(updatedBank);
       }
     }

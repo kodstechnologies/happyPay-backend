@@ -46,6 +46,8 @@ const buildRetailerResponse = (user, ekycDoc = null) => {
   const ekyc = ekycDoc || (user.AepsEkyc && typeof user.AepsEkyc === "object" ? user.AepsEkyc : null);
   return {
     id: user._id,
+    retailerId: user.retailerId || null,
+    distributorId: user.distributorId || null,
     mobile: user.mobile,
     firstName: user.firstName || null,
     lastName: user.lastName || null,

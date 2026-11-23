@@ -12,6 +12,8 @@ import aepsRoutes from "../modules/AEPS/routes/aeps.routes.js";
 import notificationsRoutes from "../modules/notifications/routes/notifications.routes.js";
 import adminRoutes from "../modules/admin/routes/admin.routes.js";
 import bannerRoutes from "../modules/banner/routes/banner.routes.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
+import requireAdmin from "../middlewares/admin.middleware.js";
 import bbpsRoutes from "../modules/BBPS/routes/bbps.routes.js";
 import dmtRoutes from "../modules/DMT/routes/dmt.routes.js";
 import upiCashpointRoutes from "../modules/UPICashpoint/routes/upiCashpoint.routes.js";
@@ -64,6 +66,10 @@ router.use("/api/v1/webhooks", webhookRoutes);
 
 router.use("/api/admin", adminRoutes);
 router.use("/api/v1/banners", bannerRoutes);
+// Admin banner management — same controllers, but authenticated + admin-only.
+// GET /api/admin/banners returns ALL banners (incl. inactive); the public
+// /api/v1/banners route returns only active ones.
+router.use("/api/admin/banners", authMiddleware, requireAdmin, bannerRoutes);
 
 router.use("/api/v1/banks", bankMasterRoutes);
 router.use("/api/admin/banks", adminBankMasterRoutes);
