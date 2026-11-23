@@ -49,7 +49,7 @@ const transactionSchema = new mongoose.Schema(
       default: null,
     },
     // ── Financial precision ──────────────────────────────────────────────────
-    /** Net amount actually debited / to be debited (amount + charges - retailerCommission) */
+    /** Net amount actually debited / to be debited (PAYOUT: amount + charges + retailerCommission) */
     netDebitAmount: {
       type: Number,
       default: null,

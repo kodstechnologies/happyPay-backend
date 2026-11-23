@@ -460,9 +460,8 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     commissionBreakdown,
   } = pricingResult;
 
-  // PAYOUT debits principal + charges in full. The retailer commission is
-  // credited back to the wallet as a separate credit once the payout succeeds.
-  const netDebitAmount = Math.round((numAmount + charges) * 100) / 100;
+  // PAYOUT debits principal + charges + retailer commission in full.
+  const netDebitAmount = Math.round((numAmount + charges + retailerCommission) * 100) / 100;
 
   // Check if sufficient balance is available after calculating net debit amount
   if (netDebitAmount > availableBalance) {
@@ -528,7 +527,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       paymentMode: providerPayload.mode || "IMPS",
       status: "pending",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Queued for processing`,
-      commissionEarned: retailerCommission,
+      commissionEarned: 0,
       charges,
       distributorCommission,
       distributorId: distributorId || null,
@@ -597,7 +596,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       status: "failed",
       failureReason: providerResponse?.msg || providerResponse?.message || "Provider error",
       description: `Settlement via ${providerPayload.mode} to **** (${providerPayload.account_number.slice(-4)}) - Failed: ${providerResponse?.msg || providerResponse?.message || "Provider error"}`,
-      commissionEarned: retailerCommission,
+      commissionEarned: 0,
       charges,
       distributorCommission,
       distributorId: distributorId || null,
@@ -627,7 +626,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       amount: numAmount,
       service: "PAYOUT",
       transactionId: txnid,
-      commissionEarned: 0, // commission is credited back separately on success
+      commissionEarned: 0, // commission is debited as part of netDebitAmount, not earned
       charges: charges,
       distributorCommission: distributorCommission,
       distributorId: distributorId,
@@ -658,58 +657,13 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
           providerInitResponse: providerResponse,
           paymentMode: providerPayload.mode || "IMPS",
           netDebitAmount,
-          commissionEarned: retailerCommission,
+          commissionEarned: 0,
           distributorCommission,
           distributorId: distributorId || null,
           utr: finalUtrImmediate,
           operatorId: providerResponse?.data?.operator_id || providerResponse?.operator_id || null,
         },
       });
-
-      // Credit the retailer commission back to the wallet as a separate entry
-      if (retailerCommission > 0) {
-        try {
-          const commWallet = await Wallet.findOne({ user: userId });
-          if (commWallet) {
-            const commBefore = Number(commWallet.balance || 0);
-            const commAfter = Math.round((commBefore + retailerCommission) * 100) / 100;
-            commWallet.balance = commAfter;
-            await commWallet.save();
-            await new Transaction({
-              wallet: commWallet._id,
-              type: "credit",
-              amount: retailerCommission,
-              balanceBefore: commBefore,
-              balanceAfter: commAfter,
-              service: "COMMISSION",
-              transactionId: generate15CharTxnId("COM"),
-              status: "success",
-              description: `Commission earned on payout ${txnid}`,
-              commissionEarned: 0,
-              charges: 0,
-            }).save();
-          }
-        } catch (commErr) {
-          console.error("[PAYOUT] Retailer commission credit failed:", commErr?.message || commErr);
-        }
-      }
-    }
-
-    // Send notification about commission earned (if any)
-    if (retailerCommission > 0) {
-      const { sendWalletTransferNotification } = await import("../../notifications/services/notification.services.js");
-      sendWalletTransferNotification({
-        recipientId: userId,
-        type: "WALLET_CREDIT",
-        title: "Commission Earned",
-        body: `You earned ₹${retailerCommission.toFixed(2)} commission for PAYOUT service.`,
-        data: {
-          service: "PAYOUT",
-          serviceName: "Bank Settlement",
-          amount: String(retailerCommission),
-          transactionId: txnid,
-        },
-      }).catch((err) => console.error("Failed to send commission notification:", err));
     }
 
     // Get updated wallet balance

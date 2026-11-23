@@ -6,7 +6,7 @@ const createBanner = async (bannerData) => {
 };
 
 const getBanners = async (filters = {}, options = {}) => {
-  const { sort = { order: 1, createdAt: -1 }, limit = 100 } = options;
+  const { sort = { createdAt: -1 }, limit = 100 } = options;
   return await Banner.find(filters).sort(sort).limit(limit);
 };
 

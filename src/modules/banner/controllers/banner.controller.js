@@ -3,14 +3,12 @@ import { asyncHandler } from "../../../utils/asyncHandler.js";
 import { ApiResponse } from "../../../utils/ApiResponse.js";
 
 export const createBannerController = asyncHandler(async (req, res) => {
-  const { title, isActive, position, order } = req.body;
+  const { title, isActive } = req.body;
 
   const banner = await addBanner({
     title,
     imageUrl: req.file?.path,
     ...(isActive !== undefined ? { isActive: isActive === true || isActive === "true" } : {}),
-    ...(position ? { position } : {}),
-    ...(order !== undefined && order !== "" && !Number.isNaN(Number(order)) ? { order: Number(order) } : {}),
   });
   res.status(201).json(ApiResponse.success(banner, "Banner created successfully"));
 });
@@ -29,17 +27,11 @@ export const getBannerByIdController = asyncHandler(async (req, res) => {
 });
 
 export const updateBannerController = asyncHandler(async (req, res) => {
-  const { title, isActive, position, order } = req.body;
+  const { title, isActive } = req.body;
   const updateData = { title };
 
   if (isActive !== undefined) {
     updateData.isActive = isActive === true || isActive === "true";
-  }
-  if (position) {
-    updateData.position = position;
-  }
-  if (order !== undefined && order !== "" && !Number.isNaN(Number(order))) {
-    updateData.order = Number(order);
   }
 
   if (req.file?.path) {
