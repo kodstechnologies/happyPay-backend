@@ -14,6 +14,25 @@ import {
    Create Master Data
 ============================== */
 
+const generateCodeFromName = async (Model, name) => {
+  const base =
+    name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "ITEM";
+
+  let code = base;
+  let counter = 2;
+
+  while (await Model.findOne({ code })) {
+    code = `${base}_${counter}`;
+    counter += 1;
+  }
+
+  return code;
+};
+
 const createMasterData = async (Model, payload) => {
   const { name, code, description } = payload;
 
@@ -27,11 +46,18 @@ const createMasterData = async (Model, payload) => {
     throw ApiError.conflict("Already exists");
   }
 
+  const requiresCode = Boolean(Model.schema.path("code")?.isRequired);
+  const resolvedCode = code?.trim()
+    ? code.trim()
+    : requiresCode
+      ? await generateCodeFromName(Model, name)
+      : null;
+
   return await create(Model, {
     name: name.trim(),
 
-    ...(code && {
-      code: code.trim(),
+    ...(resolvedCode && {
+      code: resolvedCode,
     }),
 
     ...(description && {

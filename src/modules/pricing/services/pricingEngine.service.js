@@ -266,18 +266,19 @@ export const calculateTransactionPricing = async ({
 
     const totalCommission = round2(adminCommission + distributorCommission + retailerCommission);
 
-    // 5. Rule: Admin commission is also deducted from retailer wallet alongside provider charge
-    const totalChargesDeducted = round2(providerCharge + adminCommission);
-
-    // 6. Rule: If retailer has distributor -> distributor gets their share;
-    //          If retailer has NO distributor -> distributor share goes to retailer!
+    // 5. Rule: If retailer has distributor -> distributor gets their share;
+    //          If retailer has NO distributor -> distributor share goes to ADMIN
     let finalRetailerCommission = retailerCommission;
     let finalDistributorCommission = distributorCommission;
+    let finalAdminCommission = adminCommission;
 
     if (!distributorId) {
-      finalRetailerCommission = round2(retailerCommission + distributorCommission);
+      finalAdminCommission = round2(adminCommission + distributorCommission);
       finalDistributorCommission = 0;
     }
+
+    // 6. Rule: Admin commission is also deducted from retailer wallet alongside provider charge
+    const totalChargesDeducted = round2(providerCharge + finalAdminCommission);
 
     // 7. Net Amounts for Wallet
     // For credit transactions (e.g. AEPS Cash Withdrawal): principal + commission - total charges
@@ -296,6 +297,7 @@ export const calculateTransactionPricing = async ({
       distributorId,
       retailerCommission,
       distributorCommission,
+      adminCommission: finalAdminCommission,
       finalRetailerCommission,
       finalDistributorCommission,
     });
@@ -307,7 +309,7 @@ export const calculateTransactionPricing = async ({
       category: resolvedCategoryName || category || null,
       amount: numAmount,
       providerCharge,
-      adminCommission,
+      adminCommission: finalAdminCommission,
       charges: totalChargesDeducted,
       retailerCommission: finalRetailerCommission,
       distributorCommission: finalDistributorCommission,
@@ -318,7 +320,7 @@ export const calculateTransactionPricing = async ({
       netDebitAmount,
       commissionBreakdown: {
         providerCharge,
-        adminCommission,
+        adminCommission: finalAdminCommission,
         distributorCommission: finalDistributorCommission,
         retailerCommission: finalRetailerCommission,
         totalCommission,
