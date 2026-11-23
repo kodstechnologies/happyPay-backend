@@ -629,6 +629,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       transactionId: txnid,
       commissionEarned: 0, // commission is debited as part of netDebitAmount, not earned
       charges: charges,
+      netDebitOverride: netDebitAmount,
       distributorCommission: distributorCommission,
       distributorId: distributorId,
       commissionBreakdown: commissionBreakdown,
@@ -752,6 +753,7 @@ export const processServiceWalletTransaction = async ({
   distributorCommission = 0,
   distributorId = null,
   status = "success",
+  netDebitOverride = null,
 }) => {
   if (!userId) {
     throw ApiError.unauthorized("User ID is required for wallet transaction");
@@ -774,8 +776,14 @@ export const processServiceWalletTransaction = async ({
   // Net amounts:
   // For credit: principal + commissionEarned - charges
   // For debit: principal + charges - commissionEarned
+  // netDebitOverride lets callers (e.g. PAYOUT, DMT) debit an exact amount
+  // when the standard formula doesn't apply.
   const netCreditAmount = Math.round((numAmount + numCommission - numCharges) * 100) / 100;
-  const netDebitAmount = Math.max(0, Math.round((numAmount + numCharges - numCommission) * 100) / 100);
+  const computedNetDebit = Math.max(0, Math.round((numAmount + numCharges - numCommission) * 100) / 100);
+  const netDebitAmount =
+    type === "debit" && netDebitOverride != null && !Number.isNaN(Number(netDebitOverride))
+      ? Math.max(0, Math.round(Number(netDebitOverride) * 100) / 100)
+      : computedNetDebit;
 
   const resolvedTxnId = String(transactionId || generate15CharTxnId("TXN")).trim();
 
@@ -859,6 +867,7 @@ export const processServiceWalletTransaction = async ({
         description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
         commissionEarned: numCommission,
         charges: numCharges,
+        ...(type === "debit" ? { netDebitAmount } : {}),
         ...(commissionBreakdown ? { commissionBreakdown } : {}),
       });
 
@@ -956,6 +965,7 @@ export const processServiceWalletTransaction = async ({
       description: description || `${service} ${type === "credit" ? "Credit" : "Debit"} of ₹${numAmount}`,
       commissionEarned: numCommission,
       charges: numCharges,
+      ...(type === "debit" ? { netDebitAmount } : {}),
       ...(commissionBreakdown ? { commissionBreakdown } : {}),
     });
 

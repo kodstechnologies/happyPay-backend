@@ -370,8 +370,9 @@ export const executeTransactionController = asyncHandler(async (req, res) => {
         amount: effectiveAmount,
         service: "DMT",
         transactionId: dmtTxnId,
-        commissionEarned: pricing.retailerCommission,
+        commissionEarned: 0, // retailer commission is debited, not earned
         charges: pricing.charges,
+        netDebitOverride: Math.round((effectiveAmount + pricing.retailerCommission) * 100) / 100,
         distributorCommission: pricing.distributorCommission,
         distributorId: pricing.distributorId,
         commissionBreakdown: pricing.commissionBreakdown,
