@@ -460,8 +460,9 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
     commissionBreakdown,
   } = pricingResult;
 
-  // Net amount to debit (amount + charges - retailer commission)
-  const netDebitAmount = Math.round((numAmount + charges - retailerCommission) * 100) / 100;
+  // PAYOUT debits principal + charges in full. The retailer commission is
+  // credited back to the wallet as a separate credit once the payout succeeds.
+  const netDebitAmount = Math.round((numAmount + charges) * 100) / 100;
 
   // Check if sufficient balance is available after calculating net debit amount
   if (netDebitAmount > availableBalance) {
@@ -626,7 +627,7 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
       amount: numAmount,
       service: "PAYOUT",
       transactionId: txnid,
-      commissionEarned: retailerCommission,
+      commissionEarned: 0, // commission is credited back separately on success
       charges: charges,
       distributorCommission: distributorCommission,
       distributorId: distributorId,
@@ -657,12 +658,41 @@ export const initiateSettlementPayoutService = async (userId, payload = {}) => {
           providerInitResponse: providerResponse,
           paymentMode: providerPayload.mode || "IMPS",
           netDebitAmount,
+          commissionEarned: retailerCommission,
           distributorCommission,
           distributorId: distributorId || null,
           utr: finalUtrImmediate,
           operatorId: providerResponse?.data?.operator_id || providerResponse?.operator_id || null,
         },
       });
+
+      // Credit the retailer commission back to the wallet as a separate entry
+      if (retailerCommission > 0) {
+        try {
+          const commWallet = await Wallet.findOne({ user: userId });
+          if (commWallet) {
+            const commBefore = Number(commWallet.balance || 0);
+            const commAfter = Math.round((commBefore + retailerCommission) * 100) / 100;
+            commWallet.balance = commAfter;
+            await commWallet.save();
+            await new Transaction({
+              wallet: commWallet._id,
+              type: "credit",
+              amount: retailerCommission,
+              balanceBefore: commBefore,
+              balanceAfter: commAfter,
+              service: "COMMISSION",
+              transactionId: generate15CharTxnId("COM"),
+              status: "success",
+              description: `Commission earned on payout ${txnid}`,
+              commissionEarned: 0,
+              charges: 0,
+            }).save();
+          }
+        } catch (commErr) {
+          console.error("[PAYOUT] Retailer commission credit failed:", commErr?.message || commErr);
+        }
+      }
     }
 
     // Send notification about commission earned (if any)

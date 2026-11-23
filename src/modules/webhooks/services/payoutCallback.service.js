@@ -313,6 +313,16 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
   const internalTxnId = txn.transactionId;
   const netDebitAmount = Number(txn.netDebitAmount || 0);
 
+  // PAYOUT retailer commission is credited back as a separate wallet credit.
+  // Only apply it to transactions created after that change — older pending
+  // txns stored netDebitAmount = amount + charges - commission (already netted).
+  const txnAmount = Number(txn.amount || 0);
+  const txnCharges = Number(txn.charges || 0);
+  const txnCommission = Number(txn.commissionEarned || 0);
+  const commissionCreditedSeparately =
+    txnCommission > 0 &&
+    Math.abs(netDebitAmount - (txnAmount + txnCharges)) < 0.01;
+
   logger.info(
     `[PAYOUT_CALLBACK] Processing SUCCESS. internalTxnId=${internalTxnId} finalizing wallet debit of ₹${netDebitAmount}`
   );
@@ -345,7 +355,12 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
       retailerUserId = wallet.user?.toString() || null;
 
       wallet.balance = Math.round((balanceBefore - netDebitAmount) * 100) / 100;
+      const balanceAfterDebit = wallet.balance;
       wallet.holdBalance = Math.max(0, Math.round((holdBefore - netDebitAmount) * 100) / 100);
+
+      if (commissionCreditedSeparately) {
+        wallet.balance = Math.round((wallet.balance + txnCommission) * 100) / 100;
+      }
       await wallet.save({ session });
 
       balanceAfter = wallet.balance;
@@ -364,13 +379,30 @@ const _processSuccess = async (txn, callbackBody, { utr, operatorId, rawStatus }
             providerCallbackPayload: callbackBody,
             callbackReceivedAt: new Date(),
             balanceBefore,
-            balanceAfter,
+            balanceAfter: balanceAfterDebit,
             ...(utr ? { utr } : {}),
             ...(operatorId ? { operatorId } : {}),
           },
         },
         { session }
       );
+
+      // Record the retailer commission as a separate credit transaction
+      if (commissionCreditedSeparately) {
+        await new Transaction({
+          wallet: wallet._id,
+          type: "credit",
+          amount: txnCommission,
+          balanceBefore: balanceAfterDebit,
+          balanceAfter,
+          service: "COMMISSION",
+          transactionId: generate15CharTxnId("COM"),
+          status: "success",
+          description: `Commission earned on payout ${internalTxnId}`,
+          commissionEarned: 0,
+          charges: 0,
+        }).save({ session });
+      }
     });
   } catch (err) {
     if (err.code === "ALREADY_PROCESSED" || err.message === "ALREADY_PROCESSED") {
