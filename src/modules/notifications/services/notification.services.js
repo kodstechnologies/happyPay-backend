@@ -9,6 +9,35 @@ import {
   updateFcmStatus,
 } from "../repository/notifications.repository.js";
 
+// FCM errors that mean the token can never succeed again — prune the device
+// so we stop retrying it on every notification.
+const DEAD_TOKEN_CODES = [
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-argument",
+  "messaging/sender-id-mismatch",
+  "messaging/third-party-auth-error",
+];
+
+const isDeadFcmToken = (error) => {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return (
+    DEAD_TOKEN_CODES.some((c) => code.includes(c)) ||
+    /SenderId mismatch|Device unregistered|third party webpush/i.test(message)
+  );
+};
+
+const deactivateDeviceToken = async (userId, fcmToken) => {
+  try {
+    await User.updateOne(
+      { _id: userId, "devices.fcmToken": fcmToken },
+      { $set: { "devices.$.isActive": false } }
+    );
+  } catch (err) {
+    console.error("Failed to deactivate dead FCM device:", err.message);
+  }
+};
+
 const sendKycApprovedNotification = async ({
   retailerId,
 }) => {
@@ -512,6 +541,9 @@ const sendWalletTransferNotification = async ({
       } catch (error) {
         console.error("Wallet FCM notification error:", error.message);
         failureReason = error.message;
+        if (isDeadFcmToken(error)) {
+          await deactivateDeviceToken(recipientId, device.fcmToken);
+        }
       }
     }
 
