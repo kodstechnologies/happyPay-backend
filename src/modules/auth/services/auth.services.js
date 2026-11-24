@@ -13,6 +13,7 @@ import {
 } from "../../../utils/jwt.js";
 import { resolveUserAccess } from "../../../utils/rbac.js";
 import { getBankList, onboardMerchant } from "../../external/services/provider.service.js";
+import { generateRetailerId } from "../../../utils/generateTxnId.js";
 
 import {
   findRetailerByEmail,
@@ -1222,6 +1223,14 @@ const getAuthenticatedRetailerService = async (retailerId) => {
         },
       },
     ]);
+  }
+
+  // Backfill retailerId for retailer accounts missing it (covers users created
+  // before OTP-time generation or via flows that skipped it). Distributor
+  // accounts with their own distributorId are skipped.
+  if (!retailer.retailerId && !retailer.distributorId) {
+    retailer.retailerId = generateRetailerId(retailer._id);
+    await retailer.save();
   }
 
   const access = resolveUserAccess(retailer);

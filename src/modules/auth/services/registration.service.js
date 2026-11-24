@@ -20,6 +20,7 @@ import { validatePincode } from "./pincode.service.js";
 import DistributorMapping from "../../network/model/distributorMapping.model.js";
 import Role from "../model/role.model.js";
 import { subscribeToDefaultPlan } from "../../pricing/services/pricing.services.js";
+import { generateRetailerId } from "../../../utils/generateTxnId.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -785,6 +786,15 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   // No need to re-assign role here
 
   await user.save();
+
+  // Safety net: ensure retailer accounts have a retailerId.
+  // Normally generated during mobile OTP verification, but accounts created
+  // before that logic or via alternate flows may be missing it.
+  // Distributor accounts (which have their own distributorId) are skipped.
+  if (!user.retailerId && !user.distributorId) {
+    user.retailerId = generateRetailerId(user._id);
+    await user.save();
+  }
 
   // Auto-subscribe retailer to default plan after registration completion
   try {
