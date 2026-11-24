@@ -170,7 +170,7 @@ const onboardMerchantService = async (userId) => {
   }
 
   const parsedDob = user.dateOfBirth ? toDateOnly(user.dateOfBirth) : "";
-
+  console.log("parsedDob", parsedDob);
   // Normalize gender to the single-letter codes the AEPS provider requires (M / F / T).
   // The DB may store full words like "Male", "Female", "Transgender" from the provider
   // response during registration, so we map them here before forwarding.
