@@ -2025,7 +2025,7 @@ const verifyRetailerEmailUpdateOtp = async ({ userId, otp }) => {
 
   return {
     email: user.email,
-    message: "Email updated successfully. Please verify your new email address.",
+    message: "Email updated successfully.",
   };
 };
 
