@@ -12,6 +12,7 @@ import { generate15CharTxnId } from "../../../utils/generateTxnId.js";
 import UpiTransaction from "../models/upiTransaction.model.js";
 import UpiEkyc from "../models/upiEkyc.model.js";
 import logger from "../../../utils/logger.js";
+import { getUpiStateList, getUpiDistrict } from "../../external/services/provider.service.js";
 
 const fail = (statusCode, message, meta = null) => {
   const error = new Error(message);
@@ -239,25 +240,41 @@ const MOCK_STATES = [
   { description: "West Bengal", code: "WB" },
 ];
 
-const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
-  let states = [...MOCK_STATES];
+// Normalize provider lookup payloads ({ code, description }[]) into our shape
+const normalizeLookupItems = (payload) => {
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload)
+      ? payload
+      : [];
+
+  return list
+    .map((item) => ({
+      description: item?.description ?? item?.name ?? "",
+      code: item?.code ?? item?.stateCode ?? item?.districtCode ?? "",
+    }))
+    .filter((item) => item.description || item.code);
+};
+
+const paginateLookup = (items, { page = 1, limit = 20, search = "" } = {}) => {
+  let filtered = items;
 
   if (search && search.trim()) {
     const searchLower = search.toLowerCase();
-    states = states.filter(
+    filtered = filtered.filter(
       (s) =>
         s.description.toLowerCase().includes(searchLower) ||
         s.code.toLowerCase().includes(searchLower)
     );
   }
 
-  const total = states.length;
+  const total = filtered.length;
   const startIndex = (page - 1) * limit;
   const endIndex = startIndex + limit;
-  const paginatedStates = states.slice(startIndex, endIndex);
+  const paginated = filtered.slice(startIndex, endIndex);
 
   return {
-    data: paginatedStates,
+    data: paginated,
     pagination: {
       page,
       limit,
@@ -267,6 +284,23 @@ const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}
       hasPrevPage: page > 1,
     },
   };
+};
+
+const getUpiStateListService = async ({ page = 1, limit = 20, search = "" } = {}) => {
+  let states = null;
+
+  try {
+    const providerRes = await getUpiStateList();
+    states = normalizeLookupItems(providerRes);
+  } catch (err) {
+    logger.warn(`[UPI StateList] Provider call failed, using fallback: ${err?.message || err}`);
+  }
+
+  if (!states || states.length === 0) {
+    states = [...MOCK_STATES];
+  }
+
+  return paginateLookup(states, { page, limit, search });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,36 +338,24 @@ const MOCK_DISTRICTS = {
 };
 
 const getUpiDistrictService = async ({ stateCode, page = 1, limit = 20, search = "" } = {}) => {
-  let districts = MOCK_DISTRICTS[String(stateCode).toUpperCase()] || [
-    { description: "Default District", code: `${stateCode}01` },
-    { description: "Central District", code: `${stateCode}02` },
-  ];
+  let districts = null;
 
-  if (search && search.trim()) {
-    const searchLower = search.toLowerCase();
-    districts = districts.filter(
-      (d) =>
-        d.description.toLowerCase().includes(searchLower) ||
-        d.code.toLowerCase().includes(searchLower)
-    );
+  try {
+    // Provider accepts the state code as a form field; send common key variants
+    const providerRes = await getUpiDistrict({ statecode: stateCode, stateCode });
+    districts = normalizeLookupItems(providerRes);
+  } catch (err) {
+    logger.warn(`[UPI District] Provider call failed for stateCode=${stateCode}, using fallback: ${err?.message || err}`);
   }
 
-  const total = districts.length;
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedDistricts = districts.slice(startIndex, endIndex);
+  if (!districts || districts.length === 0) {
+    districts = MOCK_DISTRICTS[String(stateCode).toUpperCase()] || [
+      { description: "Default District", code: `${stateCode}01` },
+      { description: "Central District", code: `${stateCode}02` },
+    ];
+  }
 
-  return {
-    data: paginatedDistricts,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNextPage: endIndex < total,
-      hasPrevPage: page > 1,
-    },
-  };
+  return paginateLookup(districts, { page, limit, search });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
