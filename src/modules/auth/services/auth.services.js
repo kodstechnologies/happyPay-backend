@@ -1154,7 +1154,12 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
   retailer.pendingBanks[pendingBankIndex] = {
     ...retailer.pendingBanks[pendingBankIndex],
     name: (newBankDetails.bankName || pendingBank.name).trim(),
-    bank_code: newBankDetails.bank_code ? String(newBankDetails.bank_code).trim() : pendingBank.bank_code,
+    bank_code: newBankDetails.bank_code !== undefined
+      ? String(newBankDetails.bank_code).trim()
+      : pendingBank.bank_code,
+    bankMasterId: newBankDetails.bankMasterId !== undefined
+      ? (newBankDetails.bankMasterId ? String(newBankDetails.bankMasterId).trim() : null)
+      : (pendingBank.bankMasterId || null),
     ifscCode: (newBankDetails.ifscCode || pendingBank.ifscCode).trim().toUpperCase(),
     accountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
     confirmAccountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
