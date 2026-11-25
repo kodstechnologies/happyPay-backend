@@ -49,6 +49,38 @@ import Wallet from "../../wallet/model/wallet.model.js";
  */
 const MAX_BANK_ACCOUNTS = 5;
 
+/**
+ * Duplicate bank account guard.
+ * A bank account is considered a duplicate when BOTH the account number
+ * and IFSC code match an existing approved or pending bank.
+ */
+const findDuplicateBankAccount = (bankLists, { accountNumber, ifscCode }, excludeId) => {
+  const acc = String(accountNumber || "").trim();
+  const ifsc = String(ifscCode || "").trim().toUpperCase();
+  if (!acc || !ifsc) return null;
+
+  for (const list of bankLists) {
+    const match = (list || []).find(
+      (b) =>
+        (!excludeId || !b._id || b._id.toString() !== excludeId) &&
+        String(b.accountNumber || "").trim() === acc &&
+        String(b.ifscCode || "").trim().toUpperCase() === ifsc
+    );
+    if (match) return match;
+  }
+  return null;
+};
+
+const assertNoDuplicateBankAccount = (bankLists, details, excludeId) => {
+  if (findDuplicateBankAccount(bankLists, details, excludeId)) {
+    const error = new Error(
+      "This bank account (account number + IFSC) is already linked or pending approval."
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+};
+
 /* ==============================
    Helper to Resolve eKYC Data
 ============================== */
@@ -1151,6 +1183,19 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
   }
 
   // Update bank details and reset to pending
+  const resubmitAccountNumber = String(
+    newBankDetails.accountNumber || pendingBank.accountNumber || ""
+  ).trim();
+  const resubmitIfscCode = String(
+    newBankDetails.ifscCode || pendingBank.ifscCode || ""
+  ).trim().toUpperCase();
+
+  assertNoDuplicateBankAccount(
+    [retailer.banks, retailer.pendingBanks],
+    { accountNumber: resubmitAccountNumber, ifscCode: resubmitIfscCode },
+    pendingBank._id
+  );
+
   retailer.pendingBanks[pendingBankIndex] = {
     ...retailer.pendingBanks[pendingBankIndex],
     name: (newBankDetails.bankName || pendingBank.name).trim(),
@@ -1160,9 +1205,9 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
     bankMasterId: newBankDetails.bankMasterId !== undefined
       ? (newBankDetails.bankMasterId ? String(newBankDetails.bankMasterId).trim() : null)
       : (pendingBank.bankMasterId || null),
-    ifscCode: (newBankDetails.ifscCode || pendingBank.ifscCode).trim().toUpperCase(),
-    accountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
-    confirmAccountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
+    ifscCode: resubmitIfscCode,
+    accountNumber: resubmitAccountNumber,
+    confirmAccountNumber: resubmitAccountNumber,
     branchName: (newBankDetails.branchName || pendingBank.branchName).trim(),
     approvalStatus: "pending",
     rejectionReason: null,
@@ -1415,6 +1460,11 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     }
 
     if (body.accountNumber && body.ifscCode) {
+      assertNoDuplicateBankAccount(
+        [user.banks, user.pendingBanks],
+        { accountNumber: body.accountNumber, ifscCode: body.ifscCode }
+      );
+
       const shouldBePrimary =
         Boolean(body.isPrimary) || (!user.banks || user.banks.length === 0);
 
@@ -1447,6 +1497,12 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
       );
 
       if (bankIndex >= 0) {
+        assertNoDuplicateBankAccount(
+          [user.banks, user.pendingBanks],
+          { accountNumber: body.accountNumber, ifscCode: body.ifscCode },
+          targetId
+        );
+
         const shouldBePrimary =
           body.isPrimary !== undefined
             ? Boolean(body.isPrimary)
@@ -1492,10 +1548,19 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
     };
 
     if (!user.banks || user.banks.length === 0) {
+      assertNoDuplicateBankAccount(
+        [user.pendingBanks],
+        { accountNumber: body.accountNumber, ifscCode: body.ifscCode }
+      );
       user.banks = [updatedBank];
     } else {
       const primaryIdx = user.banks.findIndex((b) => b.isPrimary);
       if (primaryIdx >= 0) {
+        assertNoDuplicateBankAccount(
+          [user.banks, user.pendingBanks],
+          { accountNumber: body.accountNumber, ifscCode: body.ifscCode },
+          user.banks[primaryIdx]._id
+        );
         user.banks[primaryIdx] = {
           ...user.banks[primaryIdx],
           ...updatedBank,
@@ -1512,6 +1577,10 @@ const updateRetailerProfileService = async (retailerId, body = {}, files = {}) =
           error.statusCode = 400;
           throw error;
         }
+        assertNoDuplicateBankAccount(
+          [user.banks, user.pendingBanks],
+          { accountNumber: body.accountNumber, ifscCode: body.ifscCode }
+        );
         user.banks.unshift(updatedBank);
       }
     }

@@ -941,6 +941,23 @@ const rejectBankService = async (retailerId, pendingBankId, adminId, rejectionRe
   return buildRetailerReview(retailer);
 };
 
+const findDuplicateBankAccount = (bankLists, { accountNumber, ifscCode }, excludeId) => {
+  const acc = String(accountNumber || "").trim();
+  const ifsc = String(ifscCode || "").trim().toUpperCase();
+  if (!acc || !ifsc) return null;
+
+  for (const list of bankLists) {
+    const match = (list || []).find(
+      (b) =>
+        (!excludeId || !b._id || b._id.toString() !== excludeId) &&
+        String(b.accountNumber || "").trim() === acc &&
+        String(b.ifscCode || "").trim().toUpperCase() === ifsc
+    );
+    if (match) return match;
+  }
+  return null;
+};
+
 /**
  * Allow retailer to resubmit a rejected bank
  */
@@ -972,6 +989,26 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
     throw fail(409, "Only rejected banks can be resubmitted");
   }
 
+  const resubmitAccountNumber = String(
+    newBankDetails.accountNumber || pendingBank.accountNumber || ""
+  ).trim();
+  const resubmitIfscCode = String(
+    newBankDetails.ifscCode || pendingBank.ifscCode || ""
+  ).trim().toUpperCase();
+
+  if (
+    findDuplicateBankAccount(
+      [retailer.banks, retailer.pendingBanks],
+      { accountNumber: resubmitAccountNumber, ifscCode: resubmitIfscCode },
+      pendingBank._id
+    )
+  ) {
+    throw fail(
+      409,
+      "This bank account (account number + IFSC) is already linked or pending approval."
+    );
+  }
+
   // Update bank details and reset to pending
   retailer.pendingBanks[pendingBankIndex] = {
     ...retailer.pendingBanks[pendingBankIndex],
@@ -982,9 +1019,9 @@ const resubmitBankService = async (retailerId, pendingBankId, newBankDetails) =>
     bankMasterId: newBankDetails.bankMasterId !== undefined
       ? (newBankDetails.bankMasterId ? String(newBankDetails.bankMasterId).trim() : null)
       : (pendingBank.bankMasterId || null),
-    ifscCode: (newBankDetails.ifscCode || pendingBank.ifscCode).trim().toUpperCase(),
-    accountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
-    confirmAccountNumber: (newBankDetails.accountNumber || pendingBank.accountNumber).trim(),
+    ifscCode: resubmitIfscCode,
+    accountNumber: resubmitAccountNumber,
+    confirmAccountNumber: resubmitAccountNumber,
     branchName: (newBankDetails.branchName || pendingBank.branchName).trim(),
     approvalStatus: "pending",
     rejectionReason: null,
