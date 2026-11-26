@@ -310,6 +310,46 @@ const doEkycController = async (req, res) => {
         "Failed to check eKYC status at bank gateway";
     }
 
+    // Provider sometimes returns "already completed" as an error payload
+    // (status FAILED wrapper with action NO-ACTION-REQUIRED / status APPROVED
+    // nested inside). Treat it as a successful completion.
+    const providerPayload =
+      providerData?.data && typeof providerData.data === "object"
+        ? providerData.data
+        : providerData;
+    const providerAction = String(
+      providerPayload?.action || providerData?.action || ""
+    ).trim().toUpperCase();
+    const providerTxnStatus = String(providerPayload?.status || "")
+      .trim()
+      .toUpperCase();
+
+    if (
+      providerAction === "NO-ACTION-REQUIRED" ||
+      providerTxnStatus === "APPROVED"
+    ) {
+      const catchUserId = req.body?.userId;
+      if (catchUserId) {
+        await updateEKYCStatus(catchUserId, "COMPLETED");
+      }
+
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: providerData,
+            status: "NO-ACTION-REQUIRED",
+            statusCode: 200,
+            message: String(actualMessage),
+            kycRequired: false,
+            eKYCStatus: "COMPLETED",
+          },
+          String(actualMessage),
+          null,
+          200
+        )
+      );
+    }
+
     const rawStatus = Number(error?.statusCode || error?.response?.status || providerData?.statusCode || providerData?.code);
     const resolvedStatus = rawStatus >= 400 && rawStatus < 600 ? rawStatus : 400;
 
