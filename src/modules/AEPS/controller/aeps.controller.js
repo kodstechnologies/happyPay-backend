@@ -1238,7 +1238,7 @@ const cashWithdrawController = async (req, res) => {
           service: "AEPS",
           transactionId: aepsTxnId,
           commissionEarned: pricing.retailerCommission,
-          charges: pricing.charges,
+          charges: 0,
           distributorCommission: pricing.distributorCommission,
           distributorId: pricing.distributorId,
           commissionBreakdown: pricing.commissionBreakdown,
