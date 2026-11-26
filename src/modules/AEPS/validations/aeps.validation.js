@@ -52,11 +52,8 @@ const commonOutletFields = {
 
   referenceKey: Joi.string()
     .trim()
-    .required()
-    .messages({
-      "any.required": "Reference key is required",
-      "string.empty": "Reference key is required",
-    }),
+    .allow(null, "")
+    .optional(),
 
   latitude: Joi.alternatives()
     .try(Joi.number().min(-90).max(90), Joi.string().trim())
@@ -529,11 +526,8 @@ const outletRegisterSchema = Joi.object({
 
   referenceKey: Joi.string()
     .trim()
-    .required()
-    .messages({
-      "any.required": "Reference key is required",
-      "string.empty": "Reference key is required",
-    }),
+    .allow(null, "")
+    .optional(),
 }).unknown(true);
 
 const outletRegisterVerifySchema = Joi.object({
@@ -547,11 +541,8 @@ const outletRegisterVerifySchema = Joi.object({
 
   referenceKey: Joi.string()
     .trim()
-    .required()
-    .messages({
-      "any.required": "Reference key is required",
-      "string.empty": "Reference key is required",
-    }),
+    .allow(null, "")
+    .optional(),
 
   otp: Joi.alternatives()
     .try(Joi.string().trim(), Joi.number())

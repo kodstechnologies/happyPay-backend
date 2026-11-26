@@ -5,6 +5,10 @@ import {
   checkLoginStatus,
   isKycRequired,
   onboardMerchantService,
+  extractProviderEkycFields,
+  normalizeAction,
+  persistAepsEkycState,
+  resolveAepsReferenceKey,
 } from "../services/aeps.service.js";
 import { resolveBankForAeps } from "../../bankMaster/services/bankMaster.service.js";
 import {
@@ -64,9 +68,10 @@ const getRetailerKycDetailsController = async (req, res) => {
 };
 
 const doEkycController = async (req, res) => {
-  try {
-    const { outlet_id, userId } = req.body;
+  const { outlet_id, userId: bodyUserId } = req.body;
+  const userId = bodyUserId || req.user?.userId || req.user?._id || req.user?.id;
 
+  try {
     if (!outlet_id) {
       return res.status(400).json(
         ApiResponse.error("outlet_id is required", null, null, 400)
@@ -80,52 +85,33 @@ const doEkycController = async (req, res) => {
     const result = await doEkyc(payload);
     console.log("-------------result", result);
 
-    // Determine eKYC status and action from provider response
-    const rawAction = result?.data?.action
-    const providerAction = rawAction ? String(rawAction).trim().toUpperCase() : "";
+    // Determine eKYC status, action, referenceKey, and pidOptionWadh from provider response
+    const fields = extractProviderEkycFields(result);
+    const providerStatus = String(
+      result?.status || result?.data?.status || fields.status || ""
+    ).trim().toUpperCase();
+    const providerAction = normalizeAction(fields.action);
     const kycRequired = isKycRequired(result);
+    const referenceKey = fields.referenceKey;
+    const pidOptionWadh = fields.pidOptionWadh;
 
     const isNoActionRequired =
-      providerAction === "NO-ACTION-REQUIRED"
-
+      providerAction === "NO-ACTION-REQUIRED" ||
+      fields.innerStatus.toUpperCase() === "APPROVED";
 
     const isActionRequired =
       !isNoActionRequired &&
-      (providerAction === "ACTION-REQUIRED" ||
-        providerAction === "ACTION_REQUIRED" ||
-        providerAction === "ACTION REQUIRED" ||
-        kycRequired);
+      (providerAction === "ACTION-REQUIRED" || kycRequired);
 
     if (isNoActionRequired) {
-      // Extract referenceKey and pidOptionWadh from the provider response
-      const referenceKey =
-        result?.data?.referenceKey ||
-        result?.referenceKey ||
-        result?.data?.referencekey ||
-        result?.referencekey ||
-        result?.data?.reference_key ||
-        result?.reference_key;
-      const pidOptionWadh =
-        result?.data?.pidOptionWadh ||
-        result?.pidOptionWadh ||
-        result?.data?.pidoptionwadh ||
-        result?.pidoptionwadh ||
-        result?.data?.wadh ||
-        result?.wadh;
-      let saved = null;
-
-      if (referenceKey && userId) {
-        saved = await recordEkycOutlet({
-          userId: userId,
-          outletId: outlet_id,
-          referenceKey: referenceKey,
-          pidOptionWadh: pidOptionWadh,
-        });
-      }
-
-      if (userId) {
-        await updateEKYCStatus(userId, "COMPLETED");
-      }
+      const saved = await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey,
+        pidOptionWadh,
+        eKYCStatus: "COMPLETED",
+        eKYCRejectionReason: null,
+      });
 
       return res.status(200).json(
         ApiResponse.success(
@@ -134,8 +120,8 @@ const doEkycController = async (req, res) => {
             status: "NO-ACTION-REQUIRED",
             statusCode: 200,
             message: "NO-ACTION-REQUIRED",
-            referenceKey: referenceKey,
-            pidOptionWadh: pidOptionWadh,
+            referenceKey: referenceKey || saved?.referenceKey || null,
+            pidOptionWadh: pidOptionWadh || saved?.pidOptionWadh || null,
             ekyc: saved,
             eKYCStatus: "COMPLETED",
           },
@@ -147,22 +133,6 @@ const doEkycController = async (req, res) => {
     }
 
     if (isActionRequired) {
-      // Extract referenceKey and pidOptionWadh from the provider response
-      const referenceKey =
-        result?.data?.referenceKey ||
-        result?.referenceKey ||
-        result?.data?.referencekey ||
-        result?.referencekey ||
-        result?.data?.reference_key ||
-        result?.reference_key;
-      const pidOptionWadh =
-        result?.data?.pidOptionWadh ||
-        result?.pidOptionWadh ||
-        result?.data?.pidoptionwadh ||
-        result?.pidoptionwadh ||
-        result?.data?.wadh ||
-        result?.wadh;
-
       if (!referenceKey) {
         const gatewayMsg =
           result?.msg ||
@@ -175,9 +145,14 @@ const doEkycController = async (req, res) => {
         );
       }
 
-      if (userId) {
-        await updateEKYCStatus(userId, "ACTION_REQUIRED");
-      }
+      const saved = await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey,
+        pidOptionWadh,
+        eKYCStatus: "ACTION_REQUIRED",
+        eKYCRejectionReason: null,
+      });
 
       return res.status(200).json(
         ApiResponse.success(
@@ -186,9 +161,9 @@ const doEkycController = async (req, res) => {
             status: "ACTION-REQUIRED",
             statusCode: 200,
             message: "ACTION-REQUIRED",
-            referenceKey: referenceKey,
-            pidOptionWadh: pidOptionWadh,
-            ekyc: null,
+            referenceKey,
+            pidOptionWadh,
+            ekyc: saved,
             kycRequired: true,
             eKYCStatus: "ACTION_REQUIRED",
           },
@@ -206,9 +181,15 @@ const doEkycController = async (req, res) => {
         result?.data?.msg ||
         result?.data?.message ||
         "eKYC verification failed";
-      if (userId) {
-        await updateEKYCStatus(userId, "FAILED", rejectionReason);
-      }
+
+      await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey,
+        pidOptionWadh,
+        eKYCStatus: "FAILED",
+        eKYCRejectionReason: rejectionReason,
+      });
 
       return res.status(400).json(
         ApiResponse.error(
@@ -218,6 +199,8 @@ const doEkycController = async (req, res) => {
             status: "FAILED",
             statusCode: 400,
             message: rejectionReason,
+            referenceKey: referenceKey || null,
+            pidOptionWadh: pidOptionWadh || null,
             kycRequired: false,
             eKYCStatus: "FAILED",
           },
@@ -228,9 +211,14 @@ const doEkycController = async (req, res) => {
     }
 
     if (providerStatus === "COMPLETED" || providerStatus === "SUCCESS") {
-      if (userId) {
-        await updateEKYCStatus(userId, "COMPLETED");
-      }
+      const saved = await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey,
+        pidOptionWadh,
+        eKYCStatus: "COMPLETED",
+        eKYCRejectionReason: null,
+      });
 
       return res.status(200).json(
         ApiResponse.success(
@@ -239,6 +227,9 @@ const doEkycController = async (req, res) => {
             status: "COMPLETED",
             statusCode: 200,
             message: result?.msg || result?.message || "eKYC completed successfully",
+            referenceKey: referenceKey || saved?.referenceKey || null,
+            pidOptionWadh: pidOptionWadh || saved?.pidOptionWadh || null,
+            ekyc: saved,
             kycRequired: false,
             eKYCStatus: "COMPLETED",
           },
@@ -250,20 +241,12 @@ const doEkycController = async (req, res) => {
     }
 
     // Default fallback
-    const referenceKey =
-      result?.data?.referenceKey ||
-      result?.referenceKey ||
-      result?.data?.referencekey ||
-      result?.referencekey ||
-      result?.data?.reference_key ||
-      result?.reference_key;
-    const pidOptionWadh =
-      result?.data?.pidOptionWadh ||
-      result?.pidOptionWadh ||
-      result?.data?.pidoptionwadh ||
-      result?.pidoptionwadh ||
-      result?.data?.wadh ||
-      result?.wadh;
+    const saved = await persistAepsEkycState({
+      userId,
+      outletId: outlet_id,
+      referenceKey,
+      pidOptionWadh,
+    });
 
     return res.status(200).json(
       ApiResponse.success(
@@ -272,11 +255,11 @@ const doEkycController = async (req, res) => {
           status: "SUCCESS",
           statusCode: 200,
           message: "eKYC status checked successfully",
-          referenceKey,
-          pidOptionWadh,
-          ekyc: null,
+          referenceKey: referenceKey || saved?.referenceKey || null,
+          pidOptionWadh: pidOptionWadh || saved?.pidOptionWadh || null,
+          ekyc: saved,
           kycRequired: false,
-          eKYCStatus: "PENDING",
+          eKYCStatus: saved?.eKYCStatus || "PENDING",
         },
         "eKYC status checked successfully",
         null,
@@ -310,28 +293,27 @@ const doEkycController = async (req, res) => {
         "Failed to check eKYC status at bank gateway";
     }
 
-    // Provider sometimes returns "already completed" as an error payload
-    // (status FAILED wrapper with action NO-ACTION-REQUIRED / status APPROVED
-    // nested inside). Treat it as a successful completion.
-    const providerPayload =
-      providerData?.data && typeof providerData.data === "object"
-        ? providerData.data
-        : providerData;
-    const providerAction = String(
-      providerPayload?.action || providerData?.action || ""
-    ).trim().toUpperCase();
-    const providerTxnStatus = String(providerPayload?.status || "")
+    const fields = extractProviderEkycFields(providerData || error);
+    const providerAction = normalizeAction(fields.action);
+    const providerTxnStatus = String(fields.innerStatus || fields.status || "")
       .trim()
       .toUpperCase();
 
+    // Provider sometimes returns "already completed" as an error payload
+    // (status FAILED wrapper with action NO-ACTION-REQUIRED / status APPROVED
+    // nested inside). Treat it as a successful completion and persist referenceKey if present.
     if (
       providerAction === "NO-ACTION-REQUIRED" ||
       providerTxnStatus === "APPROVED"
     ) {
-      const catchUserId = req.body?.userId;
-      if (catchUserId) {
-        await updateEKYCStatus(catchUserId, "COMPLETED");
-      }
+      const saved = await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey: fields.referenceKey,
+        pidOptionWadh: fields.pidOptionWadh,
+        eKYCStatus: "COMPLETED",
+        eKYCRejectionReason: null,
+      });
 
       return res.status(200).json(
         ApiResponse.success(
@@ -340,6 +322,9 @@ const doEkycController = async (req, res) => {
             status: "NO-ACTION-REQUIRED",
             statusCode: 200,
             message: String(actualMessage),
+            referenceKey: fields.referenceKey || saved?.referenceKey || null,
+            pidOptionWadh: fields.pidOptionWadh || saved?.pidOptionWadh || null,
+            ekyc: saved,
             kycRequired: false,
             eKYCStatus: "COMPLETED",
           },
@@ -348,6 +333,17 @@ const doEkycController = async (req, res) => {
           200
         )
       );
+    }
+
+    // Even when check-ekyc fails (e.g. "Outlet not yet registered with bank" or
+    // ACTION-REQUIRED wrapped as error), persist any returned referenceKey/pidOptionWadh.
+    if (fields.referenceKey || fields.pidOptionWadh) {
+      await persistAepsEkycState({
+        userId,
+        outletId: outlet_id,
+        referenceKey: fields.referenceKey,
+        pidOptionWadh: fields.pidOptionWadh,
+      });
     }
 
     const rawStatus = Number(error?.statusCode || error?.response?.status || providerData?.statusCode || providerData?.code);
@@ -428,7 +424,7 @@ const withBiometricDefaults = (payload) => {
 };
 
 const doBioEkycController = asyncHandler(async (req, res) => {
-  const userId = req.body.userId || req.user?.userId;
+  const userId = req.body.userId || req.user?.userId || req.user?._id || req.user?.id;
 
   if (!userId) {
     return res.status(401).json(
@@ -436,12 +432,18 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     );
   }
 
-  const inputRefKey =
+  const rawInputRefKey =
     req.body.referenceKey ||
     req.body.referencekey ||
     req.body.ReferenceKey ||
     req.body.reference_key ||
     req.body.refKey;
+
+  const inputRefKey = await resolveAepsReferenceKey({
+    userId,
+    outletId: req.body.outlet_id,
+    providedReferenceKey: rawInputRefKey,
+  });
 
   const rawBiometric = pickFields(req.body, biometricFields);
   if (inputRefKey && !rawBiometric.referenceKey) {
@@ -464,7 +466,7 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   } catch (error) {
     console.log("doBioEkyc error:", error);
 
-    // Check for AEPS activation pending error
+    // Check for AEPS activation pending or already completed
     const providerData = error?.providerData || error?.response?.data;
     let actualMessage =
       error?.message ||
@@ -481,32 +483,78 @@ const doBioEkycController = asyncHandler(async (req, res) => {
       }
     }
 
-    // Check if error is about AEPS activation pending
-    if (actualMessage && typeof actualMessage === "string") {
-      const lowerMessage = actualMessage.toLowerCase();
-      if (lowerMessage.includes("aeps activation pending") ||
-          lowerMessage.includes("activation is pending") ||
-          lowerMessage.includes("pending at the bank") ||
-          lowerMessage.includes("pending from the bank")) {
-        // Update status to PENDING activation
-        if (userId) {
-          await updateEKYCStatus(userId, "PENDING", actualMessage);
-        }
+    const errFields = extractProviderEkycFields(providerData || error);
+    const effectiveRefKey = errFields.referenceKey || inputRefKey;
+    const effectiveWadh = errFields.pidOptionWadh || payload.pidOptionWadh;
+    const errAction = normalizeAction(errFields.action);
+    const errInnerStatus = String(errFields.innerStatus || errFields.status || "").trim().toUpperCase();
+    const lowerMessage = typeof actualMessage === "string" ? actualMessage.toLowerCase() : "";
 
-        return res.status(400).json(
-          ApiResponse.error(
-            "AEPS activation is pending from the bank",
-            {
-              provider: providerData,
-              status: "PENDING",
-              eKYCStatus: "PENDING",
-              referenceKey: inputRefKey,
-            },
-            null,
-            400
-          )
-        );
-      }
+    if (
+      errAction === "NO-ACTION-REQUIRED" ||
+      errInnerStatus === "APPROVED" ||
+      lowerMessage.includes("already completed") ||
+      lowerMessage.includes("no action required")
+    ) {
+      const saved = await persistAepsEkycState({
+        userId,
+        outletId: payload.outlet_id,
+        referenceKey: effectiveRefKey,
+        pidOptionWadh: effectiveWadh,
+        eKYCStatus: "COMPLETED",
+        eKYCRejectionReason: null,
+      });
+
+      return res.status(200).json(
+        ApiResponse.success(
+          {
+            provider: providerData,
+            ekyc: saved,
+            referenceKey: effectiveRefKey || saved?.referenceKey || null,
+          },
+          "Biometric eKYC completed successfully"
+        )
+      );
+    }
+
+    // Check if error is about AEPS activation pending
+    if (
+      lowerMessage.includes("aeps activation pending") ||
+      lowerMessage.includes("activation is pending") ||
+      lowerMessage.includes("pending at the bank") ||
+      lowerMessage.includes("pending from the bank")
+    ) {
+      await persistAepsEkycState({
+        userId,
+        outletId: payload.outlet_id,
+        referenceKey: effectiveRefKey,
+        pidOptionWadh: effectiveWadh,
+        eKYCStatus: "PENDING",
+        eKYCRejectionReason: actualMessage,
+      });
+
+      return res.status(400).json(
+        ApiResponse.error(
+          "AEPS activation is pending from the bank",
+          {
+            provider: providerData,
+            status: "PENDING",
+            eKYCStatus: "PENDING",
+            referenceKey: effectiveRefKey || null,
+          },
+          null,
+          400
+        )
+      );
+    }
+
+    if (effectiveRefKey || effectiveWadh) {
+      await persistAepsEkycState({
+        userId,
+        outletId: payload.outlet_id,
+        referenceKey: effectiveRefKey,
+        pidOptionWadh: effectiveWadh,
+      });
     }
 
     throw error;
@@ -515,18 +563,13 @@ const doBioEkycController = asyncHandler(async (req, res) => {
   console.log("====================================result", result);
 
   // Extract referenceKey and pidOptionWadh from the provider response
+  const fields = extractProviderEkycFields(result);
   const referenceKey =
-    result?.data?.referenceKey ||
-    result?.referenceKey ||
-    result?.data?.referencekey ||
-    result?.referencekey ||
+    fields.referenceKey ||
     payload.referenceKey ||
     inputRefKey;
   const pidOptionWadh =
-    result?.data?.pidOptionWadh ||
-    result?.pidOptionWadh ||
-    result?.data?.pidoptionwadh ||
-    result?.pidoptionwadh ||
+    fields.pidOptionWadh ||
     payload.pidOptionWadh;
 
   if (!referenceKey) {
@@ -535,17 +578,14 @@ const doBioEkycController = asyncHandler(async (req, res) => {
     );
   }
 
-  const saved = await recordEkycOutlet({
+  const saved = await persistAepsEkycState({
     userId,
     outletId: payload.outlet_id,
     referenceKey,
     pidOptionWadh,
     eKYCStatus: "COMPLETED",
+    eKYCRejectionReason: null,
   });
-
-  if (userId) {
-    await updateEKYCStatus(userId, "COMPLETED");
-  }
 
   return res.status(200).json(
     ApiResponse.success(
@@ -596,6 +636,18 @@ const verifyTfaController = async (req, res) => {
       "aadhaar",
       "ts",
     ]);
+
+    const tfaUserId = req.user?.userId || req.user?._id || req.user?.id;
+    if (!payload.referenceKey) {
+      const resolvedRefKey = await resolveAepsReferenceKey({
+        userId: tfaUserId,
+        outletId: payload.outlet_id,
+        providedReferenceKey: payload.referenceKey,
+      });
+      if (resolvedRefKey) {
+        payload.referenceKey = resolvedRefKey;
+      }
+    }
 
     // Step 5: Verify TFA only when actcode is LOGINREQUIRED
     const result = await verifyTfa(payload);
@@ -753,10 +805,17 @@ const balanceEnquiryController = async (req, res) => {
     }
     // ───────────────────────────────────────────────────────────────────────
 
+    const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+    const resolvedReferenceKey = await resolveAepsReferenceKey({
+      userId,
+      outletId: outlet_id,
+      providedReferenceKey: referenceKey,
+    });
+
     // Prepare payload for provider API
     const payload = {
       outlet_id,
-      referenceKey,
+      ...(resolvedReferenceKey ? { referenceKey: resolvedReferenceKey } : {}),
       latitude,
       longitude,
       aadhaar,
@@ -868,10 +927,17 @@ const miniStatementController = async (req, res) => {
     }
     // ───────────────────────────────────────────────────────────────────────
 
+    const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+    const resolvedReferenceKey = await resolveAepsReferenceKey({
+      userId,
+      outletId: outlet_id,
+      providedReferenceKey: referenceKey,
+    });
+
     // Prepare payload for provider API
     const payload = {
       outlet_id,
-      referenceKey,
+      ...(resolvedReferenceKey ? { referenceKey: resolvedReferenceKey } : {}),
       latitude,
       longitude,
       aadhaar,
@@ -914,7 +980,6 @@ const miniStatementController = async (req, res) => {
     console.log("Mini Statement Successful");
 
     // Step: Credit ₹1 to retailer wallet after successful mini statement
-    const userId = req.user?.userId || req.user?._id || req.user?.id;
     console.log("===== MINI STATEMENT WALLET CREDIT START =====");
     console.log("User ID:", userId);
 
@@ -1087,11 +1152,21 @@ const cashWithdrawController = async (req, res) => {
     }
     // ───────────────────────────────────────────────────────────────────────
 
+    const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+    const resolvedReferenceKey =
+      Number(amount) > 5000
+        ? await resolveAepsReferenceKey({
+            userId,
+            outletId: outlet_id,
+            providedReferenceKey: referenceKey,
+          })
+        : referenceKey;
+
     const txnid = generate15CharTxnId("TXN")
     // Prepare payload for provider API
     const payload = {
       outlet_id,
-      referenceKey,
+      ...(resolvedReferenceKey ? { referenceKey: resolvedReferenceKey } : { referenceKey }),
       txnid,
       latitude,
       longitude,
@@ -1140,7 +1215,6 @@ const cashWithdrawController = async (req, res) => {
       result?.msg === "Transaction Successful" ||
       Boolean(result?.txnid);
 
-    const userId = req.user?.userId || req.user?._id || req.body?.userId;
     const withdrawAmount = Math.round(Number(amount || result?.amount || 0) * 100) / 100;
 
     // Atomically credit retailer wallet & log AEPS transaction history
@@ -1250,10 +1324,17 @@ const sendOtpController = async (req, res) => {
     }
     // ───────────────────────────────────────────────────────────────────────
 
+    const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+    const resolvedReferenceKey = await resolveAepsReferenceKey({
+      userId,
+      outletId: outlet_id,
+      providedReferenceKey: referenceKey,
+    });
+
     // Prepare payload for provider API
     const payload = {
       outlet_id,
-      referenceKey,
+      ...(resolvedReferenceKey ? { referenceKey: resolvedReferenceKey } : {}),
       latitude,
       longitude,
       aadhaar,
@@ -1346,10 +1427,17 @@ const cashDepositController = async (req, res) => {
     }
     // ───────────────────────────────────────────────────────────────────────
 
+    const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
+    const resolvedReferenceKey = await resolveAepsReferenceKey({
+      userId,
+      outletId: outlet_id,
+      providedReferenceKey: referenceKey,
+    });
+
     const payload = {
       txnid,
       outlet_id,
-      referenceKey,
+      ...(resolvedReferenceKey ? { referenceKey: resolvedReferenceKey } : {}),
       latitude,
       longitude,
       aadhaar,
@@ -1384,7 +1472,6 @@ const cashDepositController = async (req, res) => {
 
     console.log("Cash Deposit Payload:", payload);
 
-    const userId = req.user?.userId || req.user?._id || req.body?.userId;
     const depositAmount = Math.round(Number(amount || 0) * 100) / 100;
 
     // 1. Pre-flight guard: Ensure retailer has sufficient wallet balance before hitting provider
@@ -1520,6 +1607,7 @@ const onboardController = asyncHandler(async (req, res) => {
 
 const outletRegisterController = asyncHandler(async (req, res) => {
   const { outlet_id, referenceKey } = req.body;
+  const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
 
   if (!outlet_id) {
     return res.status(400).json(
@@ -1527,7 +1615,13 @@ const outletRegisterController = asyncHandler(async (req, res) => {
     );
   }
 
-  if (!referenceKey) {
+  const effectiveRefKey = await resolveAepsReferenceKey({
+    userId,
+    outletId: outlet_id,
+    providedReferenceKey: referenceKey,
+  });
+
+  if (!effectiveRefKey) {
     return res.status(400).json(
       ApiResponse.error("referenceKey is required", null, null, 400)
     );
@@ -1535,12 +1629,20 @@ const outletRegisterController = asyncHandler(async (req, res) => {
 
   const payload = {
     outlet_id: String(outlet_id),
-    referenceKey: String(referenceKey),
+    referenceKey: String(effectiveRefKey),
   };
 
   console.log("========== [outletRegister Payload] ==========", payload);
   const result = await outletRegister(payload);
   console.log("========== [outletRegister Result] ==========", result);
+
+  const fields = extractProviderEkycFields(result);
+  await persistAepsEkycState({
+    userId,
+    outletId: outlet_id,
+    referenceKey: fields.referenceKey || effectiveRefKey,
+    pidOptionWadh: fields.pidOptionWadh,
+  });
 
   return res.status(200).json(
     ApiResponse.success(
@@ -1554,6 +1656,7 @@ const outletRegisterController = asyncHandler(async (req, res) => {
 
 const outletRegisterVerifyController = asyncHandler(async (req, res) => {
   const { outlet_id, referenceKey, otp } = req.body;
+  const userId = req.user?.userId || req.user?._id || req.user?.id || req.body?.userId;
 
   if (!outlet_id) {
     return res.status(400).json(
@@ -1561,7 +1664,13 @@ const outletRegisterVerifyController = asyncHandler(async (req, res) => {
     );
   }
 
-  if (!referenceKey) {
+  const effectiveRefKey = await resolveAepsReferenceKey({
+    userId,
+    outletId: outlet_id,
+    providedReferenceKey: referenceKey,
+  });
+
+  if (!effectiveRefKey) {
     return res.status(400).json(
       ApiResponse.error("referenceKey is required", null, null, 400)
     );
@@ -1575,13 +1684,21 @@ const outletRegisterVerifyController = asyncHandler(async (req, res) => {
 
   const payload = {
     outlet_id: String(outlet_id),
-    referenceKey: String(referenceKey),
+    referenceKey: String(effectiveRefKey),
     otp: String(otp),
   };
 
   console.log("========== [outletRegisterVerify Payload] ==========", payload);
   const result = await outletRegisterVerify(payload);
   console.log("========== [outletRegisterVerify Result] ==========", result);
+
+  const fields = extractProviderEkycFields(result);
+  await persistAepsEkycState({
+    userId,
+    outletId: outlet_id,
+    referenceKey: fields.referenceKey || effectiveRefKey,
+    pidOptionWadh: fields.pidOptionWadh,
+  });
 
   return res.status(200).json(
     ApiResponse.success(

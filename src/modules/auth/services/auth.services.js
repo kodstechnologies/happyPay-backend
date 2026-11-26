@@ -790,10 +790,19 @@ const retailerRegister = async (data) => {
   // Create new user with registration details
   const user = await createRetailer(mappedData);
 
+  const onboardRefKey =
+    providerData?.referenceKey ||
+    providerData?.referencekey ||
+    providerData?.ReferenceKey ||
+    providerResult?.referenceKey ||
+    providerResult?.referencekey ||
+    undefined;
+
   // Save AepsEkyc document and link to user
   const ekycDoc = await saveAepsEkyc({
     userId: user._id,
     outletId: String(outletId),
+    ...(onboardRefKey ? { referenceKey: String(onboardRefKey).trim() } : {}),
     eKYCStatus: "PENDING",
   });
   user.AepsEkyc = ekycDoc._id;

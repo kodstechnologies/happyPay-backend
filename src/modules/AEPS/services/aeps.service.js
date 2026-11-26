@@ -2,8 +2,9 @@ import {
   findRetailerById,
   saveAepsEkyc,
   findAepsEkycByUserId,
+  findAepsEkycByOutletId,
 } from "../repository/aeps.repository.js";
-import { getLoginStatus, onboardMerchant } from "../../external/services/provider.service.js";
+import { doEkyc, getLoginStatus, onboardMerchant } from "../../external/services/provider.service.js";
 import User from "../../auth/model/user.model.js";
 
 const fail = (statusCode, message, meta = null) => {
@@ -58,6 +59,197 @@ const getRetailerKycDetails = async (retailerId) => {
     mobile: retailer.mobile || null,
     email: retailer.email || null,
   };
+};
+
+const extractProviderEkycFields = (payload) => {
+  const extracted = {
+    referenceKey: null,
+    pidOptionWadh: null,
+    outletId: null,
+    action: "",
+    status: "",
+    innerStatus: "",
+  };
+
+  const seen = new Set();
+  const walk = (current, depth = 0) => {
+    if (!current || typeof current !== "object" || seen.has(current)) return;
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      for (const item of current) walk(item, depth + 1);
+      return;
+    }
+
+    const refCandidate =
+      current.referenceKey ??
+      current.referencekey ??
+      current.ReferenceKey ??
+      current.reference_key ??
+      current.refKey ??
+      current.ref_key;
+    if (!extracted.referenceKey && !isBlank(refCandidate)) {
+      extracted.referenceKey = String(refCandidate).trim();
+    }
+
+    const wadhCandidate =
+      current.pidOptionWadh ??
+      current.pidoptionwadh ??
+      current.PidOptionWadh ??
+      current.wadh ??
+      current.Wadh;
+    if (!extracted.pidOptionWadh && !isBlank(wadhCandidate)) {
+      extracted.pidOptionWadh = String(wadhCandidate).trim();
+    }
+
+    const outletCandidate = current.outletId ?? current.outlet_id ?? current.outletid;
+    if (!extracted.outletId && !isBlank(outletCandidate)) {
+      extracted.outletId = String(outletCandidate).trim();
+    }
+
+    const actionCandidate = current.action ?? current.Action;
+    if (!extracted.action && !isBlank(actionCandidate)) {
+      extracted.action = String(actionCandidate).trim();
+    }
+
+    const statusCandidate = current.status ?? current.Status;
+    if (!isBlank(statusCandidate)) {
+      const normalized = String(statusCandidate).trim();
+      if (depth === 0 && !extracted.status) {
+        extracted.status = normalized;
+      } else if (depth > 0 && !extracted.innerStatus) {
+        extracted.innerStatus = normalized;
+      }
+    }
+
+    for (const value of Object.values(current)) {
+      if (value && typeof value === "object") {
+        walk(value, depth + 1);
+      }
+    }
+  };
+
+  walk(payload, 0);
+  return extracted;
+};
+
+const normalizeAction = (action) =>
+  String(action || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_]+/g, "-");
+
+const persistAepsEkycState = async ({
+  userId,
+  outletId,
+  referenceKey,
+  pidOptionWadh,
+  eKYCStatus,
+  eKYCRejectionReason,
+}) => {
+  let existing = userId ? await findAepsEkycByUserId(userId) : null;
+  if (!existing && !isBlank(outletId)) {
+    existing = await findAepsEkycByOutletId(outletId);
+  }
+
+  const resolvedUserId = userId || existing?.userId;
+  if (!resolvedUserId) {
+    return null;
+  }
+
+  const resolvedOutletId = !isBlank(outletId)
+    ? String(outletId).trim()
+    : existing?.outletId;
+
+  if (isBlank(resolvedOutletId)) {
+    return null;
+  }
+
+  return saveAepsEkyc({
+    userId: resolvedUserId,
+    outletId: resolvedOutletId,
+    referenceKey: !isBlank(referenceKey) ? String(referenceKey).trim() : undefined,
+    pidOptionWadh: !isBlank(pidOptionWadh) ? String(pidOptionWadh).trim() : undefined,
+    eKYCStatus,
+    eKYCRejectionReason,
+  });
+};
+
+const resolveAepsReferenceKey = async ({
+  userId,
+  outletId,
+  providedReferenceKey,
+  fetchIfMissing = true,
+}) => {
+  if (!isBlank(providedReferenceKey)) {
+    return String(providedReferenceKey).trim();
+  }
+
+  let existing = userId ? await findAepsEkycByUserId(userId) : null;
+  if (!existing && !isBlank(outletId)) {
+    existing = await findAepsEkycByOutletId(outletId);
+  }
+
+  if (!isBlank(existing?.referenceKey)) {
+    return String(existing.referenceKey).trim();
+  }
+
+  const resolvedOutletId = !isBlank(outletId)
+    ? String(outletId).trim()
+    : existing?.outletId;
+
+  if (!fetchIfMissing || isBlank(resolvedOutletId)) {
+    return null;
+  }
+
+  // Attempt to fetch/generate referenceKey via provider doEkyc and backfill AepsEkyc
+  try {
+    const result = await doEkyc({ outlet_id: resolvedOutletId });
+    const fields = extractProviderEkycFields(result);
+    const normalizedAction = normalizeAction(fields.action);
+    const statusToSave =
+      normalizedAction === "NO-ACTION-REQUIRED" ||
+      fields.innerStatus.toUpperCase() === "APPROVED"
+        ? "COMPLETED"
+        : normalizedAction === "ACTION-REQUIRED"
+          ? "ACTION_REQUIRED"
+          : undefined;
+
+    if (fields.referenceKey || statusToSave) {
+      await persistAepsEkycState({
+        userId: userId || existing?.userId,
+        outletId: resolvedOutletId,
+        referenceKey: fields.referenceKey,
+        pidOptionWadh: fields.pidOptionWadh,
+        eKYCStatus: statusToSave,
+      });
+    }
+
+    return fields.referenceKey || null;
+  } catch (error) {
+    const providerData = error?.providerData || error?.response?.data || error?.data;
+    const fields = extractProviderEkycFields(providerData);
+    const normalizedAction = normalizeAction(fields.action);
+    const statusToSave =
+      normalizedAction === "NO-ACTION-REQUIRED" ||
+      fields.innerStatus.toUpperCase() === "APPROVED"
+        ? "COMPLETED"
+        : normalizedAction === "ACTION-REQUIRED"
+          ? "ACTION_REQUIRED"
+          : undefined;
+
+    if (fields.referenceKey || statusToSave) {
+      await persistAepsEkycState({
+        userId: userId || existing?.userId,
+        outletId: resolvedOutletId,
+        referenceKey: fields.referenceKey,
+        pidOptionWadh: fields.pidOptionWadh,
+        eKYCStatus: statusToSave,
+      });
+    }
+
+    return fields.referenceKey || null;
+  }
 };
 
 const recordEkycOutlet = async ({ userId, outletId, referenceKey, pidOptionWadh, eKYCStatus }) => {
@@ -283,9 +475,16 @@ const onboardMerchantService = async (userId) => {
     );
   }
 
+  const {
+    referenceKey: onboardRefKey,
+    pidOptionWadh: onboardWadh,
+  } = extractProviderEkycFields(providerResult);
+
   const ekycDoc = await saveAepsEkyc({
     userId: user._id,
     outletId: String(outletId),
+    referenceKey: onboardRefKey || undefined,
+    pidOptionWadh: onboardWadh || undefined,
     eKYCStatus: "PENDING",
   });
 
@@ -295,6 +494,7 @@ const onboardMerchantService = async (userId) => {
   return {
     userId: user._id,
     outletId: ekycDoc.outletId,
+    referenceKey: ekycDoc.referenceKey || null,
     eKYCStatus: ekycDoc.eKYCStatus,
     onboarding: providerResult,
   };
@@ -306,4 +506,8 @@ export {
   checkLoginStatus,
   isKycRequired,
   onboardMerchantService,
+  extractProviderEkycFields,
+  normalizeAction,
+  persistAepsEkycState,
+  resolveAepsReferenceKey,
 };

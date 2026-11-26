@@ -11,18 +11,32 @@ const findRetailerById = async (retailerId) => {
     .populate("AepsEkyc");
 };
 
-const saveAepsEkyc = async ({ userId, outletId, referenceKey, pidOptionWadh, eKYCStatus }) => {
+const saveAepsEkyc = async ({
+  userId,
+  outletId,
+  referenceKey,
+  pidOptionWadh,
+  eKYCStatus,
+  eKYCRejectionReason,
+}) => {
   const updateData = {
     userId,
-    ...(outletId ? { outletId: String(outletId).trim() } : {}),
-    ...(referenceKey ? { referenceKey: String(referenceKey).trim() } : {}),
-    ...(pidOptionWadh !== undefined ? { pidOptionWadh: pidOptionWadh ? String(pidOptionWadh).trim() : null } : {}),
+    ...(outletId !== undefined && outletId !== null && String(outletId).trim() !== ""
+      ? { outletId: String(outletId).trim() }
+      : {}),
+    ...(referenceKey !== undefined && referenceKey !== null && String(referenceKey).trim() !== ""
+      ? { referenceKey: String(referenceKey).trim() }
+      : {}),
+    ...(pidOptionWadh !== undefined
+      ? { pidOptionWadh: pidOptionWadh ? String(pidOptionWadh).trim() : null }
+      : {}),
     ...(eKYCStatus ? { eKYCStatus } : {}),
+    ...(eKYCRejectionReason !== undefined ? { eKYCRejectionReason } : {}),
   };
 
   const saved = await AepsEkyc.findOneAndUpdate(
     { userId },
-    updateData,
+    { $set: updateData },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   );
 
@@ -33,8 +47,14 @@ const saveAepsEkyc = async ({ userId, outletId, referenceKey, pidOptionWadh, eKY
 };
 
 const findAepsEkycByUserId = async (userId) => {
+  if (!userId) return null;
   return AepsEkyc.findOne({ userId });
 };
 
-export { findRetailerById, saveAepsEkyc, findAepsEkycByUserId };
+const findAepsEkycByOutletId = async (outletId) => {
+  if (!outletId || String(outletId).trim() === "") return null;
+  return AepsEkyc.findOne({ outletId: String(outletId).trim() });
+};
+
+export { findRetailerById, saveAepsEkyc, findAepsEkycByUserId, findAepsEkycByOutletId };
 

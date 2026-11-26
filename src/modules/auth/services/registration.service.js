@@ -487,9 +487,18 @@ const registerRetailer = async (body = {}) => {
     },
   });
 
+  const onboardRefKey =
+    providerResult?.data?.referenceKey ||
+    providerResult?.data?.referencekey ||
+    providerResult?.data?.ReferenceKey ||
+    providerResult?.referenceKey ||
+    providerResult?.referencekey ||
+    undefined;
+
   const ekycDoc = await saveAepsEkyc({
     userId: user._id,
     outletId: String(outletId),
+    ...(onboardRefKey ? { referenceKey: String(onboardRefKey).trim() } : {}),
     eKYCStatus: "PENDING",
   });
   await savedUser.assignRole("retailer", "Retailer");
