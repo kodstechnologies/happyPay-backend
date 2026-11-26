@@ -27,6 +27,7 @@ import {
   getCurrentRegistrationStep,
 } from "../services/registration.service.js";
 
+import { resolvePrimaryRoleName } from "../../../utils/rbac.js";
 import ApiResponse from "../../../utils/ApiResponse.js";
 import cloudinary from "../../../config/cloudinary.js";
 import { deleteObject } from "../../../utils/s3/putObject.js";
@@ -187,7 +188,8 @@ const verifyRetailerLoginOtp = async (req, res) => {
 
     // Add role to the response data
     if (data?.user) {
-      data.role = data.user.roles?.[0] ? { name: data.user.roles[0] } : null;
+      const primaryRoleName = resolvePrimaryRoleName(data.user.roles);
+      data.role = primaryRoleName ? { name: primaryRoleName } : null;
     }
 
     if (data?.accessToken) {

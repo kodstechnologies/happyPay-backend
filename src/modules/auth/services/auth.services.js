@@ -11,7 +11,7 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from "../../../utils/jwt.js";
-import { resolveUserAccess } from "../../../utils/rbac.js";
+import { resolveUserAccess, resolvePrimaryRoleName } from "../../../utils/rbac.js";
 import { getBankList, onboardMerchant } from "../../external/services/provider.service.js";
 import { generateRetailerId } from "../../../utils/generateTxnId.js";
 
@@ -1321,6 +1321,7 @@ const getAuthenticatedRetailerService = async (retailerId) => {
     UpiEkyc: upiEkycObj,
     roles: access.roles,
     permissions: access.permissions,
+    role: { name: resolvePrimaryRoleName(access.roles) || "retailer" },
     isMobileVerified: !!retailer.isMobileVerified,
     isEmailVerified: !!retailer.isEmailVerified,
     status: retailer.status,
