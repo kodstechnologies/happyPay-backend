@@ -13,7 +13,10 @@ import {
   findByPan,
   saveRetailerRegistration,
 } from "../repository/user.repository.js";
-import { addOrUpdateDevice } from "../repository/auth.repository.js";
+import { addOrUpdateDevice, addRefreshToken } from "../repository/auth.repository.js";
+import { generateAccessToken, generateRefreshToken } from "../../../utils/jwt.js";
+import { resolveUserAccess } from "../../../utils/rbac.js";
+import env from "../../../config/env.js";
 import { saveAepsEkyc } from "../../AEPS/repository/aeps.repository.js";
 import "../../AEPS/model/aepsEkyc.model.js";
 import { validatePincode } from "./pincode.service.js";
@@ -28,6 +31,21 @@ const fail = (statusCode, message, meta = null) => {
   error.meta = meta;
   error.data = meta;
   return error;
+};
+
+const getRefreshTokenExpiryDate = () => {
+  const expiresIn = env.JWT_REFRESH_EXPIRES_IN || "30d";
+  const match = String(expiresIn).match(/^(\d+)([smhd])$/);
+  if (!match) {
+    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  }
+  const multipliers = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+  return new Date(Date.now() + Number(match[1]) * multipliers[match[2]]);
 };
 
 const isBlank = (value) =>
@@ -858,12 +876,65 @@ const updateBankDetailsAndOnboard = async (body = {}) => {
   // Auto-subscribe the new retailer to the Default Plan (non-blocking)
   await subscribeToDefaultPlan(user._id);
 
+  // Issue auth tokens so the retailer can access authenticated pages
+  // (e.g. /retailer/kyc-pending) immediately after registration.
+  let accessToken = null;
+  let refreshToken = null;
+  try {
+    await user.populate({
+      path: "roles",
+      populate: { path: "permissions" },
+    });
+
+    const access = resolveUserAccess(user);
+    const ekyc =
+      user.AepsEkyc && typeof user.AepsEkyc === "object"
+        ? user.AepsEkyc
+        : null;
+    const outletId = ekyc?.outletId || null;
+    const referenceKey = ekyc?.referenceKey || null;
+
+    accessToken = generateAccessToken({
+      userId: user._id.toString(),
+      email: user.email,
+      userType: "retailer",
+      outletid: outletId,
+      outletId,
+      referenceKey,
+      eKYCStatus: ekyc?.eKYCStatus || "PENDING",
+      roles: access.roles,
+      permissions: access.permissions,
+    });
+    refreshToken = generateRefreshToken({
+      userId: user._id.toString(),
+      userType: "retailer",
+      outletid: outletId,
+      outletId,
+      referenceKey,
+    });
+
+    await addRefreshToken(user._id, {
+      token: refreshToken,
+      deviceId: body.deviceId || "unknown",
+      expiresAt: getRefreshTokenExpiryDate(),
+      lastUsedAt: new Date(),
+    });
+  } catch (tokenErr) {
+    console.warn(
+      "Token issuance during registration failed (non-fatal):",
+      tokenErr?.message
+    );
+  }
+
   return {
     userId: user._id,
     outletId: user.AepsEkyc?.outletId || null,
     user: buildRetailerResponse(user),
     registrationStatus: user.registrationStatus,
     currentRegistrationStep: user.currentRegistrationStep,
+    accessToken,
+    refreshToken,
+    token: accessToken,
     // isUpgradedToDistributor,
   };
 };
