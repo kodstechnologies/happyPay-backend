@@ -77,8 +77,8 @@ const PROVIDER_ROUTES = {
     initiatePayment: `${PROVIDER_API_PREFIX}/cms/docms`,
   },
   payoutSettlement:{
-       settlement:`${PROVIDER_API_PREFIX}/settlement-payout/dopayout`,
-       checkSettlement_status:`${PROVIDER_API_PREFIX}/settlement-payout/status-check`,
+       settlement:`${PROVIDER_API_PREFIX}/payout-bank5/dopayout`,
+       checkSettlement_status:`${PROVIDER_API_PREFIX}/payout-bank5/status-check`,
        bankList:`${PROVIDER_API_PREFIX}/settlement-payout/banklist`
   }
 
