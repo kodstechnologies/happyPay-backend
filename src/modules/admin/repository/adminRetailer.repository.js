@@ -1,5 +1,6 @@
 import User from "../../auth/model/user.model.js";
 import Role from "../../auth/model/role.model.js";
+import Wallet from "../../wallet/model/wallet.model.js";
 import { escapeRegex } from "../../../utils/queryHelpers.js";
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,19 @@ const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus, 
     User.countDocuments(query),
   ]);
 
+  const wallets = await Wallet.find({
+    user: { $in: items.map((item) => item._id) },
+  })
+    .select("user balance holdBalance")
+    .lean();
+
+  const balanceByUserId = new Map(
+    wallets.map((w) => [
+      String(w.user?._id || w.user),
+      Math.round((Number(w.balance || 0) - Number(w.holdBalance || 0)) * 100) / 100,
+    ])
+  );
+
   return {
     items: items.map((item) => {
       const hasDistributorRole =
@@ -101,6 +115,7 @@ const listRetailers = async ({ page = 1, limit = 20, search, status, kycStatus, 
         panCard: item.panNumber || item.panCard || "-",
         status: item.status || "active",
         kycStatus: item.adminApproved || item.kycStatus || "pending",
+        walletBalance: balanceByUserId.get(String(item._id)) ?? 0,
       };
     }),
     total,
